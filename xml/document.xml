@@ -329,7 +329,7 @@
     <display-math id="sec3-disp1">
 <![CDATA[\operatorname{argmin}_{x \in \mathbb{R}^{n}} \left\{ f_{3}(x) + \lambda_{4} g(x) \right\}]]>
 </display-math>
-    <figure id="fig-sec3" label="fig:fig-sec3" placement="[b]">
+    <figure id="fig-sec3" label="fig:fig-sec3" placement="[t]">
       <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
       <caption>Section 3 asset overview</caption>
     </figure>
