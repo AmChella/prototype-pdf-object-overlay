@@ -1,0 +1,46 @@
+{
+  "name": "pdf-overlay-coordinates",
+  "version": "1.0.0",
+  "description": "PDF overlay coordinate generation and testing",
+  "scripts": {
+    "build": "python3 build_pdf_json.py",
+    "build:marked": "python3 build_pdf_json.py MultiColumn-CS-working-marked.tex",
+    "build:original": "python3 build_pdf_json.py MultiColumn-CS-working.tex",
+    "clean": "rm -f TeX/*.aux TeX/*.log TeX/*.fls TeX/*.fdb_latexmk TeX/*.synctex.gz TeX/*.out TeX/*.toc TeX/*.pdf TeX/*.tex TeX/*.json TeX/*.ndjson",
+    "serve": "python3 -m http.server 8000",
+    "server": "node server/server.js",
+    "dev:server": "node server/server.js & npm run serve",
+    "test": "npm run build && npm run serve",
+    "dev": "npm run build:marked && npm run serve",
+    "start": "node src/cli.js",
+    "test-engine": "node src/test-tex-engine.js",
+    "test:cli": "node src/cli.js --run-test",
+    "tex:pdf": "node src/tex-to-pdf.js"
+  },
+  "keywords": [
+    "pdf",
+    "coordinates",
+    "overlay",
+    "latex",
+    "lualatex"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "nanoid": "^3.0.0",
+    "pdfjs-dist": "^5.4.296",
+    "peggy": "^1.2.0",
+    "xmldom": "^0.6.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "express": "^4.18.2",
+    "fs-extra": "^11.1.1",
+    "ws": "^8.14.2",
+    "xmldom": "^0.6.0",
+    "xpath": "^0.0.32"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}

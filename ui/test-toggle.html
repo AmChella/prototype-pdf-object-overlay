@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Overlay Toggle Test</title>
+    <style>
+        body { margin: 20px; font-family: Arial, sans-serif; }
+        .test-container { 
+            border: 1px solid #ccc; 
+            padding: 20px; 
+            margin: 10px 0; 
+            background: #f9f9f9; 
+        }
+        .instructions {
+            background: #e7f5ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .instructions h3 { margin-top: 0; }
+        .instructions ul { padding-left: 20px; }
+        .instructions li { margin: 5px 0; }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>📄 PDF Overlay Toggle Feature Test</h1>
+    
+    <div class="instructions">
+        <h3>🧪 Test Instructions:</h3>
+        <ol>
+            <li><strong>Load a PDF:</strong> Click "Load PDF" to load the default PDF</li>
+            <li><strong>Load coordinates:</strong> Select a JSON file from the dropdown and click "Load JSON"</li>
+            <li><strong>Test the toggle button:</strong> 
+                <ul>
+                    <li>Click the green <strong>"👁️ Hide Overlays"</strong> button to hide overlays</li>
+                    <li>Button should turn red and show <strong>"🙈 Show Overlays"</strong></li>
+                    <li>All overlay rectangles should disappear</li>
+                    <li>Click again to show overlays</li>
+                </ul>
+            </li>
+            <li><strong>Test keyboard shortcut:</strong> Press the <strong>'O'</strong> key to toggle overlays</li>
+            <li><strong>Check status indicator:</strong> Verify the status shows "Visible" or "Hidden" correctly</li>
+        </ol>
+        
+        <h3>✨ Features Added:</h3>
+        <ul>
+            <li>🔄 <strong>Toggle Button:</strong> Hide/show all overlays with one click</li>
+            <li>⌨️ <strong>Keyboard Shortcut:</strong> Press 'O' key to toggle</li>
+            <li>📊 <strong>Status Indicator:</strong> Shows overlay visibility in top-right status</li>
+            <li>🎨 <strong>Visual Feedback:</strong> Button changes color when overlays are hidden</li>
+            <li>💾 <strong>State Persistence:</strong> Toggle state maintained during page navigation</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h3>🎯 Interactive Test Area</h3>
+        <iframe src="index.html" title="PDF Overlay Application"></iframe>
+    </div>
+
+    <div class="test-container">
+        <h3>📋 Expected Behavior:</h3>
+        <ul>
+            <li><strong>Button Text:</strong> Changes between "👁️ Hide Overlays" and "🙈 Show Overlays"</li>
+            <li><strong>Button Color:</strong> Green when overlays visible, red when hidden</li>
+            <li><strong>Overlay Visibility:</strong> All red overlay rectangles disappear/appear</li>
+            <li><strong>Status Update:</strong> Top-right indicator shows "Visible" or "Hidden"</li>
+            <li><strong>Keyboard Response:</strong> 'O' key works same as button click</li>
+        </ul>
+    </div>
+</body>
+</html>

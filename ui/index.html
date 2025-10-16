@@ -1,0 +1,974 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>PDF Overlay Prototype</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --border-radius: 6px;
+            --box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 1rem;
+        }
+
+        .page-header h1 {
+            text-align: center;
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .page-header p {
+            text-align: center;
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        #viewerContainer {
+            position: relative;
+            width: 90vw;
+            margin: 16px auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+        }
+
+        .pageWrapper {
+            position: relative;
+        }
+
+        .overlay-layer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+        }
+
+        .overlay-rect {
+            position: absolute;
+            border: 2px solid rgba(255, 0, 0, 0.8);
+            background: rgba(255, 0, 0, 0.08);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .overlay-rect:hover {
+            border-color: rgba(255, 0, 0, 1);
+            background: rgba(255, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .overlay-rect::before {
+            content: attr(data-id);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 1px 4px;
+            font-size: 9px;
+            border-radius: 2px;
+            font-family: monospace;
+            font-weight: bold;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .overlay-rect::after {
+            content: attr(data-id) " (" attr(data-unit) ")";
+            position: absolute;
+            top: -20px;
+            left: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 2px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .unit-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(52, 152, 219, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .overlay-rect:hover::after {
+            opacity: 1;
+        }
+
+        /* simple modal */
+        #modal {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modal .box {
+            background: #fff;
+            padding: 16px;
+            width: 400px;
+            border-radius: 6px;
+        }
+
+        #modal textarea {
+            width: 100%;
+            height: 100px;
+        }
+
+        .control-panel {
+            width: 90vw;
+            margin: 0 auto 1rem auto;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+        }
+
+        .control-section {
+            margin-bottom: 0.5rem;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .control-section:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            color: white;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        .section-header:hover {
+            background: linear-gradient(135deg, #34495e, var(--primary-color));
+        }
+
+        .section-header.active {
+            background: linear-gradient(135deg, var(--secondary-color), #2980b9);
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-icon {
+            font-size: 1.1rem;
+        }
+
+        .accordion-toggle {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            width: 20px;
+            text-align: center;
+        }
+
+        .section-header.active .accordion-toggle {
+            transform: rotate(180deg);
+        }
+
+        .section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: var(--light-bg);
+        }
+
+        .section-content.active {
+            max-height: 500px;
+            transition: max-height 0.3s ease-in;
+        }
+
+        .section-body {
+            padding: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .section-label {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 0.5rem;
+            min-width: 50px;
+            display: none; /* Hide in accordion mode */
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .input-group label {
+            font-weight: 500;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .form-control, select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .form-control:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .btn {
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary { background: var(--secondary-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-warning { background: var(--warning-color); color: white; }
+        .btn-danger { background: var(--danger-color); color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+
+        /* Page Navigation Styles */
+        #pageNavigation button {
+            transition: all 0.2s ease;
+        }
+
+        #pageNavigation button:hover:not(:disabled) {
+            background: #495057 !important;
+            transform: translateY(-1px);
+        }
+
+        #pageNavigation button:disabled {
+            opacity: 0.6;
+        }
+
+        #pageInput {
+            transition: border-color 0.2s ease;
+        }
+
+        #pageInput:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        #unitSelect {
+            background: linear-gradient(to bottom, #f9f9f9, #e3e3e3);
+            font-weight: bold;
+        }
+
+        .pageWrapper.outlined {
+            border: 2px dashed #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+        }
+
+        .pageWrapper.outlined::before {
+            content: attr(data-dimensions);
+            position: absolute;
+            top: -25px;
+            left: 0;
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+            z-index: 1000;
+        }
+
+        .coordinate-grid {
+            position: absolute;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        button.active {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #debugBtn {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #debugBtn:hover {
+            background: #e67e22;
+        }
+
+        #analyzeBtn {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #analyzeBtn:hover {
+            background: #8e44ad;
+        }
+
+        #autoDetectBtn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #autoDetectBtn:hover {
+            background: #c0392b;
+        }
+
+        #toggleOverlaysBtn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #toggleOverlaysBtn:hover {
+            background: #27ae60;
+        }
+
+        #toggleOverlaysBtn.overlays-hidden {
+            background: #e74c3c;
+        }
+
+        #toggleOverlaysBtn.overlays-hidden:hover {
+            background: #c0392b;
+        }
+
+        .overlays-hidden .overlay-rect {
+            display: none !important;
+        }
+
+        /* Enhanced status indicators - Compact icon-only style */
+        .status-panel {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            z-index: 1000;
+            min-width: 80px;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .status-panel:hover {
+            opacity: 1;
+            min-width: 150px;
+            transform: scale(1.02);
+        }
+
+        .status-panel.expanded {
+            min-width: 150px;
+            opacity: 1;
+            transform: scale(1.02);
+        }
+
+        .status-panel:active {
+            transform: scale(0.98);
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            padding: 0.1rem 0;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            font-weight: 500;
+            color: var(--primary-color);
+            font-size: 0.7rem;
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .status-panel:hover .status-label,
+        .status-panel.expanded .status-label {
+            opacity: 1;
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .status-value {
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .status-icon {
+            font-size: 0.8rem;
+            margin-right: 0.3rem;
+        }
+
+        /* Status value colors */
+        .status-loaded { color: var(--success-color); }
+        .status-connected { color: var(--success-color); }
+        .status-none { color: #6c757d; }
+        .status-disconnected { color: var(--danger-color); }
+        .status-error { color: var(--danger-color); }
+        .status-warning { color: var(--warning-color); }
+
+        .status-connected { color: var(--success-color); }
+        .status-disconnected { color: var(--danger-color); }
+        .status-loaded { color: var(--success-color); }
+        .status-none { color: #6c757d; }
+
+        /* Drag and Drop styles */
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            background: var(--light-bg);
+            padding: 2rem;
+            text-align: center;
+            border-radius: var(--border-radius);
+            margin: 1rem auto;
+            width: 90vw;
+            transition: var(--transition);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--secondary-color);
+            background: rgba(52, 152, 219, 0.1);
+            transform: scale(1.02);
+        }
+
+        .drop-zone p {
+            margin: 0.5rem 0;
+            color: #6c757d;
+        }
+
+        .drop-zone.hidden {
+            display: none;
+        }
+
+        /* Page navigation styling */
+        .page-nav {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin: 1rem auto;
+            width: 90vw;
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .page-input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--light-bg);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Progress Bar Styles */
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+
+        .progress-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-width: 400px;
+            text-align: center;
+            animation: progressSlideIn 0.3s ease-out;
+        }
+
+        @keyframes progressSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .progress-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar-wrapper {
+            background: #f0f0f0;
+            border-radius: 10px;
+            height: 8px;
+            margin: 1rem 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary-color), var(--success-color));
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress-bar.indeterminate {
+            width: 30%;
+            animation: progressIndeterminate 2s ease-in-out infinite;
+        }
+
+        @keyframes progressIndeterminate {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(300%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin: 1.5rem 0 1rem 0;
+            font-size: 0.8rem;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .progress-step::before {
+            content: '';
+            width: 100%;
+            height: 2px;
+            background: #e0e0e0;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            z-index: 1;
+        }
+
+        .progress-step:last-child::before {
+            display: none;
+        }
+
+        .progress-step-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            position: relative;
+            z-index: 2;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-step.active .progress-step-circle {
+            background: var(--secondary-color);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .progress-step.completed .progress-step-circle {
+            background: var(--success-color);
+        }
+
+        .progress-step.completed::before {
+            background: var(--success-color);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+        }
+
+        .progress-step-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .progress-cancel-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+
+        .progress-cancel-btn:hover {
+            background: #c0392b;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="page-header">
+        <h1>🎯 PDF Element Overlay System</h1>
+        <p>Interactive PDF coordinate tracking and element overlay testing</p>
+    </header>
+
+    <div class="control-panel">
+        <!-- PDF Management Section -->
+        <div class="control-section">
+            <div class="section-header" onclick="toggleAccordion(this)">
+                <div class="section-title">
+                    <span class="section-icon">📄</span>
+                    PDF Management
+                </div>
+                <span class="accordion-toggle">▼</span>
+            </div>
+            <div class="section-content active">
+                <div class="section-body">
+                    <div class="input-group">
+                        <label>File:</label>
+                        <input id="pdfUrl" type="text" class="form-control" style="min-width: 300px;"
+                               placeholder="🎯 Auto-loaded from generation or enter PDF URL" value="" />
+                        <input id="pdfFileInput" type="file" accept=".pdf" style="display: none;" />
+                        <button id="uploadPdfBtn" class="btn btn-primary">📁 Upload</button>
+                        <!-- <button id="loadBtn" class="btn btn-success">📄 Load PDF</button> -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JSON Coordinates Section -->
+        <div class="control-section">
+            <div class="section-header" onclick="toggleAccordion(this)">
+                <div class="section-title">
+                    <span class="section-icon">📊</span>
+                    Coordinate Data
+                </div>
+                <span class="accordion-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="section-body">
+                    <div class="input-group">
+                        <label>Coordinates:</label>
+                        <select id="jsonSelect" class="form-control" style="min-width: 250px;">
+                            <option value="">🎯 Use generated coordinates (recommended)</option>
+                            <option value="/ui/coordinate-test.json">coordinate-test.json (New Test)</option>
+                            <option value="/ui/test-coordinates.json">test-coordinates.json (Original)</option>
+                            <option value="/TeX/MultiColumn-CS-working-boxes.json">MultiColumn-CS-working-boxes.json</option>
+                            <option value="/TeX/multicolumn-boxes.json">multicolumn-boxes.json</option>
+                        </select>
+                        <input id="jsonFileInput" type="file" accept=".json" style="display: none;" />
+                        <button id="uploadJsonBtn" class="btn btn-warning">📁 Upload</button>
+                        <!-- <button id="loadJsonBtn" class="btn btn-success">📊 Load JSON</button> -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Display & Analysis Tools -->
+        <div class="control-section">
+            <div class="section-header" onclick="toggleAccordion(this)">
+                <div class="section-title">
+                    <span class="section-icon">🛠️</span>
+                    Display & Analysis Tools
+                </div>
+                <span class="accordion-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="section-body">
+                    <div class="input-group">
+                        <label>Units:</label>
+                        <select id="unitSelect" class="form-control">
+                            <option value="pt">Points (pt)</option>
+                            <option value="px">Pixels (px)</option>
+                            <option value="mm">Millimeters (mm)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Origin:</label>
+                        <select id="coordinateOrigin" class="form-control">
+                            <option value="bottom-left">Bottom-Left (PDF Standard)</option>
+                            <option value="top-left">Top-Left</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <button id="toggleOutlineBtn" class="btn btn-secondary">📐 Show Outline</button>
+                        <button id="toggleOverlaysBtn" class="btn btn-success" title="Toggle overlay visibility (Press 'O' key)">👁️ Hide Overlays</button>
+                        <button id="debugBtn" class="btn btn-warning">🐛 Debug</button>
+                        <button id="analyzeBtn" class="btn btn-primary">🔍 Analyze</button>
+                        <button id="autoDetectBtn" class="btn btn-danger">🎯 Auto-Detect</button>
+                        <button id="testProgressBtn" class="btn btn-secondary" onclick="testProgressBar()">🧪 Test Progress</button>
+                        <button id="testAutoLoadBtn" class="btn btn-secondary" onclick="testAutoLoad()">🔄 Test Auto-Load</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag and Drop Zone -->
+    <div id="dropZone" class="drop-zone hidden">
+        <p>📁 Drop PDF or JSON files here</p>
+        <p style="font-size: 12px;">PDF files will be loaded automatically • JSON files will be loaded as coordinate data</p>
+    </div>
+
+    <!-- Page Navigation -->
+    <div id="pageNavigation" class="page-nav" style="display: none;">
+        <div class="nav-controls">
+            <button id="firstPageBtn" class="btn btn-secondary">⏮️ First</button>
+            <button id="prevPageBtn" class="btn btn-secondary">⬅️ Previous</button>
+
+            <div class="page-input-group">
+                <span class="status-label">Page</span>
+                <input id="pageInput" type="number" min="1" value="1" class="form-control" style="width: 80px; text-align: center;">
+                <span style="color: #6c757d;">of</span>
+                <span id="totalPages" class="status-value">1</span>
+            </div>
+
+            <button id="nextPageBtn" class="btn btn-secondary">Next ➡️</button>
+            <button id="lastPageBtn" class="btn btn-secondary">Last ⏭️</button>
+        </div>
+
+        <div style="text-align: center; font-size: 0.8rem; color: #6c757d; padding-bottom: 1rem;">
+            <span id="pageInfo">Use arrow keys or click buttons to navigate • Press Enter in page input to jump to specific page</span>
+        </div>
+    </div>
+
+    <div id="viewerContainer"></div>
+
+    <!-- Enhanced Status Panel - Compact Icon Mode -->
+    <div id="statusIndicator" class="status-panel" onclick="toggleStatusPanel(this)" title="Click to expand/collapse status details">
+        <div class="status-item">
+            <span class="status-icon">📄</span>
+            <span class="status-label">PDF:</span>
+            <span id="pdfStatus" class="status-value status-none">❌</span>
+        </div>
+        <div class="status-item">
+            <span class="status-icon">📊</span>
+            <span class="status-label">JSON:</span>
+            <span id="jsonStatus" class="status-value status-none">❌</span>
+        </div>
+        <div class="status-item">
+            <span class="status-icon">👁️</span>
+            <span class="status-label">Overlays:</span>
+            <span id="overlayStatus" class="status-value status-loaded">✅</span>
+        </div>
+        <div class="status-item">
+            <span class="status-icon">📏</span>
+            <span class="status-label">Units:</span>
+            <span id="currentUnit" class="status-value status-loaded">✅</span>
+        </div>
+        <div class="status-item" id="connectionStatus" style="display: none;">
+            <span class="status-icon">🔗</span>
+            <span class="status-label">Server:</span>
+            <span id="connectionStatusIcon" class="status-value status-disconnected">❌</span>
+        </div>
+    </div>
+
+    <!-- Progress Overlay -->
+    <div id="progressOverlay" class="progress-overlay">
+        <div class="progress-container">
+            <div class="progress-title" id="progressTitle">Processing PDF...</div>
+
+            <div class="progress-steps" id="progressSteps">
+                <div class="progress-step" id="step1">
+                    <div class="progress-step-circle">1</div>
+                    <div class="progress-step-label">Compiling LaTeX</div>
+                </div>
+                <div class="progress-step" id="step2">
+                    <div class="progress-step-circle">2</div>
+                    <div class="progress-step-label">Generating PDF</div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="progress-step-circle">3</div>
+                    <div class="progress-step-label">Creating Coordinates</div>
+                </div>
+                <div class="progress-step" id="step4">
+                    <div class="progress-step-circle">4</div>
+                    <div class="progress-step-label">Finalizing</div>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar indeterminate" id="progressBar"></div>
+            </div>
+
+            <div class="progress-text" id="progressText">Initializing...</div>
+
+            <button class="progress-cancel-btn" id="progressCancelBtn" onclick="cancelProgress()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- modal for entering instruction -->
+    <div id="modal">
+        <div class="box">
+            <h3 id="modalTitle">Select Action</h3>
+            <div>Element ID: <span id="elemId"></span></div>
+            <div>Element Type: <span id="elemType"></span></div>
+            <div style="margin: 10px 0;">
+                <label for="actionSelect">Action:</label>
+                <select id="actionSelect" style="width: 100%; padding: 5px; margin-top: 5px;">
+                    <option value="">Loading options...</option>
+                </select>
+            </div>
+            <div style="margin-top:8px; text-align:right;">
+                <button id="cancelBtn">Cancel</button>
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF.js (use the official cdn for prototype) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

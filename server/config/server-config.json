@@ -1,0 +1,98 @@
+{
+  "dropdownOptions": {
+    "figure": [
+      {"value": "move_bottom", "label": "Move Bottom"},
+      {"value": "move_top", "label": "Move Top"}
+    ],
+    "paragraph": [
+      {"value": "para_tight", "label": "Para Tight"},
+      {"value": "para_loose", "label": "Para Loose"}
+    ],
+    "table": [
+      {"value": "change_landscape", "label": "Change Landscape"},
+      {"value": "portrait", "label": "Portrait"}
+    ]
+  },
+  "xmlInstructionTemplates": {
+    "figure": {
+      "move_bottom": "<instruction type=\"figure\" action=\"move_bottom\" target=\"{elementId}\" />",
+      "move_top": "<instruction type=\"figure\" action=\"move_top\" target=\"{elementId}\" />"
+    },
+    "paragraph": {
+      "para_tight": "<instruction type=\"paragraph\" action=\"para_tight\" target=\"{elementId}\" spacing=\"tight\" />",
+      "para_loose": "<instruction type=\"paragraph\" action=\"para_loose\" target=\"{elementId}\" spacing=\"loose\" />"
+    },
+    "table": {
+      "change_landscape": "<instruction type=\"table\" action=\"change_landscape\" target=\"{elementId}\" orientation=\"landscape\" />",
+      "portrait": "<instruction type=\"table\" action=\"portrait\" target=\"{elementId}\" orientation=\"portrait\" />"
+    }
+  },
+  "xmlProcessingRules": {
+    "figure": {
+      "move_bottom": {
+        "xpath": "//figure[@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "placement",
+        "value": "[b]"
+      },
+      "move_top": {
+        "xpath": "//figure[@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "placement",
+        "value": "[t]"
+      }
+    },
+    "paragraph": {
+      "para_tight": {
+        "xpath": "//para[@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "spacing",
+        "value": "tight"
+      },
+      "para_loose": {
+        "xpath": "//para[@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "spacing",
+        "value": "loose"
+      }
+    },
+    "table": {
+      "change_landscape": {
+        "xpath": "//table[@id='{elementId}'] | //figure[contains(@id, 'tbl')][@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "orientation",
+        "value": "landscape"
+      },
+      "portrait": {
+        "xpath": "//table[@id='{elementId}'] | //figure[contains(@id, 'tbl')][@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "orientation",
+        "value": "portrait"
+      }
+    }
+  },
+  "texConversionRules": {
+    "figure": {
+      "placement_t": "\\begin{figure}[t]",
+      "placement_b": "\\begin{figure}[b]",
+      "default": "\\begin{figure}[htbp]"
+    },
+    "paragraph": {
+      "spacing_tight": "\\setlength{\\parskip}{0.5em}",
+      "spacing_loose": "\\setlength{\\parskip}{1.5em}",
+      "default": "\\setlength{\\parskip}{1em}"
+    },
+    "table": {
+      "orientation_landscape": "\\begin{landscape}\\begin{table}",
+      "orientation_portrait": "\\begin{table}",
+      "default": "\\begin{table}[htbp]"
+    }
+  },
+  "fileSettings": {
+    "xmlInput": "xml/document.xml",
+    "texOutput": "TeX/document-generated.tex",
+    "pdfOutput": "TeX/document-generated.pdf",
+    "jsonOutput": "TeX/document-generated-marked-boxes.json",
+    "uiOutputDir": "ui/"
+  }
+}
