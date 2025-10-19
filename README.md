@@ -5,7 +5,7 @@ A comprehensive system for generating PDFs with coordinate tracking and creating
 ## 🎯 Features
 
 - **Single-Command Build**: Generate PDF and JSON coordinates in one run
-- **Visual Markers**: PDF includes visual coordinate markers for verification  
+- **Visual Markers**: PDF includes visual coordinate markers for verification
 - **Interactive UI**: Web-based overlay testing with multiple coordinate systems
 - **Auto-Detection**: Automatic coordinate origin detection (top-left vs bottom-left)
 - **Multiple Formats**: Support for points, pixels, and millimeters
@@ -53,7 +53,7 @@ PDFOverlay/
 # Build default file
 python3 build_pdf_json.py
 
-# Build specific file  
+# Build specific file
 python3 build_pdf_json.py my-document.tex
 
 # Advanced options
@@ -138,13 +138,13 @@ python3 -m http.server 8000
 
 ### Testing Coordinates
 1. **Open**: `http://localhost:8000/ui/`
-2. **Load PDF**: Upload or select from dropdown  
+2. **Load PDF**: Upload or select from dropdown
 3. **Load JSON**: Upload coordinate file or select predefined
 4. **Verify**: Overlays should align with PDF content
 
 ### Coordinate System Issues
 If overlays appear upside down:
-1. Click **"🎯 Auto-Detect Origin"** 
+1. Click **"🎯 Auto-Detect Origin"**
 2. Or manually switch between **"Top-Left"** and **"Bottom-Left"** origins
 3. Use **"🔍 Analyze Coordinates"** for recommendations
 
@@ -200,7 +200,7 @@ ui/
 ### Coordinate System Notes
 
 - **PDF Standard**: Uses bottom-left origin (0,0 at bottom-left)
-- **Many Tools**: Generate top-left origin coordinates  
+- **Many Tools**: Generate top-left origin coordinates
 - **Auto-Detection**: Automatically handles both systems
 - **Visual Verification**: Use markers to verify alignment
 
@@ -233,7 +233,7 @@ ui/
 ## 🎯 Coordinate Accuracy Tips
 
 1. **Use Visual Markers**: The marked template shows exact coordinate boundaries
-2. **Test Multiple Origins**: Try both top-left and bottom-left coordinate systems  
+2. **Test Multiple Origins**: Try both top-left and bottom-left coordinate systems
 3. **Verify on Page 2**: Reference grid helps validate coordinate calculations
 4. **Use Debug Tools**: Built-in analysis helps identify coordinate issues
 5. **Check Units**: Ensure consistent units between LaTeX and JSON
