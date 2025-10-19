@@ -1,0 +1,333 @@
+<templates>
+    <!-- Main document template matching sample.tex style -->
+    <template data-xml-selector="article" xml:space="preserve">
+% Generated from ENDEND10921.xml - Scientific Article Template
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+% ---------- Encoding, fonts, micro-typography ----------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{stix2}                % STIX2 text + math fonts
+\usepackage{microtype}
+
+% ---------- Page layout ----------
+\usepackage[a4paper,left=20mm,right=20mm,top=25mm,bottom=25mm]{geometry}
+\setlength{\columnsep}{12pt}      % space between columns
+
+% ---------- Packages for figures, tables, maths ----------
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{color}
+\usepackage{enumitem}
+\usepackage{multicol}
+
+% ---------- Header / footer ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+
+% ---------- Section title styling ----------
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+% ---------- Misc ----------
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
+\usepackage{balance} % balance columns on last page
+
+% Geometry writer (zref-savepos preferred)
+\IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
+\input{../TeX-lib/geom-marks.tex}
+
+% ---------- Title block spanning both columns ----------
+\newcommand{\maketitlewide}{
+  \onecolumn
+      \vspace{4mm}
+      {\centering\large\scshape [[front > journal-meta > journal-title-group > journal-title:.]]\par}
+      \vspace{6mm}
+      {\centering\LARGE\bfseries [[front > article-meta > title-group > article-title:.]]\par}
+      \vspace{6mm}
+      {\centering
+        <apply-template data-xml-selector="front > article-meta > contrib-group > contrib"/>
+      \par}
+      \vspace{3mm}
+      {\centering\footnotesize
+        <apply-template data-xml-selector="front > article-meta > contrib-group > aff"/>
+      \par}
+      \vspace{3mm}
+      {\centering\footnotesize
+        <apply-template data-xml-selector="front > article-meta > author-notes > corresp"/>
+      \par}
+      \vspace{6mm}
+      % Abstract environment
+      \begin{minipage}{0.94\textwidth}
+        <apply-template data-xml-selector="front > article-meta > abstract"/>
+      \end{minipage}
+      \vspace{8mm}
+  \twocolumn
+}
+
+% ---------- Document ----------
+\begin{document}
+
+\maketitlewide
+
+<apply-template data-xml-selector="body > sec"/>
+
+% Balance columns on last page
+\balance
+
+\begin{thebibliography}{99}
+\small
+<apply-template data-xml-selector="back > ref-list > ref"/>
+\end{thebibliography}
+
+\end{document}
+</template>
+
+    <!-- Author template -->
+    <template data-xml-selector="contrib" xml:space="preserve">
+        [[name > given-names:.]], [[name > surname:.]]\textsuperscript{<apply-template data-xml-selector="xref[ref-type='aff']"/>}\textsuperscript{<apply-template data-xml-selector="xref[ref-type='fn']"/>},
+    </template>
+
+    <!-- Affiliation reference template -->
+    <template data-xml-selector="xref[ref-type='aff']" xml:space="preserve">[[rid]]</template>
+
+    <!-- Function reference template -->
+    <template data-xml-selector="xref[ref-type='fn']" xml:space="preserve">[[rid | raw]]</template>
+
+    <!-- Affiliation template -->
+    <template data-xml-selector="aff" xml:space="preserve">
+        \textsuperscript{[[label:.]]} [[. | raw]]\\
+    </template>
+
+    <!-- Correspondence template -->
+    <template data-xml-selector="corresp" xml:space="preserve">
+        [[label:. | raw]] Corresponding author. E-mail: \texttt{[[email:.]]}</template>
+
+    <!-- Abstract templates -->
+    <template data-xml-selector="abstract[abstract-type='executive-summary']" xml:space="preserve">
+        \begin{center}
+          \textbf{[[title:.]]}
+        \end{center}
+        \vspace{-1mm}
+        \footnotesize
+        <apply-template data-xml-selector="p"/>
+        \vspace{3mm}
+        \par
+    </template>
+
+    <template data-xml-selector="abstract" xml:space="preserve">
+        \begin{center}
+          \textbf{Abstract}
+        \end{center}
+        \vspace{-1mm}
+        \footnotesize
+        <apply-template data-xml-selector="p"/>
+        \vspace{3mm}
+        \par
+    </template>
+
+    <!-- Skip graphical abstract -->
+    <null-template data-xml-selector="abstract[abstract-type='graphical']"/>
+
+    <!-- Section templates -->
+    <template data-xml-selector="sec" xml:space="preserve">
+\section{[[title:.]]}
+<apply-template data-xml-selector="p"/>
+<apply-template data-xml-selector="sec"/>
+</template>
+
+    <template data-xml-selector="sec > sec" xml:space="preserve">
+\subsection{[[title:.]]}
+<apply-template data-xml-selector="p"/>
+<apply-template data-xml-selector="sec"/>
+</template>
+
+    <!-- Null template for section titles (handled in section template) -->
+    <null-template data-xml-selector="sec > title"/>
+
+    <!-- Paragraph template -->
+    <template data-xml-selector="p" xml:space="preserve">
+[[...]]
+
+</template>
+
+    <!-- Text formatting -->
+    <template data-xml-selector="italic" xml:space="preserve">\textit{[[...]]}</template>
+    <template data-xml-selector="bold" xml:space="preserve">\textbf{[[...]]}</template>
+    <template data-xml-selector="sup" xml:space="preserve">\textsuperscript{[[...]]}</template>
+    <template data-xml-selector="sub" xml:space="preserve">\textsubscript{[[...]]}</template>
+
+    <!-- Handle any remaining unhandled tags -->
+    <template data-xml-selector="*[local-name()='sup']" xml:space="preserve">\textsuperscript{[[...]]}</template>
+    <template data-xml-selector="*[local-name()='sub']" xml:space="preserve">\textsubscript{[[...]]}</template>
+
+    <!-- Handle unhandled tags that might appear in mathematical content -->
+    <null-template data-xml-selector="*[local-name()='unhandledtag']"/>
+    <null-template data-xml-selector="*[local-name()='mml:mstyle']"/>
+    <null-template data-xml-selector="*[local-name()='mml:munder']"/>
+    <null-template data-xml-selector="*[local-name()='mml:mover']"/>
+    <null-template data-xml-selector="*[local-name()='mml:munderover']"/>
+    <null-template data-xml-selector="*[local-name()='mml:mtable']"/>
+    <null-template data-xml-selector="*[local-name()='mml:mtr']"/>
+    <null-template data-xml-selector="*[local-name()='mml:mtd']"/>
+
+    <!-- Handle HTML entities - these will be processed by the text content -->
+    <!-- Note: HTML entities like &lt; and &gt; should be handled in post-processing -->
+
+    <!-- Inline mathematical expressions - simplified approach -->
+    <!-- Note: Mathematical expressions will be handled by post-processing -->
+
+    <!-- List templates -->
+    <template data-xml-selector="list[list-type='bullet']" xml:space="preserve">
+\begin{itemize}
+<apply-template data-xml-selector="list-item"/>
+\end{itemize}
+</template>
+
+    <template data-xml-selector="list-item" xml:space="preserve">
+\item <apply-template data-xml-selector="p"/>
+</template>
+
+    <!-- Citation templates -->
+    <template data-xml-selector="xref[ref-type='bibr'][@rid]" xml:space="preserve">\cite{[[rid]]}</template>
+
+    <!-- Handle empty citations by skipping them -->
+    <null-template data-xml-selector="xref[ref-type='bibr'][not(@rid)]"/>
+
+    <!-- Figure and table reference templates -->
+    <template data-xml-selector="xref[ref-type='fig']" xml:space="preserve">Figure [[rid]]</template>
+    <template data-xml-selector="xref[ref-type='table']" xml:space="preserve">Table [[rid]]</template>
+    <template data-xml-selector="xref[ref-type='supplementary-material']" xml:space="preserve">supplemental [[rid]]</template>
+
+    <!-- Handle any other xref types that might generate unhandledtag -->
+    <template data-xml-selector="xref" xml:space="preserve">[[...]]</template>
+
+    <!-- Reference template -->
+    <template data-xml-selector="ref" xml:space="preserve">
+\bibitem{[[id]]} <apply-template data-xml-selector="mixed-citation"/>
+</template>
+
+    <!-- Mixed citation template -->
+    <template data-xml-selector="mixed-citation" xml:space="preserve">
+<apply-template data-xml-selector="person-group"/>
+<apply-template data-xml-selector="collab"/>
+<apply-template data-xml-selector="article-title"/>
+<apply-template data-xml-selector="source"/>
+<apply-template data-xml-selector="year"/>
+<apply-template data-xml-selector="volume"/>
+<apply-template data-xml-selector="issue"/>
+<apply-template data-xml-selector="fpage"/>
+<apply-template data-xml-selector="lpage"/>
+</template>
+
+    <!-- Citation components -->
+    <template data-xml-selector="person-group" xml:space="preserve">
+<apply-template data-xml-selector="string-name"/>
+</template>
+
+    <template data-xml-selector="string-name" xml:space="preserve">[[surname:.]], [[given-names:.]], </template>
+    <template data-xml-selector="collab" xml:space="preserve">[[.]]. </template>
+    <template data-xml-selector="article-title" xml:space="preserve">[[.]]. </template>
+    <template data-xml-selector="source" xml:space="preserve">\textit{[[.]]} </template>
+    <template data-xml-selector="year" xml:space="preserve">[[.]]; </template>
+    <template data-xml-selector="volume" xml:space="preserve">[[.]]: </template>
+    <template data-xml-selector="issue" xml:space="preserve">([[.]]) </template>
+    <template data-xml-selector="fpage" xml:space="preserve">[[.]]</template>
+    <template data-xml-selector="lpage" xml:space="preserve">-[[.]].</template>
+
+    <!-- Skip unused elements -->
+    <null-template data-xml-selector="front > journal-meta"/>
+    <null-template data-xml-selector="front > article-meta > article-id"/>
+    <null-template data-xml-selector="front > article-meta > article-categories"/>
+    <null-template data-xml-selector="front > article-meta > pub-date"/>
+    <null-template data-xml-selector="front > article-meta > volume"/>
+    <null-template data-xml-selector="front > article-meta > issue"/>
+    <null-template data-xml-selector="front > article-meta > fpage"/>
+    <null-template data-xml-selector="front > article-meta > lpage"/>
+    <null-template data-xml-selector="front > article-meta > history"/>
+    <null-template data-xml-selector="front > article-meta > permissions"/>
+    <null-template data-xml-selector="front > article-meta > self-uri"/>
+    <null-template data-xml-selector="front > article-meta > counts"/>
+    <null-template data-xml-selector="front > article-meta > author-notes > fn"/>
+    <null-template data-xml-selector="back > fn-group"/>
+    <null-template data-xml-selector="back > ack"/>
+    <null-template data-xml-selector="back > sec"/>
+
+    <!-- Mathematical content -->
+    <template data-xml-selector="disp-formula" xml:space="preserve">
+<apply-template data-xml-selector="mml:math"/>
+</template>
+
+    <template data-xml-selector="inline-formula" xml:space="preserve">
+<apply-template data-xml-selector="mml:math"/>
+</template>
+
+    <!-- MathML support -->
+    <template data-xml-selector="mml:math" xml:space="preserve">[[...]]</template>
+    <template data-xml-selector="mml:mrow" xml:space="preserve">[[...]]</template>
+    <template data-xml-selector="mml:mi" xml:space="preserve">[[...]]</template>
+    <template data-xml-selector="mml:mo" xml:space="preserve">[[...]]</template>
+    <template data-xml-selector="mml:mn" xml:space="preserve">[[...]]</template>
+    <template data-xml-selector="mml:msup" xml:space="preserve">[[...]]^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
+    <template data-xml-selector="mml:msub" xml:space="preserve">[[...]]_{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
+    <template data-xml-selector="mml:msubsup" xml:space="preserve">[[...]]_{[[apply-template data-xml-selector="mml:mrow[2]"/]]}^{[[apply-template data-xml-selector="mml:mrow[3]"/]]}</template>
+    <template data-xml-selector="mml:mfrac" xml:space="preserve">\frac{[[apply-template data-xml-selector="mml:mrow[1]"/]]}{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
+    <template data-xml-selector="mml:msqrt" xml:space="preserve">\sqrt{[[...]]}</template>
+    <template data-xml-selector="mml:mroot" xml:space="preserve">\sqrt[[apply-template data-xml-selector="mml:mrow[2]"/]]{[[apply-template data-xml-selector="mml:mrow[1]"/]]}</template>
+    <template data-xml-selector="mml:msum" xml:space="preserve">\sum_{[[apply-template data-xml-selector="mml:mrow[1]"/]]}^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}[[apply-template data-xml-selector="mml:mrow[3]"/]]</template>
+    <template data-xml-selector="mml:mint" xml:space="preserve">\int_{[[apply-template data-xml-selector="mml:mrow[1]"/]]}^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}[[apply-template data-xml-selector="mml:mrow[3]"/]]</template>
+    <template data-xml-selector="mml:munderover" xml:space="preserve">\underset{[[apply-template data-xml-selector="mml:mrow[1]"/]]}{\overset{[[apply-template data-xml-selector="mml:mrow[2]"/]]}{[[apply-template data-xml-selector="mml:mrow[3]"/]]}}</template>
+    <template data-xml-selector="mml:mtable" xml:space="preserve">\begin{matrix}[[apply-template data-xml-selector="mml:mtr"/]]\end{matrix}</template>
+    <template data-xml-selector="mml:mtr" xml:space="preserve">[[apply-template data-xml-selector="mml:mtd"/]] \\</template>
+    <template data-xml-selector="mml:mtd" xml:space="preserve">[[...]] &amp;</template>
+
+    <!-- Mathematical symbols and operators -->
+    <template data-xml-selector="mml:mo[text()='&lt;']" xml:space="preserve">&lt;</template>
+    <template data-xml-selector="mml:mo[text()='&gt;']" xml:space="preserve">&gt;</template>
+    <template data-xml-selector="mml:mo[text()='&le;']" xml:space="preserve">\leq</template>
+    <template data-xml-selector="mml:mo[text()='&ge;']" xml:space="preserve">\geq</template>
+    <template data-xml-selector="mml:mo[text()='&ne;']" xml:space="preserve">\neq</template>
+    <template data-xml-selector="mml:mo[text()='&plusmn;']" xml:space="preserve">\pm</template>
+    <template data-xml-selector="mml:mo[text()='&times;']" xml:space="preserve">\times</template>
+    <template data-xml-selector="mml:mo[text()='&divide;']" xml:space="preserve">\div</template>
+    <template data-xml-selector="mml:mo[text()='&infin;']" xml:space="preserve">\infty</template>
+    <template data-xml-selector="mml:mo[text()='&sum;']" xml:space="preserve">\sum</template>
+    <template data-xml-selector="mml:mo[text()='&int;']" xml:space="preserve">\int</template>
+    <template data-xml-selector="mml:mo[text()='&alpha;']" xml:space="preserve">\alpha</template>
+    <template data-xml-selector="mml:mo[text()='&beta;']" xml:space="preserve">\beta</template>
+    <template data-xml-selector="mml:mo[text()='&gamma;']" xml:space="preserve">\gamma</template>
+    <template data-xml-selector="mml:mo[text()='&delta;']" xml:space="preserve">\delta</template>
+    <template data-xml-selector="mml:mo[text()='&epsilon;']" xml:space="preserve">\epsilon</template>
+    <template data-xml-selector="mml:mo[text()='&zeta;']" xml:space="preserve">\zeta</template>
+    <template data-xml-selector="mml:mo[text()='&eta;']" xml:space="preserve">\eta</template>
+    <template data-xml-selector="mml:mo[text()='&theta;']" xml:space="preserve">\theta</template>
+    <template data-xml-selector="mml:mo[text()='&iota;']" xml:space="preserve">\iota</template>
+    <template data-xml-selector="mml:mo[text()='&kappa;']" xml:space="preserve">\kappa</template>
+    <template data-xml-selector="mml:mo[text()='&lambda;']" xml:space="preserve">\lambda</template>
+    <template data-xml-selector="mml:mo[text()='&mu;']" xml:space="preserve">\mu</template>
+    <template data-xml-selector="mml:mo[text()='&nu;']" xml:space="preserve">\nu</template>
+    <template data-xml-selector="mml:mo[text()='&xi;']" xml:space="preserve">\xi</template>
+    <template data-xml-selector="mml:mo[text()='&pi;']" xml:space="preserve">\pi</template>
+    <template data-xml-selector="mml:mo[text()='&rho;']" xml:space="preserve">\rho</template>
+    <template data-xml-selector="mml:mo[text()='&sigma;']" xml:space="preserve">\sigma</template>
+    <template data-xml-selector="mml:mo[text()='&tau;']" xml:space="preserve">\tau</template>
+    <template data-xml-selector="mml:mo[text()='&upsilon;']" xml:space="preserve">\upsilon</template>
+    <template data-xml-selector="mml:mo[text()='&phi;']" xml:space="preserve">\phi</template>
+    <template data-xml-selector="mml:mo[text()='&chi;']" xml:space="preserve">\chi</template>
+    <template data-xml-selector="mml:mo[text()='&psi;']" xml:space="preserve">\psi</template>
+    <template data-xml-selector="mml:mo[text()='&omega;']" xml:space="preserve">\omega</template>
+    <null-template data-xml-selector="fig"/>
+    <null-template data-xml-selector="table-wrap"/>
+    <null-template data-xml-selector="graphic"/>
+
+</templates>
