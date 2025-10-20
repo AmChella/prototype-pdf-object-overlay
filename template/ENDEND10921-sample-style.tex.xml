@@ -47,38 +47,32 @@
 \IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
 \input{../TeX-lib/geom-marks.tex}
 
-% ---------- Title block spanning both columns ----------
-\newcommand{\maketitlewide}{
-  \onecolumn
-      \vspace{4mm}
-      {\centering\large\scshape [[front > journal-meta > journal-title-group > journal-title:.]]\par}
-      \vspace{6mm}
-      {\centering\LARGE\bfseries [[front > article-meta > title-group > article-title:.]]\par}
-      \vspace{6mm}
-      {\centering
-        <apply-template data-xml-selector="front > article-meta > contrib-group > contrib"/>
-      \par}
-      \vspace{3mm}
-      {\centering\footnotesize
-        <apply-template data-xml-selector="front > article-meta > contrib-group > aff"/>
-      \par}
-      \vspace{3mm}
-      {\centering\footnotesize
-        <apply-template data-xml-selector="front > article-meta > author-notes > corresp"/>
-      \par}
-      \vspace{6mm}
-      % Abstract environment
-      \begin{minipage}{0.94\textwidth}
-        <apply-template data-xml-selector="front > article-meta > abstract"/>
-      \end{minipage}
-      \vspace{8mm}
-  \twocolumn
-}
-
 % ---------- Document ----------
 \begin{document}
 
-\maketitlewide
+% Title block spanning both columns
+\onecolumn
+\vspace{4mm}
+{\centering\large\scshape <apply-template data-xml-selector="front > journal-meta > journal-title-group > journal-title"/>\par}
+\vspace{6mm}
+{\centering\LARGE\bfseries <apply-template data-xml-selector="article-meta > title-group > article-title"/>\par}
+\vspace{6mm}
+{\centering
+<apply-template data-xml-selector="contrib"/>
+\par}
+\vspace{3mm}
+{\centering\footnotesize
+<apply-template data-xml-selector="aff"/>
+\par}
+\vspace{3mm}
+{\centering\footnotesize
+<apply-template data-xml-selector="corresp"/>
+\par}
+\vspace{6mm}
+% Abstract environment
+<apply-template data-xml-selector="abstract"/>
+\vspace{8mm}
+\twocolumn
 
 <apply-template data-xml-selector="body > sec"/>
 
@@ -93,9 +87,15 @@
 \end{document}
 </template>
 
+    <!-- Journal title template -->
+    <template data-xml-selector="journal-title" xml:space="preserve">[[.]]</template>
+
+    <!-- Article title template -->
+    <template data-xml-selector="article-meta > title-group > article-title" xml:space="preserve">[[.]]</template>
+
     <!-- Author template -->
     <template data-xml-selector="contrib" xml:space="preserve">
-        [[name > given-names:.]], [[name > surname:.]]\textsuperscript{<apply-template data-xml-selector="xref[ref-type='aff']"/>}\textsuperscript{<apply-template data-xml-selector="xref[ref-type='fn']"/>},
+        <apply-template data-xml-selector="string-name > given-names"/> <apply-template data-xml-selector="string-name > surname"/>\textsuperscript{<apply-template data-xml-selector="xref[ref-type='aff']"/>}\textsuperscript{<apply-template data-xml-selector="xref[ref-type='fn']"/>},
     </template>
 
     <!-- Affiliation reference template -->
@@ -329,5 +329,44 @@
     <null-template data-xml-selector="fig"/>
     <null-template data-xml-selector="table-wrap"/>
     <null-template data-xml-selector="graphic"/>
+
+    <!-- Graphic template -->
+    <template data-xml-selector="graphic" xml:space="preserve">
+% Image: [[@xlink:href]]
+% Note: Image file not found, skipping inclusion
+</template>
+
+    <!-- Table template -->
+    <template data-xml-selector="table" xml:space="preserve">
+<apply-template data-xml-selector="thead"/>
+<apply-template data-xml-selector="tbody"/>
+<apply-template data-xml-selector="table-wrap-foot"/>
+</template>
+
+    <!-- Table head template -->
+    <template data-xml-selector="thead" xml:space="preserve">
+\begin{tabular}{<apply-template data-xml-selector="tr[1]"/>}
+\toprule
+<apply-template data-xml-selector="tr"/>
+\bottomrule
+\end{tabular}
+</template>
+
+    <!-- Table body template -->
+    <template data-xml-selector="tbody" xml:space="preserve">
+<apply-template data-xml-selector="tr"/>
+</template>
+
+    <!-- Table row template -->
+    <template data-xml-selector="tr" xml:space="preserve">
+<apply-template data-xml-selector="td"/>
+\\
+</template>
+
+    <!-- Table cell template -->
+    <template data-xml-selector="td" xml:space="preserve">[[...]] &amp; </template>
+
+    <!-- Table caption template -->
+    <template data-xml-selector="caption" xml:space="preserve">[[...]]</template>
 
 </templates>

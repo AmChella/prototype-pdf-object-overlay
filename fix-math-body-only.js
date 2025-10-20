@@ -58,6 +58,49 @@ function fixMathInBody(body) {
     fixed = fixed.replace(/\\begin\[[^\]]*mathematical[^\]]*\]/g, '');
     fixed = fixed.replace(/\\begin\[[^\]]*\]/g, '');
     
+    // Fix lonely \item commands
+    fixed = fixed.replace(/\\item\s*([^\\])/g, '$1');
+    fixed = fixed.replace(/\\item\s*$/gm, '');
+    
+    // Fix malformed mathematical expressions and extra braces
+    fixed = fixed.replace(/\[mathematical expression\]/g, '');
+    fixed = fixed.replace(/\{\[mathematical expression\]\}/g, '');
+    fixed = fixed.replace(/\{\[sum\]\[sigma\]\}/g, '');
+    fixed = fixed.replace(/\{\[sum\]\[sigma\]\}\./g, '.');
+    fixed = fixed.replace(/\[mathematical expression\]\([^)]*\)/g, '');
+    fixed = fixed.replace(/\{\[mathematical expression\]\([^)]*\)\}/g, '');
+    fixed = fixed.replace(/\{\[mathematical expression\]\([^)]*\)\},/g, ',');
+    fixed = fixed.replace(/\{\[mathematical expression\]\([^)]*\)\}\}/g, '}');
+    
+    // Fix extra braces that cause "Too many }'s" errors
+    fixed = fixed.replace(/\{\}\}/g, '}');
+    fixed = fixed.replace(/\{\{\}/g, '{');
+    fixed = fixed.replace(/\}\}\}/g, '}');
+    fixed = fixed.replace(/\{\{\{/g, '{');
+    
+    // Fix malformed textsuperscript with mathematical expressions
+    fixed = fixed.replace(/\\textsuperscript\{\[mathematical expression\]\}/g, '');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*mathematical[^}]*\}/g, '');
+    
+    // Fix malformed textsuperscript commands
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\}/g, '}');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\./g, '.');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\./g, '.');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\)/g, ')');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\,/g, ',');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*;/g, ';');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*:/g, ':');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*!/g, '!');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\?/g, '?');
+    
+    // Fix incomplete textsuperscript commands
+    fixed = fixed.replace(/\\textsuperscript$/gm, '');
+    fixed = fixed.replace(/\\textsuperscript\s*$/gm, '');
+    
+    // Fix extra braces after textsuperscript
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\}\s*([^}])/g, '\\textsuperscript{$1}');
+    fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\}\s*([^}])/g, '\\textsuperscript{$1}');
+    
     // Fix bibliography environment
     if (fixed.includes('\\bibitem{}')) {
         // Find the first \bibitem and add \begin{thebibliography} before it
