@@ -94,9 +94,10 @@
     <template data-xml-selector="article-meta > title-group > article-title" xml:space="preserve">[[.]]</template>
 
     <!-- Author template -->
-    <template data-xml-selector="contrib" xml:space="preserve">
-        <apply-template data-xml-selector="string-name > given-names"/> <apply-template data-xml-selector="string-name > surname"/>\textsuperscript{<apply-template data-xml-selector="xref[ref-type='aff']"/>}\textsuperscript{<apply-template data-xml-selector="xref[ref-type='fn']"/>},
-    </template>
+    <template data-xml-selector="contrib" xml:space="preserve">[[name > given-names:.]], [[name > surname:.]]\textsuperscript{<apply-template xml-data-selector="contrib > xref"/>},</template>
+
+    <!-- Author Affiliation template -->
+    <template data-xml-selector="contrib > xref" xml:space="preserve">\textsuperscript{[[...]]}</template>
 
     <!-- Affiliation reference template -->
     <template data-xml-selector="xref[ref-type='aff']" xml:space="preserve">[[rid]]</template>
@@ -188,11 +189,11 @@
     <!-- Note: Mathematical expressions will be handled by post-processing -->
 
     <!-- List templates -->
-    <template data-xml-selector="list[list-type='bullet']" xml:space="preserve">
+    <!-- <template data-xml-selector="list[list-type='bullet']" xml:space="preserve">
 \begin{itemize}
 <apply-template data-xml-selector="list-item"/>
 \end{itemize}
-</template>
+</template> -->
 
     <template data-xml-selector="list-item" xml:space="preserve">
 \item <apply-template data-xml-selector="p"/>

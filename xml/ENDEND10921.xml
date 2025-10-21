@@ -286,7 +286,7 @@
                 <title>Visual Abstract</title>
                 <p id="p-006">
                     <fig id="absf1" position="float">
-                        <graphic xlink:href="blood799080absf1" />
+                        <image src="../images/LSA-99999_absf1.tif" width="0.82\linewidth" />
                     </fig>
                 </p>
             </abstract>
@@ -690,7 +690,7 @@
                             tumor cells and the staining intensity. Numbers on the y-axis represent
                             the number of cases with the respective pattern.</p>
                     </caption>
-                    <graphic xlink:href="blood799080f01" />
+                    <image src="../images/LSA-99999_fig1.tif" width="0.82\linewidth" />
                 </fig>
             </sec>
             <sec id="sec-009">
@@ -1000,7 +1000,7 @@
                             patients. (D) No clear association between FOXP1 expression and OS was
                             found in the validation cohort.</p>
                     </caption>
-                    <graphic xlink:href="blood799080f02" />
+                    <image src="../assets/images/placeholder2.png" width="0.82\linewidth" />
                 </fig>
             </sec>
             <sec id="sec-010">
@@ -1356,7 +1356,7 @@
                             cells were significantly enriched in cases with low FOXP1 expression.
                             ES, enrichment score.</p>
                     </caption>
-                    <graphic xlink:href="blood799080f03" />
+                    <image src="../assets/images/placeholder2.png" width="0.82\linewidth" />
                 </fig>
                 <table-wrap id="T3" position="float">
                     <label>Table 3.</label>
