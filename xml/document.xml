@@ -103,7 +103,7 @@
     <display-math id="sec1-disp1">
 <![CDATA[\mathbf{J}_{1} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
-    <figure id="fig-sec1" label="fig:fig-sec1" placement="[t]">
+    <figure id="fig-sec1" label="fig:fig-sec1" placement="[b]">
       <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
       <caption>Section 1 asset overview</caption>
     </figure>
@@ -329,7 +329,7 @@
     <display-math id="sec3-disp1">
 <![CDATA[\operatorname{argmin}_{x \in \mathbb{R}^{n}} \left\{ f_{3}(x) + \lambda_{4} g(x) \right\}]]>
 </display-math>
-    <figure id="fig-sec3" label="fig:fig-sec3" placement="[t]">
+    <figure id="fig-sec3" label="fig:fig-sec3" placement="[b]">
       <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
       <caption>Section 3 asset overview</caption>
     </figure>

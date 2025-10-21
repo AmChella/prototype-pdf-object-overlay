@@ -15,24 +15,24 @@ function addUniqueIdsToXml(xmlFilePath) {
     let tableCounter = 1;
 
     // Add IDs to paragraphs that don't already have them
-    xmlContent = xmlContent.replace(/<p(?!\s+id=)([^>]*)>/g, (match, attributes) => {
-        const id = `p-${paragraphCounter.toString().padStart(3, '0')}`;
-        paragraphCounter++;
-        return `<p id="${id}"${attributes}>`;
+    xmlContent = xmlContent.replace(/<p(?!\s+=id)>/g, (match, attributes) => {
+      const id = `p-${paragraphCounter.toString().padStart(3, "0")}`;
+      paragraphCounter++;
+      return `<p id="${id}">`;
     });
 
     // Add IDs to figures that don't already have them
     xmlContent = xmlContent.replace(/<fig(?!\s+id=)([^>]*)>/g, (match, attributes) => {
         const id = `fig-${figureCounter.toString().padStart(3, '0')}`;
         figureCounter++;
-        return `<fig id="${id}"${attributes}>`;
+        return `<fig id="${id}" ${attributes}>`;
     });
 
     // Add IDs to table-wrap elements that don't already have them
     xmlContent = xmlContent.replace(/<table-wrap(?!\s+id=)([^>]*)>/g, (match, attributes) => {
         const id = `table-${tableCounter.toString().padStart(3, '0')}`;
         tableCounter++;
-        return `<table-wrap id="${id}"${attributes}>`;
+        return `<table-wrap id="${id}" ${attributes}>`;
     });
 
     // Add IDs to disp-formula elements that don't already have them
@@ -40,7 +40,7 @@ function addUniqueIdsToXml(xmlFilePath) {
     xmlContent = xmlContent.replace(/<disp-formula(?!\s+id=)([^>]*)>/g, (match, attributes) => {
         const id = `eq-${formulaCounter.toString().padStart(3, '0')}`;
         formulaCounter++;
-        return `<disp-formula id="${id}"${attributes}>`;
+        return `<disp-formula id="${id}" ${attributes}>`;
     });
 
     // Add IDs to inline-formula elements that don't already have them
