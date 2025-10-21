@@ -439,7 +439,7 @@
     <display-math id="sec4-disp1">
 <![CDATA[\mathbf{J}_{4} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
-    <figure id="fig-sec4" label="fig:fig-sec4" placement="[htbp]">
+    <figure id="fig-sec4" label="fig:fig-sec4" placement="[b]">
       <tikz>
 <![CDATA[\begin{tikzpicture}[scale=0.9]
   \node[draw, rounded corners, fill=pipelineBlue, minimum width=6cm, minimum height=1.1cm] (a) {Cross-Reference Integrity};
@@ -891,7 +891,7 @@
     <display-math id="sec8-disp1">
 <![CDATA[\mathbf{J}_{8} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
-    <figure id="fig-sec8" label="fig:fig-sec8" placement="[htbp]">
+    <figure id="fig-sec8" label="fig:fig-sec8" placement="[b]">
       <tikz>
 <![CDATA[\begin{tikzpicture}[scale=0.9]
   \node[draw, rounded corners, fill=pipelineBlue, minimum width=6cm, minimum height=1.1cm] (a) {Performance Benchmarking};

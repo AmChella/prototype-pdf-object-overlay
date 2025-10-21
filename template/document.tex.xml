@@ -17,6 +17,8 @@
 \usepackage{booktabs}
 \usepackage{tabularx}
 \IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
+% Optional: afterpage package improves float coordinate accuracy
+\IfFileExists{afterpage.sty}{\usepackage{afterpage}}{}
 \definecolor{pipelineBlue}{HTML}{1F77B4}
 \definecolor{pipelineGreen}{HTML}{2CA02C}
 \definecolor{pipelineOrange}{HTML}{FF7F0E}
@@ -25,7 +27,7 @@
 \newcommand{\fallback}[2]{\if\relax\detokenize{#1}\relax #2 \else #1\fi}
 % Row/cell helpers for table rows without needing index logic
 \newcommand{\rowstart}{\global\let\isfirst\relax}
-\newcommand{\ampchar}{\&}
+\newcommand{\ampchar}{\&amp;}
 \newcommand{\maybeamp}{\ifx\isfirst\relax \global\let\isfirst\undefined \let\sep\relax \else \let\sep\ampchar \fi \sep}
 \newcommand{\cell}[1]{\maybeamp #1}
 
@@ -102,13 +104,13 @@
     <template data-xml-selector="figure[width-span='2']" xml:space="preserve">
 \begin{figure*}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarknow{[[@id | raw]]}{FIG-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}
 % Conditional image handling - only process if image element exists
 <apply-template data-xml-selector="image"/>
 <apply-template data-xml-selector="tikz"/>
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
-\hypertarget{[[@id | raw]]-end}{}\geommarknow{[[@id | raw]]}{FIG-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}
 \end{figure*}
 </template>
 
@@ -116,13 +118,13 @@
     <template data-xml-selector="figure" xml:space="preserve">
 \begin{figure}[[@placement]]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarknow{[[@id | raw]]}{FIG-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}
 % Conditional image handling - only process if image element exists
 <apply-template data-xml-selector="image"/>
 <apply-template data-xml-selector="tikz"/>
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
-\hypertarget{[[@id | raw]]-end}{}\geommarknow{[[@id | raw]]}{FIG-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}
 \end{figure}
 </template>
 
@@ -146,7 +148,7 @@
     <template data-xml-selector="table[span='double']" xml:space="preserve">
 \begin{table*}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarknow{[[@id | raw]]}{TABLE-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\textwidth}}{[[@cols | raw]]}
@@ -156,14 +158,14 @@
 <apply-template data-xml-selector="tbody"/>
 \bottomrule
 \end{tabularx}
-\hypertarget{[[@id | raw]]-end}{}\geommarknow{[[@id | raw]]}{TABLE-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}
 \end{table*}
 </template>
 
     <template data-xml-selector="table" xml:space="preserve">
 \begin{table}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarknow{[[@id | raw]]}{TABLE-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\columnwidth}}{[[@cols | raw]]}
@@ -173,7 +175,7 @@
 <apply-template data-xml-selector="tbody"/>
 \bottomrule
 \end{tabularx}
-\hypertarget{[[@id | raw]]-end}{}\geommarknow{[[@id | raw]]}{TABLE-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}
 \end{table}
 </template>
 
