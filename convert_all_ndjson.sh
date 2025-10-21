@@ -3,9 +3,10 @@
 # Convert all ndjson files in TeX directory to marked-boxes.json format
 # Usage: ./convert_all_ndjson.sh
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEX_DIR="$SCRIPT_DIR/TeX"
-UI_DIR="$SCRIPT_DIR/ui"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEX_DIR="$BASE_DIR/TeX"
+UI_DIR="$BASE_DIR/ui"
+SCRIPT_DIR="$BASE_DIR/external-scripts"
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,15 +43,15 @@ converted_count=0
 for ndjson_file in "${ndjson_files[@]}"; do
     filename=$(basename "$ndjson_file")
     basename_without_ext="${filename%.*}"
-    
+
     echo -e "${BLUE}Converting: ${YELLOW}$filename${NC}"
-    
+
     # Run the conversion
     if python3 "$SCRIPT_DIR/convert_ndjson_to_marked_boxes.py" "$ndjson_file"; then
         # Copy to UI directory
         marked_boxes_file="$TEX_DIR/${basename_without_ext}-marked-boxes.json"
         ui_marked_boxes_file="$UI_DIR/${basename_without_ext}-marked-boxes.json"
-        
+
         if [ -f "$marked_boxes_file" ]; then
             cp "$marked_boxes_file" "$ui_marked_boxes_file"
             echo -e "${GREEN}✓ Converted and copied to UI directory${NC}"
