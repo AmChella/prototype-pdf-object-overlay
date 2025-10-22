@@ -510,6 +510,9 @@ async function goToPage(pageNum) {
     return;
   }
 
+  // Clear overlay selection when changing pages
+  selectedOverlayId = null;
+
   currentPageNumber = pageNum;
   await renderPage(currentPageNumber);
   updatePageNavigation();
@@ -908,6 +911,9 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
     el.addEventListener("click", onOverlayClick);
     overlayLayer.appendChild(el);
   });
+
+  // Populate the overlay selector panel
+  populateOverlaySelector();
 }
 
 function getDisplayCoordinates(item, selectedUnit) {
@@ -964,12 +970,18 @@ function toggleOverlays() {
     document.body.classList.remove('overlays-hidden');
     toggleOverlaysBtn.textContent = '👁️ Hide Overlays';
     toggleOverlaysBtn.classList.remove('overlays-hidden');
+    // Show overlay selector panel
+    if (overlayData.length > 0) {
+      overlaySelector.style.display = 'block';
+    }
     console.log('Overlays shown');
   } else {
     // Hide overlays
     document.body.classList.add('overlays-hidden');
     toggleOverlaysBtn.textContent = '🙈 Show Overlays';
     toggleOverlaysBtn.classList.add('overlays-hidden');
+    // Hide overlay selector panel
+    overlaySelector.style.display = 'none';
     console.log('Overlays hidden');
   }
 
@@ -1473,6 +1485,9 @@ function onOverlayClick(ev) {
     currentClickedId = id;
     currentOverlayType = detectOverlayType(id);
 
+    // Update selection in the overlay selector list
+    selectOverlayFromList(id);
+
     elemIdSpan.textContent = id;
     elemTypeSpan.textContent = currentOverlayType;
 
@@ -1695,6 +1710,154 @@ function toggleStatusPanel(panel) {
 
 // Make status panel toggle globally accessible
 window.toggleStatusPanel = toggleStatusPanel;
+
+// ===== Overlay Selector Panel Functions =====
+
+let selectedOverlayId = null;
+const overlaySelector = document.getElementById('overlaySelector');
+const overlayList = document.getElementById('overlayList');
+const overlaySelectorCount = document.getElementById('overlaySelectorCount');
+
+function toggleOverlaySelector() {
+    overlaySelector.classList.toggle('collapsed');
+}
+
+window.toggleOverlaySelector = toggleOverlaySelector;
+
+function populateOverlaySelector() {
+    // Get overlays for current page
+    const pageItems = overlayData.filter(item => item.page === currentPageNumber);
+    
+    // Update count
+    overlaySelectorCount.textContent = pageItems.length;
+    
+    // Clear list
+    overlayList.innerHTML = '';
+    
+    // Show/hide selector panel
+    if (pageItems.length > 0) {
+        overlaySelector.style.display = 'block';
+        
+        // Sort overlays by ID for better organization
+        pageItems.sort((a, b) => a.id.localeCompare(b.id));
+        
+        // Add each overlay to the list
+        pageItems.forEach(item => {
+            const listItem = document.createElement('div');
+            listItem.className = 'overlay-list-item';
+            listItem.dataset.overlayId = item.id;
+            
+            // Detect overlay type
+            const overlayType = detectOverlayType(item.id);
+            const typeColors = {
+                'figure': '#3498db',
+                'table': '#2ecc71',
+                'paragraph': '#9b59b6',
+                'unknown': '#95a5a6'
+            };
+            
+            // Create item content
+            const itemContent = document.createElement('div');
+            itemContent.style.flex = '1';
+            
+            const itemHeader = document.createElement('div');
+            itemHeader.style.display = 'flex';
+            itemHeader.style.alignItems = 'center';
+            itemHeader.style.marginBottom = '4px';
+            
+            const idSpan = document.createElement('span');
+            idSpan.className = 'overlay-item-id';
+            idSpan.textContent = item.id;
+            
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'overlay-item-type';
+            typeSpan.textContent = overlayType;
+            typeSpan.style.background = typeColors[overlayType] || typeColors.unknown;
+            
+            itemHeader.appendChild(idSpan);
+            itemHeader.appendChild(typeSpan);
+            
+            const positionSpan = document.createElement('div');
+            positionSpan.className = 'overlay-item-position';
+            positionSpan.textContent = `(${Math.round(item.x_pt)}, ${Math.round(item.y_pt)}) ${Math.round(item.w_pt)}×${Math.round(item.h_pt)} pt`;
+            
+            itemContent.appendChild(itemHeader);
+            itemContent.appendChild(positionSpan);
+            
+            listItem.appendChild(itemContent);
+            
+            // Add click handler
+            listItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectOverlayFromList(item.id);
+            });
+            
+            // Add mouseover handler to highlight overlay
+            listItem.addEventListener('mouseenter', () => {
+                highlightOverlay(item.id, true);
+            });
+            
+            listItem.addEventListener('mouseleave', () => {
+                highlightOverlay(item.id, false);
+            });
+            
+            overlayList.appendChild(listItem);
+        });
+    } else {
+        overlaySelector.style.display = 'none';
+        overlayList.innerHTML = '<div class="overlay-list-empty">No overlays on this page</div>';
+    }
+}
+
+function selectOverlayFromList(overlayId) {
+    // Deselect previous
+    if (selectedOverlayId) {
+        const prevOverlay = document.querySelector(`[data-elem-id="${selectedOverlayId}"]`);
+        if (prevOverlay) {
+            prevOverlay.classList.remove('selected');
+        }
+        const prevListItem = document.querySelector(`[data-overlay-id="${selectedOverlayId}"]`);
+        if (prevListItem) {
+            prevListItem.classList.remove('selected');
+        }
+    }
+    
+    // Select new
+    selectedOverlayId = overlayId;
+    
+    // Highlight overlay on PDF
+    const overlay = document.querySelector(`[data-elem-id="${overlayId}"]`);
+    if (overlay) {
+        overlay.classList.add('selected');
+        // Scroll overlay into view if needed
+        overlay.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
+    
+    // Highlight in list
+    const listItem = document.querySelector(`[data-overlay-id="${overlayId}"]`);
+    if (listItem) {
+        listItem.classList.add('selected');
+        // Scroll list item into view
+        listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    console.log('📍 Selected overlay:', overlayId);
+}
+
+function highlightOverlay(overlayId, highlight) {
+    const overlay = document.querySelector(`[data-elem-id="${overlayId}"]`);
+    if (overlay) {
+        if (highlight) {
+            overlay.style.borderColor = 'rgba(255, 193, 7, 1)';
+            overlay.style.background = 'rgba(255, 193, 7, 0.2)';
+            overlay.style.zIndex = '120';
+        } else if (!overlay.classList.contains('selected')) {
+            overlay.style.borderColor = '';
+            overlay.style.background = '';
+            overlay.style.zIndex = '';
+        }
+    }
+}
 
 function cancelProgress() {
     progressCancelRequested = true;

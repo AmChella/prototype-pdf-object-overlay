@@ -266,29 +266,29 @@ async function main() {
     }
 
     const [texFile, outputTarget] = fileArgs;
-    
+
     // Handle special case for NDJSON conversion
     if (flags.convertNdjson) {
         if (!texFile.endsWith('.ndjson')) {
             console.error('Error: When using --convert-ndjson, input file must be a .ndjson file.');
             process.exit(1);
         }
-        
+
         const ndjsonPath = path.resolve(texFile);
         if (!fs.existsSync(ndjsonPath) || !fs.statSync(ndjsonPath).isFile()) {
             console.error(`Error: NDJSON file not found at ${ndjsonPath}`);
             process.exit(1);
         }
-        
-        const markedBoxesPath = outputTarget 
+
+        const markedBoxesPath = outputTarget
             ? path.resolve(outputTarget)
             : ndjsonPath.replace('.ndjson', '-marked-boxes.json');
-        
+
         await convertNdjsonToMarkedBoxes(ndjsonPath, markedBoxesPath);
         console.log(`Successfully converted ${path.basename(ndjsonPath)} to ${path.basename(markedBoxesPath)}`);
         process.exit(0);
     }
-    
+
     if (!texFile.endsWith('.tex')) {
         console.error('Error: Input file must be a .tex file.');
         process.exit(1);
@@ -817,7 +817,7 @@ async function main() {
         const records = [];
         const content = fs.readFileSync(filePath, 'utf8');
         const lines = content.split(/\r?\n/);
-        
+
         for (const line of lines) {
             const trimmed = line.trim();
             if (trimmed) {
@@ -828,7 +828,7 @@ async function main() {
                 }
             }
         }
-        
+
         return records;
     }
 
@@ -838,19 +838,19 @@ async function main() {
     function groupRecordsById(records) {
         const grouped = {};
         const seenRecords = new Set(); // Track unique (id, page, role) to avoid duplicates
-        
+
         for (const record of records) {
             // Create a unique key for deduplication (id, page, role)
             const dedupKey = `${record.id}-${record.page}-${record.role}`;
-            
+
             // Skip if we've already seen this exact record
             if (seenRecords.has(dedupKey)) {
                 console.log(`Info: Skipping duplicate record for ${record.id} on page ${record.page} (role: ${record.role})`);
                 continue;
             }
-            
+
             seenRecords.add(dedupKey);
-            
+
             // Group by both ID and page to handle same figure on different pages
             const key = `${record.id}-page${record.page}`;
             if (!grouped[key]) {
@@ -869,11 +869,11 @@ async function main() {
             console.warn(`Warning: Expected 2 records (start/end), got ${records.length} for ID`);
             return null;
         }
-        
+
         // Find start and end records
         let startRecord = null;
         let endRecord = null;
-        
+
         for (const record of records) {
             if (record.role && record.role.endsWith('-start')) {
                 startRecord = record;
@@ -881,31 +881,31 @@ async function main() {
                 endRecord = record;
             }
         }
-        
+
         if (!startRecord || !endRecord) {
             console.warn('Warning: Missing start or end record');
             return null;
         }
-        
+
         // Convert coordinates from sp to pt
         const x1Pt = spToPt(startRecord.xsp);
         const y1Pt = spToPt(startRecord.ysp);
         const x2Pt = spToPt(endRecord.xsp);
         const y2Pt = spToPt(endRecord.ysp);
-        
+
         // Get page height for coordinate system conversion
         const pageHeightPt = parseFloat(startRecord.ph.replace('pt', ''));
-        
+
         // Convert Y coordinates from TeX (top-left origin) to PDF (bottom-left origin)
         const y1PtPdf = pageHeightPt - y1Pt;
         const y2PtPdf = pageHeightPt - y2Pt;
-        
+
         // Calculate bounding box (min/max coordinates)
         const xPt = Math.min(x1Pt, x2Pt);
         const yPt = Math.min(y1PtPdf, y2PtPdf);
         let wPt = Math.abs(x2Pt - x1Pt);
         const hPt = Math.abs(y2PtPdf - y1PtPdf);
-        
+
         // If width is 0, use a default width based on content type
         if (wPt === 0) {
             // For same-column content, use column width
@@ -916,18 +916,18 @@ async function main() {
                 wPt = x2Pt > x1Pt ? x2Pt - x1Pt : spToPt(startRecord.twsp);
             }
         }
-        
+
         // Convert to other units
         const xMm = ptToMm(xPt);
         const yMm = ptToMm(yPt);
         const wMm = ptToMm(wPt);
         const hMm = ptToMm(hPt);
-        
+
         const xPx = ptToPx(xPt);
         const yPx = ptToPx(yPt);
         const wPx = ptToPx(wPt);
         const hPx = ptToPx(hPt);
-        
+
         return {
             id: startRecord.id,
             page: startRecord.page,
@@ -951,18 +951,18 @@ async function main() {
      */
     async function convertNdjsonToMarkedBoxes(inputFile, outputFile) {
         console.log(`Converting NDJSON: ${inputFile}`);
-        
+
         // Parse the NDJSON file
         const records = parseNdjson(inputFile);
         console.log(`Parsed ${records.length} records from ${path.basename(inputFile)}`);
-        
+
         // Group records by ID and page
         const groupedRecords = groupRecordsById(records);
         console.log(`Found ${Object.keys(groupedRecords).length} unique ID-page combinations`);
-        
+
         // Convert to marked boxes format
         const markedBoxes = [];
-        
+
         for (const [itemId, itemRecords] of Object.entries(groupedRecords)) {
             const bbox = calculateBoundingBox(itemRecords);
             if (bbox) {
@@ -971,19 +971,19 @@ async function main() {
                 console.warn(`Skipping ${itemId} due to calculation error`);
             }
         }
-        
+
         // Sort by page and then by ID for consistent output
         markedBoxes.sort((a, b) => {
             if (a.page !== b.page) return a.page - b.page;
             return a.id.localeCompare(b.id);
         });
-        
+
         // Write the result
         fs.writeFileSync(outputFile, JSON.stringify(markedBoxes, null, 2));
-        
+
         console.log(`Converted to ${path.basename(outputFile)}`);
         console.log(`Generated ${markedBoxes.length} marked boxes`);
-        
+
         return outputFile;
     }
 

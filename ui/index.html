@@ -89,6 +89,13 @@
             z-index: 100;
         }
 
+        .overlay-rect.selected {
+            border: 3px solid rgba(0, 123, 255, 1);
+            background: rgba(0, 123, 255, 0.15);
+            z-index: 150;
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+        }
+
         .overlay-rect::before {
             content: attr(data-id);
             position: absolute;
@@ -753,6 +760,150 @@
             background: #c0392b;
             transform: translateY(-1px);
         }
+
+        /* Overlay Selector Panel */
+        .overlay-selector {
+            position: fixed;
+            right: 20px;
+            top: 120px;
+            width: 300px;
+            max-height: 60vh;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            overflow: hidden;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+
+        .overlay-selector.collapsed {
+            width: 50px;
+            max-height: 50px;
+        }
+
+        .overlay-selector-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .overlay-selector-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .overlay-selector.collapsed .overlay-selector-title {
+            display: none;
+        }
+
+        .overlay-selector-toggle {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .overlay-selector.collapsed .overlay-selector-toggle {
+            transform: rotate(180deg);
+        }
+
+        .overlay-selector-count {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-left: 8px;
+        }
+
+        .overlay-list {
+            max-height: calc(60vh - 50px);
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .overlay-selector.collapsed .overlay-list {
+            display: none;
+        }
+
+        .overlay-list-item {
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: var(--light-bg);
+            border: 2px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .overlay-list-item:hover {
+            background: #e8f4f8;
+            border-color: var(--secondary-color);
+            transform: translateX(-3px);
+        }
+
+        .overlay-list-item.selected {
+            background: #d4e9f7;
+            border-color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .overlay-list-item.highlighted {
+            background: #fff3cd;
+            border-color: var(--warning-color);
+        }
+
+        .overlay-item-id {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--primary-color);
+        }
+
+        .overlay-item-type {
+            background: var(--secondary-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        .overlay-item-position {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 3px;
+        }
+
+        .overlay-list-empty {
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Scrollbar styling for overlay list */
+        .overlay-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .overlay-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .overlay-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .overlay-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 
@@ -963,6 +1114,20 @@
                 <button id="cancelBtn">Cancel</button>
                 <button id="sendBtn">Send</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Overlay Selector Panel -->
+    <div id="overlaySelector" class="overlay-selector" style="display: none;">
+        <div class="overlay-selector-header" onclick="toggleOverlaySelector()">
+            <div style="display: flex; align-items: center;">
+                <span class="overlay-selector-title">📍 Overlays</span>
+                <span id="overlaySelectorCount" class="overlay-selector-count">0</span>
+            </div>
+            <span class="overlay-selector-toggle">▼</span>
+        </div>
+        <div id="overlayList" class="overlay-list">
+            <div class="overlay-list-empty">No overlays on this page</div>
         </div>
     </div>
 
