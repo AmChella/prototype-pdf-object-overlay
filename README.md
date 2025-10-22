@@ -1,249 +1,518 @@
-# PDF Overlay Coordinate System
+# PDF Object Overlay System
 
-A comprehensive system for generating PDFs with coordinate tracking and creating interactive web-based overlays.
+A comprehensive system for **XML-to-PDF conversion** with **precise coordinate extraction** and **interactive overlay visualization**. Transform XML documents into PDFs with accurate element positioning, then visualize and interact with the coordinates through a modern web interface.
 
-## 🎯 Features
+[![Project Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
+[![LaTeX](https://img.shields.io/badge/LaTeX-LuaLaTeX-blue)]()
+[![Node.js](https://img.shields.io/badge/Node.js-23.x-green)]()
 
-- **Single-Command Build**: Generate PDF and JSON coordinates in one run
-- **Visual Markers**: PDF includes visual coordinate markers for verification
-- **Interactive UI**: Web-based overlay testing with multiple coordinate systems
-- **Auto-Detection**: Automatic coordinate origin detection (top-left vs bottom-left)
-- **Multiple Formats**: Support for points, pixels, and millimeters
-- **Page Navigation**: Multi-page PDF support with navigation controls
-- **File Upload**: Drag & drop or upload PDF and JSON files
-- **Build Reports**: Detailed build logs and statistics
+---
 
-## 🏗️ Project Structure
+## 🎯 Key Features
+
+- **📄 XML to PDF Pipeline**: Transform structured XML into professionally formatted PDFs
+- **📍 Accurate Coordinates**: Extract precise element positions using zref-savepos
+- **🎨 Modern Web UI**: Real-time processing with WebSocket updates
+- **🔍 Interactive Overlays**: Visualize and interact with PDF elements
+- **📊 Multi-page Support**: Handle complex documents with accurate page numbers
+- **⚡ 3-Pass LaTeX**: Ensures accurate positioning, especially for floats
+- **🔄 Live Updates**: WebSocket integration for real-time progress
+
+---
+
+## 🏗️ Architecture
 
 ```
-PDFOverlay/
-├── TeX/                          # LaTeX source files
-│   ├── MultiColumn-CS-working.tex          # Original document
-│   ├── MultiColumn-CS-working-marked.tex   # Enhanced with visual markers
-│   └── test.jpeg                           # Sample image
-├── ui/                           # Web interface
-│   ├── index.html               # Main HTML interface
-│   ├── app.js                   # JavaScript application
-│   └── *.json                   # Coordinate data files
-├── build_pdf_json.py            # Python build script
-├── build.sh                     # Shell script wrapper
-├── Makefile                     # Make-based build system
-└── package.json                 # NPM scripts
+prototype-pdf-object-overlay/
+├── docs/                    # 📚 Documentation
+│   ├── COORDINATE-ACCURACY-FIX.md       # Page number accuracy fix
+│   ├── CODEBASE-OPTIMIZATION-SUMMARY.md # Optimization details
+│   └── PROJECT-STRUCTURE.md             # Complete structure guide
+├── scripts/                 # 🔧 Build Scripts
+│   ├── generate-pdf-robust.sh          # Main PDF generation script
+│   └── external/                        # Python utilities
+│       ├── convert_ndjson_to_marked_boxes.py
+│       ├── draw_bounding_boxes.py
+│       └── validate_page_numbers.py
+├── server/                  # 🖥️ Node.js Server
+│   ├── server.js                       # Main server
+│   ├── modules/                        # Server modules
+│   │   ├── DocumentConverter.js        # Document processing
+│   │   ├── ConfigManager.js            # Configuration
+│   │   └── FileWatcher.js              # File monitoring
+│   └── config/                         # Server config
+├── src/                     # ⚙️ Core Engine
+│   ├── cli.js                          # CLI interface
+│   ├── engine.js                       # XML transformation engine
+│   ├── pdf-geometry.js                 # Coordinate extraction
+│   └── tex-to-pdf.js                   # LaTeX compilation
+├── ui/                      # 🎨 Web Interface
+│   ├── index.html                      # Main UI
+│   └── app.js                          # UI logic
+├── template/                # 📄 LaTeX Templates
+│   ├── document.tex.xml                # Generic template
+│   └── ENDEND10921-sample-style.tex.xml # Sample article style
+├── TeX-lib/                 # 📚 LaTeX Libraries
+│   └── geom-marks.tex                  # Coordinate marking system
+├── xml/                     # 📑 Sample Documents
+│   ├── document.xml
+│   └── ENDEND10921.xml
+└── images/                  # 🖼️ Document Assets
+    └── LSA-99999_*.png
 ```
+
+---
 
 ## 🚀 Quick Start
 
-### Method 1: Shell Script (Recommended)
+### Prerequisites
+
 ```bash
-# Build with visual markers
-./build.sh
+# Install Node.js dependencies
+npm install
 
-# Build specific file
-./build.sh my-document.tex
-
-# Build without copying to UI
-./build.sh -k
-
-# Show help
-./build.sh -h
+# Ensure LuaLaTeX is installed
+which lualatex
+# If not installed: brew install --cask mactex (macOS)
 ```
 
-### Method 2: Python Script
+### Method 1: Web Interface (Recommended)
+
 ```bash
-# Build default file
-python3 build_pdf_json.py
+# Start the server
+node server/server.js
 
-# Build specific file
-python3 build_pdf_json.py my-document.tex
+# Open browser
+open http://localhost:3000
 
-# Advanced options
-python3 build_pdf_json.py --no-copy --no-clean my-document.tex
+# Use the UI to:
+# 1. Select XML and template files
+# 2. Generate PDF with coordinates
+# 3. View overlays interactively
 ```
 
-### Method 3: Make
+### Method 2: Command Line
+
 ```bash
-# Build default
-make
+# Generate PDF from XML
+./scripts/generate-pdf-robust.sh \
+  xml/ENDEND10921.xml \
+  template/ENDEND10921-sample-style.tex.xml \
+  my-output
 
-# Build specific file
-make FILE=my-document.tex
-
-# Clean and test
-make clean
-make test
+# Output files:
+# - TeX/my-output.pdf                  (PDF document)
+# - TeX/my-output-texpos.ndjson        (Raw coordinates)
+# - TeX/my-output-texpos-marked-boxes.json (Processed coordinates)
 ```
 
-### Method 4: NPM Scripts
+### Method 3: CLI Direct
+
 ```bash
-# Build with markers
-npm run build:marked
+# Step 1: XML to TeX
+node src/cli.js xml/document.xml template/document.tex.xml -o output.tex
 
-# Build original
-npm run build:original
-
-# Start development server
-npm run serve
-
-# Build and test
-npm run dev
+# Step 2: TeX to PDF (with coordinates)
+node src/tex-to-pdf.js output.tex --geometry-json output-geometry.json
 ```
 
-## 📝 Creating LaTeX Documents with Coordinates
+---
 
-### Basic Setup
-```latex
-\documentclass{article}
-\usepackage[a4paper,margin=1in]{geometry}
-\usepackage{luacode}
+## 📖 Usage Guide
 
-% Include the coordinate tracking system
-\begin{luacode*}
-boxes = boxes or {}
+### Generating PDFs
 
-function store_coords(id, page, x_pt, y_pt, w_pt, h_pt)
-  boxes[id] = { page=page, x_pt=x_pt, y_pt=y_pt, w_pt=w_pt, h_pt=h_pt }
-end
+The main script `generate-pdf-robust.sh` performs:
 
-% JSON export function here...
-\end{luacode*}
-```
+1. **XML Validation**: Checks XML structure
+2. **XML → TeX Transform**: Applies XPath-based template
+3. **TeX Processing**: Fixes math expressions and entities
+4. **3-Pass LaTeX Compilation**:
+   - Pass 1: Initial compilation
+   - Pass 2: Update cross-references
+   - Pass 3: Finalize coordinates (accurate page numbers)
+5. **Coordinate Extraction**: Extracts element positions
+6. **JSON Conversion**: Converts to marked-boxes format
 
-### Marking Elements
-```latex
-% Store coordinates manually
-\directlua{store_coords("my-element", 1, 72, 650, 221, 180)}
+**Example:**
 
-% Or use the enhanced template with visual markers
-\markpara{para:intro}{1}{72}{650}{221}{180}
-\marktable{table:demo}{1}{320}{200}{80}{60}
-\markfigure{fig:sample}{1}{300}{450}{221}{166}
-```
-
-### Visual Markers
-The enhanced template (`MultiColumn-CS-working-marked.tex`) includes:
-- **Red dashed rectangles** showing coordinate boundaries
-- **Element labels** with IDs
-- **Coordinate reference grid** on page 2
-
-## 🌐 Web Interface Usage
-
-### Starting the Server
 ```bash
-# Python built-in server
-python3 -m http.server 8000
-
-# Or use the build script
-./build.sh  # Automatically starts if needed
+./scripts/generate-pdf-robust.sh \
+  xml/ENDEND10921.xml \
+  template/ENDEND10921-sample-style.tex.xml \
+  article-output
 ```
 
-### Testing Coordinates
-1. **Open**: `http://localhost:8000/ui/`
-2. **Load PDF**: Upload or select from dropdown
-3. **Load JSON**: Upload coordinate file or select predefined
-4. **Verify**: Overlays should align with PDF content
+### Server API
 
-### Coordinate System Issues
-If overlays appear upside down:
-1. Click **"🎯 Auto-Detect Origin"**
-2. Or manually switch between **"Top-Left"** and **"Bottom-Left"** origins
-3. Use **"🔍 Analyze Coordinates"** for recommendations
+The server provides WebSocket-based real-time communication:
 
-### Navigation
-- **Arrow Keys**: Navigate between pages
-- **Page Input**: Jump to specific page
-- **Mouse**: Click navigation buttons
-
-## 🔧 Build System Features
-
-### Automatic Processing
-- **Dependency Check**: Verifies lualatex and python3
-- **Two-Pass Compilation**: Ensures proper cross-references
-- **JSON Validation**: Checks coordinate data integrity
-- **File Copying**: Automatically copies files to UI directory
-- **Build Reports**: Generates detailed build statistics
-
-### Output Files
-After building `MultiColumn-CS-working-marked.tex`:
-```
-TeX/
-├── MultiColumn-CS-working-marked.pdf           # PDF with visual markers
-├── MultiColumn-CS-working-marked-boxes.json   # Coordinate data
-└── MultiColumn-CS-working-marked-build-report.json # Build statistics
-
-ui/
-├── MultiColumn-CS-working-marked.pdf           # Copy for testing
-└── MultiColumn-CS-working-marked-boxes.json   # Copy for testing
+**Start Server:**
+```bash
+node server/server.js
+# Server runs on http://localhost:3000
+# WebSocket on ws://localhost:3000
 ```
 
-### Coordinate Data Format
+**Server Features:**
+- Real-time processing status updates
+- File upload handling
+- Document conversion orchestration
+- Error reporting with full stdout/stderr capture
+
+### Web UI Features
+
+**Navigation:**
+- Multi-page PDF viewing
+- Page-by-page navigation (arrows, input, buttons)
+- Zoom controls
+
+**Overlays:**
+- Toggle all overlays on/off
+- Select individual overlays
+- Color-coded by type (paragraph, figure, table)
+- Hover for element details
+
+**Processing:**
+- Real-time progress modal
+- Status updates from server
+- Error display with full error messages
+- Auto-load generated files
+
+---
+
+## 🔧 Configuration
+
+### Server Configuration
+
+Edit `server/config/server-config.json`:
+
+```json
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "paths": {
+    "xmlDir": "xml",
+    "templateDir": "template",
+    "outputDir": "TeX",
+    "uiDir": "ui"
+  },
+  "latex": {
+    "engine": "lualatex",
+    "passes": 3
+  }
+}
+```
+
+### LaTeX Templates
+
+Templates use **XPath selectors** to transform XML:
+
+```xml
+<!-- Example: template/document.tex.xml -->
+<template>
+  <para>
+    <!-- Transform <p> elements to LaTeX paragraphs -->
+    <xpath>article/body//p</xpath>
+    <output>
+      \paraid{{{@id}}}
+      \geommarkinline{{{@id}}}{P-start}
+      {{{.}}}
+      \geommarkinline{{{@id}}}{P-end}
+    </output>
+  </para>
+</template>
+```
+
+---
+
+## 📊 Coordinate System
+
+### How It Works
+
+1. **LaTeX Marks**: `\geommarkinline` and `\geommarkfloat` commands insert position markers
+2. **zref-savepos**: Saves actual page numbers and positions to .aux file
+3. **NDJSON Export**: Coordinates written during LaTeX compilation
+4. **JSON Conversion**: NDJSON converted to marked-boxes format
+5. **UI Display**: JSON loaded and overlays rendered
+
+### Coordinate Accuracy
+
+**Key Feature**: Uses **zref** for accurate page numbers, not LaTeX's page counter!
+
+- ✅ Figures appear on correct pages (not all on page 1)
+- ✅ Floats tracked accurately across pages
+- ✅ Multi-page elements handled correctly
+- ✅ 3-pass compilation ensures stability
+
+**Coordinate Data Format:**
+
 ```json
 [
   {
-    "id": "para:intro",
+    "id": "sec-p-001",
     "page": 1,
-    "x_pt": 72.00, "y_pt": 650.00, "w_pt": 221.00, "h_pt": 180.00,
-    "x_mm": 25.40, "y_mm": 229.31, "w_mm": 77.96, "h_mm": 63.50,
-    "x_px": 96.00, "y_px": 866.67, "w_px": 294.67, "h_px": 240.00
+    "page_source": "zref",
+    "x_pt": 56.91,
+    "y_pt": 441.59,
+    "w_pt": 483.7,
+    "h_pt": 30.88,
+    "x_mm": 20.08,
+    "y_mm": 155.78,
+    "w_mm": 170.64,
+    "h_mm": 10.89,
+    "x_px": 56.91,
+    "y_px": 441.59,
+    "w_px": 483.7,
+    "h_px": 30.88
   }
 ]
 ```
 
-## 🛠️ Advanced Usage
+**Units Provided:**
+- `pt` - Points (LaTeX standard)
+- `mm` - Millimeters
+- `px` - Pixels (72 DPI)
 
-### Custom LaTeX Documents
+---
 
-1. **Copy** the coordinate tracking Lua code from the template
-2. **Add** `\directlua{store_coords("id", page, x, y, w, h)}` calls
-3. **Build** using any of the provided methods
-4. **Test** in the web interface
+## 🛠️ Development
 
-### Coordinate System Notes
+### Adding New Templates
 
-- **PDF Standard**: Uses bottom-left origin (0,0 at bottom-left)
-- **Many Tools**: Generate top-left origin coordinates
-- **Auto-Detection**: Automatically handles both systems
-- **Visual Verification**: Use markers to verify alignment
+1. Create template in `template/` directory
+2. Define XPath selectors for XML elements
+3. Specify LaTeX output format
+4. Add geomarks for coordinate tracking
+5. Test with sample XML
 
-### Troubleshooting
+**Example:**
 
-**Overlays misaligned?**
-- Try auto-detection: Click "🎯 Auto-Detect Origin"
-- Check coordinate origin setting
-- Use debug tools: "🐛 Debug" and "🔍 Analyze"
+```xml
+<figure>
+  <xpath>article/body//fig</xpath>
+  <output>
+    \begin{figure}[ht]
+      \geommarkfloat{{{@id}}}{FIG-start}
+      \centering
+      \includegraphics[width=0.8\textwidth]{{{graphic/@xlink:href}}}
+      \caption{{{caption}}}
+      \geommarkfloat{{{@id}}}{FIG-end}
+    \end{figure}
+  </output>
+</figure>
+```
 
-**Build fails?**
-- Ensure lualatex is installed
-- Check TeX file syntax
-- Review build logs in terminal
+### Modifying Coordinate Extraction
 
-**No coordinates generated?**
-- Verify `\directlua{store_coords(...)}` calls
-- Check JSON file was created
-- Review build report for errors
+**LaTeX Side** (`TeX-lib/geom-marks.tex`):
+```latex
+% Inline mark for paragraphs
+\def\geommarkinline#1#2{%
+  \ifvmode
+    \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}%
+  \else
+    \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}}%
+  \fi
+}
 
-## 📊 Build System Comparison
+% Float mark for figures/tables
+\def\geommarkfloat#1#2{%
+  \zsavepos{gm:#1:#2}%
+  \label{geom:#1:#2}%
+  \geomemit{#1}{#2}%
+}
+```
 
-| Method | Best For | Features |
-|--------|----------|----------|
-| `./build.sh` | General use | Colored output, status checks |
-| `python3 build_pdf_json.py` | Automation | Detailed logging, JSON reports |
-| `make` | Traditional workflows | Standard Make targets |
-| `npm run` | Node.js projects | Package.json integration |
+**Processing Side** (`scripts/external/convert_ndjson_to_marked_boxes.py`):
+```python
+def group_records_by_id(records):
+    """Group by (id, page) to handle multi-page figures"""
+    grouped = defaultdict(list)
+    for record in records:
+        key = (record['id'], record['page'])
+        grouped[key].append(record)
+    return grouped
+```
 
-## 🎯 Coordinate Accuracy Tips
+### Extending UI
 
-1. **Use Visual Markers**: The marked template shows exact coordinate boundaries
-2. **Test Multiple Origins**: Try both top-left and bottom-left coordinate systems
-3. **Verify on Page 2**: Reference grid helps validate coordinate calculations
-4. **Use Debug Tools**: Built-in analysis helps identify coordinate issues
-5. **Check Units**: Ensure consistent units between LaTeX and JSON
+**Add New Overlay Types:**
 
-## 📁 Generated Files Explained
+1. Modify `ui/app.js` - add type detection in `detectOverlayType()`
+2. Add color scheme in `getOverlayColor()`
+3. Update rendering in `renderOverlays()`
+4. Add UI controls if needed
 
-- **`.pdf`**: LaTeX-generated document with optional visual markers
-- **`-boxes.json`**: Coordinate data in multiple units (pt, mm, px)
-- **`-build-report.json`**: Build statistics and file information
-- **`.log`**: LaTeX compilation log
-- **`.aux`**: LaTeX auxiliary files (auto-cleaned)
+---
 
-This system provides a complete workflow from LaTeX document creation to interactive web-based coordinate verification!
+## 📚 Documentation
+
+Comprehensive guides available in `docs/`:
+
+- **[PROJECT-STRUCTURE.md](docs/PROJECT-STRUCTURE.md)** - Complete project structure and component overview
+- **[COORDINATE-ACCURACY-FIX.md](docs/COORDINATE-ACCURACY-FIX.md)** - How zref provides accurate page numbers
+- **[CODEBASE-OPTIMIZATION-SUMMARY.md](docs/CODEBASE-OPTIMIZATION-SUMMARY.md)** - Optimization and cleanup details
+- **[UI-REDESIGN.md](docs/UI-REDESIGN.md)** - Modern UI design documentation
+- **[OVERLAY_TOGGLE_FEATURE.md](docs/OVERLAY_TOGGLE_FEATURE.md)** - Overlay feature documentation
+
+---
+
+## 🐛 Troubleshooting
+
+### PDF Generation Issues
+
+**Error: LaTeX compilation failed**
+```bash
+# Check the log file
+cat TeX/[output-name].log
+
+# Verify LaTeX installation
+which lualatex
+lualatex --version
+```
+
+**Error: Inaccurate page numbers**
+- Ensure 3-pass compilation is enabled
+- Check `page_source` in JSON (should be "zref", not "counter")
+- Run script with full path: `./scripts/generate-pdf-robust.sh`
+
+### Coordinate Issues
+
+**Overlays misaligned:**
+1. Check PDF coordinate origin (PDF uses bottom-left)
+2. Verify JSON file loaded correctly
+3. Check browser console for errors
+4. Use browser dev tools to inspect overlay positions
+
+**Missing coordinates:**
+- Verify `\geommarkinline` or `\geommarkfloat` in template
+- Check NDJSON file was created
+- Ensure zref-savepos package loaded
+
+### Server Issues
+
+**Port already in use:**
+```bash
+# Kill existing process
+lsof -ti:3000 | xargs kill -9
+
+# Or use different port in server-config.json
+```
+
+**WebSocket not connecting:**
+- Check browser console for WebSocket errors
+- Verify server is running: `curl http://localhost:3000`
+- Check firewall settings
+
+---
+
+## 🚦 Testing
+
+### Test PDF Generation
+
+```bash
+# Test basic generation
+./scripts/generate-pdf-robust.sh \
+  xml/document.xml \
+  template/document.tex.xml \
+  test-output
+
+# Verify outputs
+ls -lh TeX/test-output*
+
+# Check page numbers
+grep -o '"page":[0-9]*' TeX/test-output-texpos.ndjson | sort | uniq -c
+```
+
+### Test Server
+
+```bash
+# Start server
+node server/server.js &
+
+# Test HTTP
+curl http://localhost:3000
+
+# Test WebSocket (requires wscat)
+npm install -g wscat
+wscat -c ws://localhost:3000
+
+# Stop server
+kill %1
+```
+
+### Test UI
+
+1. Open http://localhost:3000
+2. Open browser console (F12)
+3. Check for JavaScript errors
+4. Test file upload
+5. Generate PDF and verify auto-load
+6. Test overlay toggling
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+[Add your license information here]
+
+---
+
+## 🙏 Acknowledgments
+
+- **LuaLaTeX** - PDF generation engine
+- **zref-savepos** - Accurate coordinate system
+- **PDF.js** - PDF rendering in browser
+- **Node.js** - Server runtime
+- **WebSocket** - Real-time communication
+
+---
+
+## 📞 Support
+
+For issues and questions:
+
+1. Check `docs/` directory for detailed guides
+2. Review troubleshooting section above
+3. Check server logs: `server/logs/audit.log`
+4. Open an issue on GitHub
+
+---
+
+## 🎯 Quick Reference
+
+```bash
+# Generate PDF
+./scripts/generate-pdf-robust.sh xml/file.xml template/style.tex.xml output
+
+# Start server
+node server/server.js
+
+# Run CLI
+node src/cli.js xml/input.xml template/style.tex.xml -o output.tex
+
+# Convert TeX to PDF
+node src/tex-to-pdf.js input.tex
+
+# Access UI
+open http://localhost:3000
+```
+
+---
+
+**Built with ❤️ for precise PDF coordinate extraction and visualization**
