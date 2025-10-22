@@ -1398,7 +1398,18 @@ async function loadNewGeneratedFiles(specificPdfPath = null, specificJsonPath = 
             
             // Ensure paths start with /
             const pdfPath = specificPdfPath.startsWith('/') ? specificPdfPath : '/' + specificPdfPath;
-            const jsonPath = specificJsonPath.startsWith('/') ? specificJsonPath : '/' + specificJsonPath;
+            let jsonPath = specificJsonPath.startsWith('/') ? specificJsonPath : '/' + specificJsonPath;
+            
+            // If it's a geometry.json, check if marked-boxes.json exists (preferred format)
+            if (jsonPath.includes('-geometry.json')) {
+                const markedBoxesPath = jsonPath.replace('-geometry.json', '-marked-boxes.json');
+                console.log(`🔍 Checking for preferred marked-boxes format: ${markedBoxesPath}`);
+                const markedBoxesExists = await checkFileExists(markedBoxesPath);
+                if (markedBoxesExists) {
+                    console.log(`✅ Found marked-boxes format, using that instead of geometry format`);
+                    jsonPath = markedBoxesPath;
+                }
+            }
             
             // Check if the specified files exist
             const pdfExists = await checkFileExists(pdfPath);
@@ -1918,6 +1929,10 @@ function selectOverlayFromList(overlayId) {
         const prevOverlay = document.querySelector(`[data-elem-id="${selectedOverlayId}"]`);
         if (prevOverlay) {
             prevOverlay.classList.remove('selected');
+            // Reset inline styles to restore original appearance
+            prevOverlay.style.borderColor = '';
+            prevOverlay.style.background = '';
+            prevOverlay.style.zIndex = '';
         }
         const prevListItem = document.querySelector(`[data-overlay-id="${selectedOverlayId}"]`);
         if (prevListItem) {
@@ -1932,6 +1947,10 @@ function selectOverlayFromList(overlayId) {
     const overlay = document.querySelector(`[data-elem-id="${overlayId}"]`);
     if (overlay) {
         overlay.classList.add('selected');
+        // Apply selection highlight
+        overlay.style.borderColor = 'rgba(33, 150, 243, 1)'; // Blue for selection
+        overlay.style.background = 'rgba(33, 150, 243, 0.3)';
+        overlay.style.zIndex = '130';
         // Scroll overlay into view if needed
         overlay.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }
