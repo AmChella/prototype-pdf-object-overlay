@@ -4,8 +4,9 @@ const { spawn, exec } = require('child_process');
 const { transform } = require('../../src/engine.js');
 
 class DocumentConverter {
-    constructor(configManager) {
+    constructor(configManager, eventEmitter = null) {
         this.configManager = configManager;
+        this.eventEmitter = eventEmitter; // For sending real-time updates
 
         // Paths to existing conversion system
         this.templatePath = path.join(
@@ -14,6 +15,48 @@ class DocumentConverter {
         );
         this.texToPdfScript = path.join(__dirname, '../../src/tex-to-pdf.js');
         this.cliScript = path.join(__dirname, '../../src/cli.js');
+    }
+
+    /**
+     * Filter function to determine if a message should be sent to UI
+     * Only sends important status messages, not verbose LaTeX output
+     */
+    isImportantStatusMessage(message) {
+        const trimmed = message.trim();
+        if (!trimmed || trimmed.length < 3) return false;
+
+        // Status message patterns
+        const statusPatterns = [
+            /^Step\s+\d+:/i,
+            /^🔄/,
+            /^📄/,
+            /^✅/,
+            /^📁/,
+            /^🎯/,
+            /Starting/i,
+            /Converting/i,
+            /Generating/i,
+            /Compiling/i,
+            /Extracting/i,
+            /Copying/i,
+            /Complete/i,
+            /completed/i,
+            /Processing/i,
+            /Finished/i
+        ];
+
+        // Error patterns (always show)
+        const errorPatterns = [
+            /error/i,
+            /failed/i,
+            /❌/
+        ];
+
+        // Check if it matches any pattern
+        const isStatus = statusPatterns.some(pattern => pattern.test(trimmed));
+        const isError = errorPatterns.some(pattern => pattern.test(trimmed));
+
+        return isStatus || isError;
     }
 
     async xmlToTex() {
@@ -174,14 +217,37 @@ class DocumentConverter {
             process.stdout.on('data', (data) => {
                 const output = data.toString();
                 stdout += output;
-                // Forward output to console for real-time feedback
-                console.log('📄', output.trim());
+                const trimmed = output.trim();
+                
+                // Always log to console for debugging
+                console.log('📄', trimmed);
+                
+                // Only emit important status messages to WebSocket clients
+                if (this.eventEmitter && this.isImportantStatusMessage(trimmed)) {
+                    console.log('📤 Sending status to UI:', trimmed);
+                    this.eventEmitter.emit('process_output', {
+                        type: 'stdout',
+                        message: trimmed
+                    });
+                }
             });
 
             process.stderr.on('data', (data) => {
                 const output = data.toString();
                 stderr += output;
-                console.error('🔴', output.trim());
+                const trimmed = output.trim();
+                
+                // Always log to console
+                console.error('🔴', trimmed);
+                
+                // Only emit important status messages or errors to WebSocket clients
+                if (this.eventEmitter && this.isImportantStatusMessage(trimmed)) {
+                    console.log('📤 Sending status to UI:', trimmed);
+                    this.eventEmitter.emit('process_output', {
+                        type: 'stderr',
+                        message: trimmed
+                    });
+                }
             });
 
             process.on('close', (code) => {

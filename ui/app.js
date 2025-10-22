@@ -4,15 +4,16 @@ const pdfjsLib = window["pdfjs-dist/build/pdf"];
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.min.js";
 
+// Get DOM elements (some may not exist in all UI versions)
 const viewer = document.getElementById("viewerContainer");
-const loadBtn = document.getElementById("loadBtn");
+const loadBtn = document.getElementById("loadBtn"); // May not exist in modern UI
 const pdfUrlInput = document.getElementById("pdfUrl");
 const pdfFileInput = document.getElementById("pdfFileInput");
-const uploadPdfBtn = document.getElementById("uploadPdfBtn");
-const loadJsonBtn = document.getElementById("loadJsonBtn");
+const uploadPdfBtn = document.getElementById("uploadPdfBtn"); // May not exist in modern UI
+const loadJsonBtn = document.getElementById("loadJsonBtn"); // May not exist in modern UI
 const jsonSelect = document.getElementById("jsonSelect");
 const jsonFileInput = document.getElementById("jsonFileInput");
-const uploadJsonBtn = document.getElementById("uploadJsonBtn");
+const uploadJsonBtn = document.getElementById("uploadJsonBtn"); // May not exist in modern UI
 const unitSelect = document.getElementById("unitSelect");
 const coordinateOrigin = document.getElementById("coordinateOrigin");
 const toggleOutlineBtn = document.getElementById("toggleOutlineBtn");
@@ -32,12 +33,11 @@ const pageInput = document.getElementById("pageInput");
 const totalPages = document.getElementById("totalPages");
 
 // Progress bar elements
-const progressOverlay = document.getElementById("progressOverlay");
-const progressTitle = document.getElementById("progressTitle");
-const progressSteps = document.getElementById("progressSteps");
-const progressBar = document.getElementById("progressBar");
-const progressText = document.getElementById("progressText");
-const progressCancelBtn = document.getElementById("progressCancelBtn");
+// New simple progress modal elements
+const progressModal = document.getElementById("progressModal");
+const progressModalTitle = document.getElementById("progressModalTitle");
+const progressModalBar = document.getElementById("progressModalBar");
+const progressModalStatus = document.getElementById("progressModalStatus");
 
 let currentPdf = null;
 let currentPageNumber = 1;
@@ -56,34 +56,43 @@ let enableWebSocket = true; // Set to true to enable WebSocket connection
 // });
 
 // PDF File Upload
-uploadPdfBtn.addEventListener("click", () => {``
-  pdfFileInput.click();
-});
+if (uploadPdfBtn) {
+  uploadPdfBtn.addEventListener("click", () => {
+    pdfFileInput.click();
+  });
+}
 
-pdfFileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+if (pdfFileInput) {
+  pdfFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  if (file.type !== "application/pdf") {
-    alert("Please select a PDF file");
-    return;
-  }
+    if (file.type !== "application/pdf") {
+      alert("Please select a PDF file");
+      return;
+    }
 
-  console.log("Loading PDF file:", file.name);
-  pdfUrlInput.value = `📄 ${file.name}`;
+    console.log("Loading PDF file:", file.name);
+    if (pdfUrlInput) {
+      pdfUrlInput.value = `📄 ${file.name}`;
+    }
 
-  // Create object URL for the file
-  const fileUrl = URL.createObjectURL(file);
-  loadPdf(fileUrl);
-});
+    // Create object URL for the file
+    const fileUrl = URL.createObjectURL(file);
+    loadPdf(fileUrl);
+  });
+}
 
 // JSON File Upload
-uploadJsonBtn.addEventListener("click", () => {
-  jsonFileInput.click();
-});
+if (uploadJsonBtn) {
+  uploadJsonBtn.addEventListener("click", () => {
+    jsonFileInput.click();
+  });
+}
 
-jsonFileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
+if (jsonFileInput) {
+  jsonFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
   if (!file) return;
 
   if (!file.name.toLowerCase().endsWith('.json')) {
@@ -129,7 +138,8 @@ jsonFileInput.addEventListener("change", (e) => {
   };
 
   reader.readAsText(file);
-});
+  });
+}
 
 // loadJsonBtn.addEventListener("click", () => {
 //   const selectedJson = jsonSelect.value;
@@ -212,14 +222,15 @@ function validateCoordinates(data) {
   });
 }
 
-debugBtn.addEventListener("click", () => {
-  console.log("=== DEBUG INFO ===");
-  console.log("Current PDF:", currentPdf);
+if (debugBtn) {
+  debugBtn.addEventListener("click", () => {
+    console.log("=== DEBUG INFO ===");
+    console.log("Current PDF:", currentPdf);
   console.log("Current page:", currentPageNumber);
   console.log("Current viewport:", currentViewport);
   console.log("Overlay data:", overlayData);
-  console.log("Selected unit:", unitSelect.value);
-  console.log("Coordinate origin:", coordinateOrigin.value);
+  console.log("Selected unit:", unitSelect ? unitSelect.value : 'N/A');
+  console.log("Coordinate origin:", coordinateOrigin ? coordinateOrigin.value : 'N/A');
 
   if (pageWrapper) {
     console.log("Page wrapper dimensions:", {
@@ -266,9 +277,11 @@ debugBtn.addEventListener("click", () => {
   }
 
   alert("Debug info logged to console. Check browser developer tools.");
-});
+  });
+}
 
-analyzeBtn.addEventListener("click", () => {
+if (analyzeBtn) {
+  analyzeBtn.addEventListener("click", () => {
   if (overlayData.length === 0) {
     alert("No coordinate data loaded. Please load a JSON file first.");
     return;
@@ -313,9 +326,11 @@ analyzeBtn.addEventListener("click", () => {
   message += "\n\n💡 TIP: If overlays appear upside down, try switching the coordinate origin setting!";
 
   alert(message);
-});
+  });
+}
 
-autoDetectBtn.addEventListener("click", () => {
+if (autoDetectBtn) {
+  autoDetectBtn.addEventListener("click", () => {
   if (overlayData.length === 0) {
     alert("No coordinate data loaded. Please load a JSON file first.");
     return;
@@ -386,74 +401,98 @@ autoDetectBtn.addEventListener("click", () => {
   renderPage(currentPageNumber);
 
   alert(`🎯 Auto-detection complete!\n\nDetected coordinate origin: ${bestOrigin.toUpperCase()}\n\nThe page has been re-rendered with the detected settings. If overlays still don't align correctly, try manually switching the coordinate origin.`);
-});
+  });
+}
 
-unitSelect.addEventListener("change", () => {
-  console.log("Unit changed to:", unitSelect.value);
+if (unitSelect) {
+  unitSelect.addEventListener("change", () => {
+    console.log("Unit changed to:", unitSelect.value);
 
-  // Update unit indicator
-  document.getElementById("currentUnit").textContent = '✅';
-  document.getElementById("currentUnit").className = 'status-value status-loaded';
+    // Update unit indicator if it exists
+    const currentUnit = document.getElementById("currentUnit");
+    if (currentUnit) {
+      currentUnit.textContent = '✅';
+      currentUnit.className = 'status-value status-loaded';
+    }
 
-  if (currentPdf && overlayData.length > 0) {
-    // Re-render the page with new unit settings
-    renderPage(currentPageNumber);
-  }
-});
+    if (currentPdf && overlayData.length > 0) {
+      // Re-render the page with new unit settings
+      renderPage(currentPageNumber);
+    }
+  });
+}
 
-coordinateOrigin.addEventListener("change", () => {
-  console.log("Coordinate origin changed to:", coordinateOrigin.value);
+if (coordinateOrigin) {
+  coordinateOrigin.addEventListener("change", () => {
+    console.log("Coordinate origin changed to:", coordinateOrigin.value);
 
-  if (currentPdf && overlayData.length > 0) {
-    // Re-render the page with new coordinate origin
-    renderPage(currentPageNumber);
-  }
-});toggleOutlineBtn.addEventListener("click", () => {
-  toggleOutline();
-});
+    if (currentPdf && overlayData.length > 0) {
+      // Re-render the page with new coordinate origin
+      renderPage(currentPageNumber);
+    }
+  });
+}
 
-toggleOverlaysBtn.addEventListener("click", () => {
-  toggleOverlays();
-});
+if (toggleOutlineBtn) {
+  toggleOutlineBtn.addEventListener("click", () => {
+    toggleOutline();
+  });
+}
+
+if (toggleOverlaysBtn) {
+  toggleOverlaysBtn.addEventListener("click", () => {
+    toggleOverlays();
+  });
+}
 
 // Page Navigation Event Listeners
-firstPageBtn.addEventListener("click", () => {
-  goToPage(1);
-});
+if (firstPageBtn) {
+  firstPageBtn.addEventListener("click", () => {
+    goToPage(1);
+  });
+}
 
-prevPageBtn.addEventListener("click", () => {
-  if (currentPageNumber > 1) {
-    goToPage(currentPageNumber - 1);
-  }
-});
+if (prevPageBtn) {
+  prevPageBtn.addEventListener("click", () => {
+    if (currentPageNumber > 1) {
+      goToPage(currentPageNumber - 1);
+    }
+  });
+}
 
-nextPageBtn.addEventListener("click", () => {
-  if (currentPdf && currentPageNumber < currentPdf.numPages) {
-    goToPage(currentPageNumber + 1);
-  }
-});
+if (nextPageBtn) {
+  nextPageBtn.addEventListener("click", () => {
+    if (currentPdf && currentPageNumber < currentPdf.numPages) {
+      goToPage(currentPageNumber + 1);
+    }
+  });
+}
 
-lastPageBtn.addEventListener("click", () => {
-  if (currentPdf) {
-    goToPage(currentPdf.numPages);
-  }
-});
+if (lastPageBtn) {
+  lastPageBtn.addEventListener("click", () => {
+    if (currentPdf) {
+      goToPage(currentPdf.numPages);
+    }
+  });
+}
 
-pageInput.addEventListener("change", () => {
-  const pageNum = parseInt(pageInput.value);
-  if (pageNum && pageNum >= 1 && currentPdf && pageNum <= currentPdf.numPages) {
-    goToPage(pageNum);
-  } else {
-    // Reset to current page if invalid
-    pageInput.value = currentPageNumber;
-  }
-});
+if (pageInput) {
+  pageInput.addEventListener("change", () => {
+    const pageNum = parseInt(pageInput.value);
+    if (pageNum && pageNum >= 1 && currentPdf && pageNum <= currentPdf.numPages) {
+      goToPage(pageNum);
+    } else {
+      // Reset to current page if invalid
+      pageInput.value = currentPageNumber;
+    }
+  });
 
-pageInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") {
-    pageInput.blur(); // This will trigger the change event
-  }
-});
+  pageInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      pageInput.blur(); // This will trigger the change event
+    }
+  });
+}
 
 // Keyboard navigation
 document.addEventListener("keydown", (e) => {
@@ -484,10 +523,22 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Initialize unit indicator
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("currentUnit").textContent = '✅';
-  document.getElementById("currentUnit").className = 'status-value status-loaded';
+// Initialize on page load - Main initialization function
+function initializeApp() {
+  // Set PDF Standard (bottom-left) as default coordinate origin
+  const coordOrigin = document.getElementById('coordinateOrigin');
+  if (coordOrigin) {
+    coordOrigin.value = 'bottom-left';
+  }
+
+  // Show welcome message if no PDF is loaded
+  const pdfUrl = document.getElementById('pdfUrl');
+  if (pdfUrl && !pdfUrl.value.trim()) {
+    setTimeout(() => {
+      showProcessingNotification('💡 Tip: Generate PDF and coordinates will be auto-loaded!', 'info');
+    }, 2000);
+  }
+
   updateStatus();
   setupDragAndDrop();
 
@@ -498,12 +549,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!overlaysVisible) {
       // Apply hidden state without animation
       document.body.classList.add('overlays-hidden');
-      toggleOverlaysBtn.textContent = '🙈 Show Overlays';
-      toggleOverlaysBtn.classList.add('overlays-hidden');
+      const btn = document.getElementById('toggleOverlaysBtn');
+      if (btn) {
+        btn.innerHTML = '<span>🙈</span><span>Show Overlays</span>';
+        btn.classList.add('active');
+      }
     }
   }
-  updateStatus();
-});
+  
+  // Update connection status initially
+  updateConnectionStatus(false);
+  
+  // Initialize WebSocket connection (controlled by enableWebSocket flag)
+  if (enableWebSocket) {
+    initWebSocket();
+  } else {
+    console.log('🔌 WebSocket connection disabled (set enableWebSocket = true to enable)');
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initializeApp);
 
 async function goToPage(pageNum) {
   if (!currentPdf || pageNum < 1 || pageNum > currentPdf.numPages) {
@@ -519,6 +584,8 @@ async function goToPage(pageNum) {
 }
 
 function updatePageNavigation() {
+  if (!pageNavigation) return; // Guard clause if element doesn't exist
+  
   if (!currentPdf) {
     pageNavigation.style.display = "none";
     return;
@@ -526,37 +593,47 @@ function updatePageNavigation() {
 
   // Show navigation if PDF has more than 1 page
   if (currentPdf.numPages > 1) {
-    pageNavigation.style.display = "block";
+    pageNavigation.style.display = "flex"; // Changed to flex for proper layout
   } else {
     pageNavigation.style.display = "none";
     return;
   }
 
   // Update page input and total pages
-  pageInput.value = currentPageNumber;
-  totalPages.textContent = currentPdf.numPages;
+  if (pageInput) {
+    pageInput.value = currentPageNumber;
+  }
+  
+  const totalPagesEl = document.getElementById('totalPages');
+  if (totalPagesEl) {
+    totalPagesEl.textContent = currentPdf.numPages;
+  }
 
   // Update button states
-  firstPageBtn.disabled = currentPageNumber === 1;
-  prevPageBtn.disabled = currentPageNumber === 1;
-  nextPageBtn.disabled = currentPageNumber === currentPdf.numPages;
-  lastPageBtn.disabled = currentPageNumber === currentPdf.numPages;
+  if (firstPageBtn) firstPageBtn.disabled = currentPageNumber === 1;
+  if (prevPageBtn) prevPageBtn.disabled = currentPageNumber === 1;
+  if (nextPageBtn) nextPageBtn.disabled = currentPageNumber === currentPdf.numPages;
+  if (lastPageBtn) lastPageBtn.disabled = currentPageNumber === currentPdf.numPages;
 
   // Update button styles based on state
   [firstPageBtn, prevPageBtn, nextPageBtn, lastPageBtn].forEach(btn => {
-    if (btn.disabled) {
-      btn.style.background = "#adb5bd";
-      btn.style.cursor = "not-allowed";
-    } else {
-      btn.style.background = "#6c757d";
-      btn.style.cursor = "pointer";
+    if (btn) {
+      if (btn.disabled) {
+        btn.style.opacity = "0.5";
+        btn.style.cursor = "not-allowed";
+      } else {
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      }
     }
   });
 
   // Update page info
   const overlayCount = overlayData.filter(item => item.page === currentPageNumber).length;
   const pageInfo = document.getElementById("pageInfo");
-  pageInfo.textContent = `Page ${currentPageNumber} of ${currentPdf.numPages} • ${overlayCount} overlay items on this page • Use arrow keys or click buttons to navigate`;
+  if (pageInfo) {
+    pageInfo.textContent = `Page ${currentPageNumber} of ${currentPdf.numPages} • ${overlayCount} overlay items`;
+  }
 }
 
 function setupDragAndDrop() {
@@ -660,37 +737,34 @@ function handleFiles(files) {
 }
 
 function updateStatus() {
-  const pdfStatus = document.getElementById("pdfStatus");
-  const jsonStatus = document.getElementById("jsonStatus");
-  const overlayStatus = document.getElementById("overlayStatus");
-
-  // Update PDF status with icon
-  if (currentPdf) {
-    pdfStatus.textContent = '✅';
-    pdfStatus.className = 'status-value status-loaded';
-  } else {
-    pdfStatus.textContent = '❌';
-    pdfStatus.className = 'status-value status-none';
-  }
-
-  // Update JSON status with icon
-  if (overlayData.length > 0) {
-    jsonStatus.textContent = '✅';
-    jsonStatus.className = 'status-value status-loaded';
-  } else {
-    jsonStatus.textContent = '❌';
-    jsonStatus.className = 'status-value status-none';
-  }
-
-  // Update overlay status with icon
-  if (overlayStatus) {
-    if (overlaysVisible) {
-      overlayStatus.textContent = '✅';
-      overlayStatus.className = 'status-value status-loaded';
+  // Update page info text
+  const pageInfo = document.getElementById("pageInfo");
+  if (pageInfo) {
+    if (!currentPdf && overlayData.length === 0) {
+      pageInfo.textContent = 'Load a PDF and coordinate data to begin';
+    } else if (!currentPdf) {
+      pageInfo.textContent = `Coordinate data loaded (${overlayData.length} items) - Load a PDF to view overlays`;
+    } else if (overlayData.length === 0) {
+      pageInfo.textContent = `PDF loaded (${currentPdf.numPages} pages) - Load coordinate data to view overlays`;
     } else {
-      overlayStatus.textContent = '❌';
-      overlayStatus.className = 'status-value status-disconnected';
+      const overlayCount = overlayData.filter(item => item.page === currentPageNumber).length;
+      pageInfo.textContent = `Page ${currentPageNumber} of ${currentPdf.numPages} • ${overlayCount} overlays on this page`;
     }
+  }
+
+  // Update file upload areas to show what's loaded
+  const pdfUploadArea = document.getElementById('pdfUploadArea');
+  if (pdfUploadArea && currentPdf) {
+    pdfUploadArea.querySelector('.upload-text').textContent = 'PDF loaded ✓';
+    pdfUploadArea.style.borderColor = 'var(--success)';
+    pdfUploadArea.style.background = '#d1fae5';
+  }
+
+  const jsonUploadArea = document.getElementById('jsonUploadArea');
+  if (jsonUploadArea && overlayData.length > 0) {
+    jsonUploadArea.querySelector('.upload-text').textContent = `${overlayData.length} coordinates loaded ✓`;
+    jsonUploadArea.style.borderColor = 'var(--success)';
+    jsonUploadArea.style.background = '#d1fae5';
   }
 }
 
@@ -935,53 +1009,68 @@ function getDisplayCoordinates(item, selectedUnit) {
   return coordStrings.join(' | ');
 }function toggleOutline() {
   showOutline = !showOutline;
+  const btn = document.getElementById('toggleOutlineBtn');
 
   if (showOutline) {
-    pageWrapper.classList.add('outlined');
-    toggleOutlineBtn.textContent = '📐 Hide Outline';
-    toggleOutlineBtn.classList.add('active');
-
-    // Update dimensions in the outline
-    if (currentViewport) {
-      const dimensions = `${Math.round(currentViewport.width)}×${Math.round(currentViewport.height)}px`;
-      pageWrapper.setAttribute('data-dimensions', dimensions);
+    if (pageWrapper) {
+      pageWrapper.classList.add('outlined');
+      // Update dimensions in the outline
+      if (currentViewport) {
+        const dimensions = `${Math.round(currentViewport.width)}×${Math.round(currentViewport.height)}px`;
+        pageWrapper.setAttribute('data-dimensions', dimensions);
+      }
+      // Add coordinate grid
+      drawCoordinateGrid();
     }
-
-    // Add coordinate grid
-    drawCoordinateGrid();
+    
+    if (btn) {
+      btn.innerHTML = '<span>📐</span><span>Hide Outline</span>';
+      btn.classList.add('active');
+    }
   } else {
-    pageWrapper.classList.remove('outlined');
-    toggleOutlineBtn.textContent = '📐 Show Outline';
-    toggleOutlineBtn.classList.remove('active');
-
-    // Remove coordinate grid
-    const gridCanvas = pageWrapper.querySelector('.coordinate-grid');
-    if (gridCanvas) {
-      gridCanvas.remove();
+    if (pageWrapper) {
+      pageWrapper.classList.remove('outlined');
+      // Remove coordinate grid
+      const gridCanvas = pageWrapper.querySelector('.coordinate-grid');
+      if (gridCanvas) {
+        gridCanvas.remove();
+      }
+    }
+    
+    if (btn) {
+      btn.innerHTML = '<span>📐</span><span>Show Outline</span>';
+      btn.classList.remove('active');
     }
   }
 }
 
 function toggleOverlays() {
   overlaysVisible = !overlaysVisible;
+  const btn = document.getElementById('toggleOverlaysBtn');
 
   if (overlaysVisible) {
     // Show overlays
     document.body.classList.remove('overlays-hidden');
-    toggleOverlaysBtn.textContent = '👁️ Hide Overlays';
-    toggleOverlaysBtn.classList.remove('overlays-hidden');
+    if (btn) {
+      btn.innerHTML = '<span>👁️</span><span>Hide Overlays</span>';
+      btn.classList.remove('active');
+    }
     // Show overlay selector panel
-    if (overlayData.length > 0) {
+    if (overlayData.length > 0 && overlaySelector) {
       overlaySelector.style.display = 'block';
     }
     console.log('Overlays shown');
   } else {
     // Hide overlays
     document.body.classList.add('overlays-hidden');
-    toggleOverlaysBtn.textContent = '🙈 Show Overlays';
-    toggleOverlaysBtn.classList.add('overlays-hidden');
+    if (btn) {
+      btn.innerHTML = '<span>🙈</span><span>Show Overlays</span>';
+      btn.classList.add('active');
+    }
     // Hide overlay selector panel
-    overlaySelector.style.display = 'none';
+    if (overlaySelector) {
+      overlaySelector.style.display = 'none';
+    }
     console.log('Overlays hidden');
   }
 
@@ -1113,39 +1202,7 @@ function handleWebSocketMessage(data) {
 
         case 'processing_started':
             console.log('🚀 Processing started for:', data.overlayType);
-            showProgress(`Processing ${data.overlayType} instruction...`, [
-                'Compiling LaTeX',
-                'Generating PDF',
-                'Creating Coordinates',
-                'Finalizing',
-                'Loading Files'
-            ]);
-
-            // Start the first step manually and simulate progress if no server updates
-            setTimeout(() => {
-                nextProgressStep('Starting compilation...');
-            }, 500);
-
-            // Fallback progress simulation if server doesn't send progress updates
-            let fallbackSteps = 0;
-            const fallbackInterval = setInterval(() => {
-                fallbackSteps++;
-                if (fallbackSteps < 5 && currentProgressStep < 5) {
-                    const messages = [
-                        'Compiling LaTeX files...',
-                        'Generating PDF document...',
-                        'Creating coordinate data...',
-                        'Finalizing output...',
-                        'Preparing file loading...'
-                    ];
-                    nextProgressStep(messages[fallbackSteps - 1]);
-                } else {
-                    clearInterval(fallbackInterval);
-                }
-            }, 2000); // Advance every 2 seconds as fallback
-
-            // Store interval ID to clear it if we get actual progress updates
-            window.progressFallbackInterval = fallbackInterval;
+            showProgress(`Processing ${data.overlayType} instruction...`);
             break;
 
         case 'processing_progress':
@@ -1156,45 +1213,35 @@ function handleWebSocketMessage(data) {
                 window.progressFallbackInterval = null;
             }
 
-            if (data.step) {
-                nextProgressStep(data.message || null);
-            } else if (data.message) {
-                progressText.textContent = data.message;
+            if (data.message && progressModalStatus) {
+                progressModalStatus.textContent = data.message;
             }
             break;
 
         case 'processing_complete':
             console.log('✅ Processing complete');
-            // Clear fallback interval
-            if (window.progressFallbackInterval) {
-                clearInterval(window.progressFallbackInterval);
-                window.progressFallbackInterval = null;
+            
+            // Update status
+            if (progressModalStatus) {
+                progressModalStatus.textContent = 'Processing complete! Loading files...';
             }
 
-            // Complete the final step
-            nextProgressStep('Processing complete!');
-
-            // Add a new step for file loading
+            // Auto-reload the newly generated files
             setTimeout(() => {
-                nextProgressStep('Loading generated files...');
-
-                // Auto-reload the newly generated files
-                setTimeout(() => {
-                    console.log('🔄 Starting auto-load of generated files...');
-                    loadNewGeneratedFiles().then(() => {
-                        // Hide progress only after files are successfully loaded
-                        setTimeout(() => {
-                            hideProgress();
-                            showProcessingNotification(`✅ Files loaded successfully!`, 'success');
-                        }, 500);
-                    }).catch(() => {
-                        // Hide progress even if auto-loading fails
-                        setTimeout(() => {
-                            hideProgress();
-                            showProcessingNotification(`⚠️ Processing complete, but auto-loading failed. Please load files manually.`, 'warning');
-                        }, 500);
-                    });
-                }, 500);
+                console.log('🔄 Starting auto-load of generated files...');
+                loadNewGeneratedFiles().then(() => {
+                    // Hide progress after files are successfully loaded
+                    setTimeout(() => {
+                        hideProgress();
+                        showProcessingNotification(`✅ Files loaded successfully!`, 'success');
+                    }, 500);
+                }).catch(() => {
+                    // Hide progress even if auto-loading fails
+                    setTimeout(() => {
+                        hideProgress();
+                        showProcessingNotification(`⚠️ Processing complete, but auto-loading failed. Please load files manually.`, 'warning');
+                    }, 500);
+                });
             }, 1000);
             break;
 
@@ -1220,20 +1267,55 @@ function handleWebSocketMessage(data) {
             }
             break;
 
+        case 'process_output':
+            // Server already filters messages, so we only receive important status
+            const message = data.message.trim();
+            if (!message) break;
+            
+            console.log(`📤 Status update:`, message);
+            
+            // Update the new simple modal
+            if (progressModalStatus) {
+                // Check if it's an error message
+                const isError = 
+                    message.toLowerCase().includes('error') ||
+                    message.toLowerCase().includes('failed') ||
+                    message.includes('❌');
+                
+                // Update status text
+                if (isError) {
+                    progressModalStatus.textContent = `⚠️ ${message}`;
+                    progressModalStatus.style.color = '#ef4444';
+                    console.error('🔴 Error:', message);
+                } else {
+                    progressModalStatus.textContent = message;
+                    progressModalStatus.style.color = '#64748b';
+                }
+                
+                console.log(`✅ Status updated: "${message}"`);
+            } else {
+                console.error('❌ progressModalStatus element not found!');
+            }
+            break;
+
         default:
             console.log('Unknown message type:', data.type);
     }
 }
 
 function updateConnectionStatus(connected) {
-    // Update connection status in the status panel
-    const connectionStatus = document.getElementById('connectionStatus');
-    const statusValue = connectionStatus?.querySelector('.status-value');
+    // Update connection status in the header
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionText = document.getElementById('connectionText');
 
-    if (connectionStatus && statusValue) {
-        connectionStatus.style.display = 'flex';
-        statusValue.textContent = connected ? '✅' : '❌';
-        statusValue.className = connected ? 'status-value status-connected' : 'status-value status-disconnected';
+    if (connectionDot && connectionText) {
+        if (connected) {
+            connectionDot.className = 'status-dot connected';
+            connectionText.textContent = 'Connected';
+        } else {
+            connectionDot.className = 'status-dot disconnected';
+            connectionText.textContent = 'Disconnected';
+        }
     }
 }
 
@@ -1548,140 +1630,59 @@ sendBtn.addEventListener("click", async () => {
     }
 });
 
-// Progress Bar Management
-let currentProgressStep = 0;
-let progressCancelRequested = false;
-
-function showProgress(title = "Processing PDF...", steps = null) {
-    console.log('🎯 Starting progress bar:', title);
-    progressTitle.textContent = title;
-    progressText.textContent = "Initializing...";
-    currentProgressStep = 0;
-    progressCancelRequested = false;
-
-    // Setup steps
-    if (steps) {
-        updateProgressSteps(steps);
+// Simple Progress Modal Management
+function showProgress(title = "Processing...") {
+    console.log('🎯 Showing progress modal:', title);
+    
+    if (progressModal) {
+        progressModalTitle.textContent = title;
+        progressModalStatus.textContent = "Initializing...";
+        progressModalStatus.style.color = '#64748b';
+        progressModal.style.display = 'flex';
+        console.log('✅ Progress modal shown');
+    } else {
+        console.error('❌ Progress modal element not found!');
     }
-
-    // Reset progress bar and all steps
-    progressBar.className = 'progress-bar indeterminate';
-    progressBar.style.width = '0%';
-
-    // Reset all steps
-    const stepElements = progressSteps.querySelectorAll('.progress-step');
-    stepElements.forEach(step => {
-        step.classList.remove('active', 'completed');
-    });
-
-    // Show overlay
-    progressOverlay.style.display = 'flex';
-
-    console.log('✅ Progress bar shown');
-    // Don't start first step automatically - wait for processing_progress messages
 }
 
+// Old progress functions - replaced by simple modal
 function updateProgressSteps(steps) {
-    const stepElements = progressSteps.querySelectorAll('.progress-step');
-    stepElements.forEach((step, index) => {
-        const circle = step.querySelector('.progress-step-circle');
-        const label = step.querySelector('.progress-step-label');
-
-        if (index < steps.length) {
-            circle.textContent = index + 1;
-            label.textContent = steps[index];
-            step.style.display = 'flex';
-        } else {
-            step.style.display = 'none';
-        }
-    });
+    // No longer used - kept for compatibility
 }
 
 function nextProgressStep(message = null) {
-    if (progressCancelRequested) return;
-
-    console.log(`📈 Progress step ${currentProgressStep + 1}, message: ${message}`);
-
-    const stepElements = progressSteps.querySelectorAll('.progress-step');
-
-    // Mark current step as completed (if we're moving from a previous step)
-    if (currentProgressStep > 0 && currentProgressStep <= stepElements.length) {
-        const prevStep = stepElements[currentProgressStep - 1];
-        prevStep.classList.add('completed');
-        prevStep.classList.remove('active');
-        console.log(`✅ Completed step ${currentProgressStep}`);
-    }
-
-    // Move to next step
-    currentProgressStep++;
-
-    if (currentProgressStep <= stepElements.length) {
-        const currentStep = stepElements[currentProgressStep - 1];
-        currentStep.classList.add('active');
-
-        // Update progress bar - more gradual progression
-        const progressPercent = ((currentProgressStep - 1) / stepElements.length) * 100;
-        progressBar.className = 'progress-bar';
-        progressBar.style.width = `${progressPercent}%`;
-
-        // Update text
-        if (message) {
-            progressText.textContent = message;
-        } else if (currentStep) {
-            const stepLabel = currentStep.querySelector('.progress-step-label').textContent;
-            progressText.textContent = `${stepLabel}...`;
-        }
-
-        console.log(`🎯 Active step ${currentProgressStep}: ${progressText.textContent}`);
-    } else {
-        // All steps completed
-        progressBar.style.width = '100%';
-        console.log('🎉 All progress steps completed');
-    }
+    // No longer used - old complex progress system replaced with simple modal
+    // Kept as stub for backward compatibility
+    console.log('📝 nextProgressStep (deprecated):', message);
 }
 
 function hideProgress() {
-    // Clear any fallback intervals
-    if (window.progressFallbackInterval) {
-        clearInterval(window.progressFallbackInterval);
-        window.progressFallbackInterval = null;
+    console.log('🔒 Hiding progress modal');
+    
+    if (progressModal) {
+        progressModal.style.display = 'none';
+        console.log('✅ Progress modal hidden');
     }
-
-    progressOverlay.style.display = 'none';
-    currentProgressStep = 0;
-    progressCancelRequested = false;
-
-    // Reset all steps
-    const stepElements = progressSteps.querySelectorAll('.progress-step');
-    stepElements.forEach(step => {
-        step.classList.remove('active', 'completed');
-    });
-
-    console.log('🎯 Progress bar hidden and reset');
 }
 
-// Test function for progress bar
+// Test function for progress modal
 function testProgressBar() {
-    console.log('🧪 Testing progress bar...');
-    showProgress('Testing Progress Bar...', [
-        'Test Step 1',
-        'Test Step 2',
-        'Test Step 3',
-        'Test Step 4',
-        'Test Step 5'
-    ]);
+    console.log('🧪 Testing progress modal...');
+    showProgress('Testing Progress Modal...');
 
-    // Simulate progress steps
+    // Simulate status updates
     let testStep = 0;
     const testInterval = setInterval(() => {
         testStep++;
         if (testStep <= 5) {
-            nextProgressStep(`Testing step ${testStep}...`);
+            if (progressModalStatus) {
+                progressModalStatus.textContent = `Test step ${testStep} of 5...`;
+            }
         } else {
             clearInterval(testInterval);
             setTimeout(() => {
                 hideProgress();
-                showProcessingNotification('✅ Progress bar test completed!', 'success');
+                showProcessingNotification('✅ Progress modal test completed!', 'success');
             }, 1000);
         }
     }, 1500);
@@ -1860,8 +1861,9 @@ function highlightOverlay(overlayId, highlight) {
 }
 
 function cancelProgress() {
-    progressCancelRequested = true;
-    progressText.textContent = "Canceling...";
+    if (progressModalStatus) {
+        progressModalStatus.textContent = "Canceling...";
+    }
 
     // You can add WebSocket cancellation logic here if needed
     setTimeout(() => {
@@ -1889,50 +1891,12 @@ function toggleAccordion(header) {
     content.classList.toggle('active');
 }
 
-// Initialize WebSocket when page loads
-document.addEventListener("DOMContentLoaded", () => {
-    // Set PDF Standard (bottom-left) as default coordinate origin
-    coordinateOrigin.value = 'bottom-left';
+// Helper function to toggle accordion sections (removed duplicate DOMContentLoaded listener)
 
-    // Enhanced UI initialization
-    // Show welcome message encouraging to use generated files
-    if (!pdfUrlInput.value.trim()) {
-        setTimeout(() => {
-            showProcessingNotification('💡 Tip: Generate PDF and coordinates will be auto-loaded!', 'info');
-        }, 2000);
-    }
-
-    // Ensure PDF Management accordion is open by default
-    const pdfSection = document.querySelector('.control-section .section-header');
-    if (pdfSection && !pdfSection.classList.contains('active')) {
-        pdfSection.classList.add('active');
-        pdfSection.nextElementSibling.classList.add('active');
-    }
-
-    document.getElementById("currentUnit").textContent = '✅';
-    document.getElementById("currentUnit").className = 'status-value status-loaded';
-    updateStatus();
-    setupDragAndDrop();
-
-    // Restore overlay visibility state from localStorage
-    const savedOverlayState = localStorage.getItem('overlaysVisible');
-    if (savedOverlayState !== null) {
-        overlaysVisible = savedOverlayState === 'true';
-        if (!overlaysVisible) {
-            // Apply hidden state without animation
-            document.body.classList.add('overlays-hidden');
-            toggleOverlaysBtn.textContent = '🙈 Show Overlays';
-            toggleOverlaysBtn.classList.add('overlays-hidden');
-        }
-    }
-    updateStatus();
-
-    // Initialize WebSocket connection (controlled by enableWebSocket flag)
-    if (enableWebSocket) {
-        initWebSocket();
-    } else {
-        console.log('🔌 WebSocket connection disabled (set enableWebSocket = true to enable)');
-        // Hide WebSocket status indicator
-        document.getElementById('connectionStatus').style.display = 'none';
-    }
-});
+// Global function for toggling overlay selector (called from HTML onclick)
+function toggleOverlaySelector() {
+  const selector = document.getElementById('overlaySelector');
+  if (selector) {
+    selector.classList.toggle('collapsed');
+  }
+}

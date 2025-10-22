@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs-extra');
 const path = require('path');
 const chokidar = require('chokidar');
+const EventEmitter = require('events');
 
 // Import our modules
 const ConfigManager = require('./modules/ConfigManager');
@@ -15,13 +16,32 @@ class PDFOverlayServer {
     constructor() {
         this.configManager = new ConfigManager();
         this.xmlProcessor = new XMLProcessor(this.configManager);
-        this.documentConverter = new DocumentConverter(this.configManager);
+        
+        // Create event emitter for real-time process output
+        this.processEmitter = new EventEmitter();
+        this.documentConverter = new DocumentConverter(this.configManager, this.processEmitter);
+        
         this.fileWatcher = new FileWatcher(this.configManager);
         
         this.clients = new Set();
         this.port = process.env.PORT || 8081;
         
+        // Setup process event listeners
+        this.setupProcessEventListeners();
+        
         this.init();
+    }
+    
+    setupProcessEventListeners() {
+        // Listen for process output events and broadcast to WebSocket clients
+        this.processEmitter.on('process_output', (data) => {
+            this.broadcastToAllClients({
+                type: 'process_output',
+                outputType: data.type, // 'stdout' or 'stderr'
+                message: data.message,
+                timestamp: new Date().toISOString()
+            });
+        });
     }
 
     async init() {
