@@ -1219,29 +1219,47 @@ function handleWebSocketMessage(data) {
             break;
 
         case 'processing_complete':
-            console.log('✅ Processing complete');
+            console.log('✅ Processing complete', data);
             
             // Update status
             if (progressModalStatus) {
                 progressModalStatus.textContent = 'Processing complete! Loading files...';
             }
 
-            // Auto-reload the newly generated files
+            // Auto-reload the newly generated files with specific paths
             setTimeout(() => {
                 console.log('🔄 Starting auto-load of generated files...');
-                loadNewGeneratedFiles().then(() => {
-                    // Hide progress after files are successfully loaded
-                    setTimeout(() => {
-                        hideProgress();
-                        showProcessingNotification(`✅ Files loaded successfully!`, 'success');
-                    }, 500);
-                }).catch(() => {
-                    // Hide progress even if auto-loading fails
-                    setTimeout(() => {
-                        hideProgress();
-                        showProcessingNotification(`⚠️ Processing complete, but auto-loading failed. Please load files manually.`, 'warning');
-                    }, 500);
-                });
+                
+                // Use the exact file paths from the server response
+                let pdfPath = data.result?.pdfPath;
+                let jsonPath = data.result?.jsonPath;
+                
+                if (pdfPath && jsonPath) {
+                    // Convert absolute filesystem paths to relative web URLs
+                    // e.g., /Users/che/Code/.../TeX/file.pdf -> /TeX/file.pdf
+                    pdfPath = convertToRelativeUrl(pdfPath);
+                    jsonPath = convertToRelativeUrl(jsonPath);
+                    
+                    console.log(`📄 Converted paths: PDF=${pdfPath}, JSON=${jsonPath}`);
+                    
+                    loadNewGeneratedFiles(pdfPath, jsonPath).then(() => {
+                        // Hide progress after files are successfully loaded
+                        setTimeout(() => {
+                            hideProgress();
+                            showProcessingNotification(`✅ Files loaded successfully!`, 'success');
+                        }, 500);
+                    }).catch((error) => {
+                        // Hide progress even if auto-loading fails
+                        setTimeout(() => {
+                            hideProgress();
+                            showProcessingNotification(`⚠️ Processing complete, but auto-loading failed: ${error.message}`, 'warning');
+                        }, 500);
+                    });
+                } else {
+                    console.warn('⚠️ No file paths in processing_complete message, skipping auto-load');
+                    hideProgress();
+                    showProcessingNotification(`⚠️ Processing complete, but no file paths received. Please load files manually.`, 'warning');
+                }
             }, 1000);
             break;
 
@@ -1252,11 +1270,8 @@ function handleWebSocketMessage(data) {
 
         case 'file_change':
             console.log(`📁 File ${data.eventType}: ${data.filePath}`);
-            if (data.eventType === 'change' && (data.filePath.endsWith('.pdf') || data.filePath.endsWith('.json'))) {
-                setTimeout(() => {
-                    loadNewGeneratedFiles();
-                }, 500);
-            }
+            // File change auto-loading is disabled - only load files after explicit processing_complete
+            // This prevents loading default files when any file changes
             break;
 
         case 'dropdown_options':
@@ -1365,7 +1380,7 @@ function showProcessingNotification(message, type = 'info') {
 // Flag to prevent multiple simultaneous auto-loading attempts
 let isAutoLoadingInProgress = false;
 
-async function loadNewGeneratedFiles() {
+async function loadNewGeneratedFiles(specificPdfPath = null, specificJsonPath = null) {
     // Prevent multiple simultaneous calls
     if (isAutoLoadingInProgress) {
         console.log('🔄 Auto-loading already in progress, skipping...');
@@ -1375,43 +1390,64 @@ async function loadNewGeneratedFiles() {
     isAutoLoadingInProgress = true;
 
     try {
-        console.log('🔄 Checking for newly generated files...');
-
-        // Enhanced file detection with more possible locations and formats
-        const possiblePaths = [
-            // Priority 1: Latest generated files with marked-boxes format
-            { pdf: '/TeX/document-generated.pdf', json: '/TeX/document-generated-texpos-marked-boxes.json' },
-            { pdf: '/ui/document-generated.pdf', json: '/ui/document-generated-texpos-marked-boxes.json' },
-
-            // Priority 2: Standard generated files with geometry format
-            { pdf: '/TeX/document-generated.pdf', json: '/TeX/document-generated-geometry.json' },
-            { pdf: '/ui/document-generated.pdf', json: '/ui/document-generated-geometry.json' },
-
-            // Priority 3: Basic document files
-            { pdf: '/TeX/document.pdf', json: '/TeX/document-texpos-marked-boxes.json' },
-            { pdf: '/TeX/document.pdf', json: '/TeX/document-geometry.json' },
-            { pdf: '/ui/document.pdf', json: '/ui/document-texpos-marked-boxes.json' },
-            { pdf: '/ui/document.pdf', json: '/ui/document-geometry.json' }
-        ];
-
         let foundFiles = null;
 
-        // Check each possible path combination
-        for (const paths of possiblePaths) {
-            const pdfExists = await checkFileExists(paths.pdf);
-            const jsonExists = await checkFileExists(paths.json);
-
-            console.log(`🔍 Checking: PDF=${paths.pdf} (${pdfExists ? '✅' : '❌'}), JSON=${paths.json} (${jsonExists ? '✅' : '❌'})`);
-
+        // If specific paths are provided, use them directly
+        if (specificPdfPath && specificJsonPath) {
+            console.log(`📄 Loading specified files: PDF=${specificPdfPath}, JSON=${specificJsonPath}`);
+            
+            // Ensure paths start with /
+            const pdfPath = specificPdfPath.startsWith('/') ? specificPdfPath : '/' + specificPdfPath;
+            const jsonPath = specificJsonPath.startsWith('/') ? specificJsonPath : '/' + specificJsonPath;
+            
+            // Check if the specified files exist
+            const pdfExists = await checkFileExists(pdfPath);
+            const jsonExists = await checkFileExists(jsonPath);
+            
+            console.log(`🔍 Checking specified files: PDF=${pdfPath} (${pdfExists ? '✅' : '❌'}), JSON=${jsonPath} (${jsonExists ? '✅' : '❌'})`);
+            
             if (pdfExists && jsonExists) {
-                foundFiles = paths;
-                console.log(`✅ Found generated files: ${paths.pdf}, ${paths.json}`);
-                break;
+                foundFiles = { pdf: pdfPath, json: jsonPath };
+            } else {
+                throw new Error(`Specified files not found: PDF=${pdfExists ? '✅' : '❌'}, JSON=${jsonExists ? '✅' : '❌'}`);
+            }
+        } else {
+            // Fallback: Check default locations (only when no specific paths provided)
+            console.log('🔄 No specific paths provided, checking default locations...');
+
+            const possiblePaths = [
+                // Priority 1: Latest generated files with marked-boxes format
+                { pdf: '/TeX/document-generated.pdf', json: '/TeX/document-generated-texpos-marked-boxes.json' },
+                { pdf: '/ui/document-generated.pdf', json: '/ui/document-generated-texpos-marked-boxes.json' },
+
+                // Priority 2: Standard generated files with geometry format
+                { pdf: '/TeX/document-generated.pdf', json: '/TeX/document-generated-geometry.json' },
+                { pdf: '/ui/document-generated.pdf', json: '/ui/document-generated-geometry.json' },
+
+                // Priority 3: Basic document files
+                { pdf: '/TeX/document.pdf', json: '/TeX/document-texpos-marked-boxes.json' },
+                { pdf: '/TeX/document.pdf', json: '/TeX/document-geometry.json' },
+                { pdf: '/ui/document.pdf', json: '/ui/document-texpos-marked-boxes.json' },
+                { pdf: '/ui/document.pdf', json: '/ui/document-geometry.json' }
+            ];
+
+            // Check each possible path combination
+            for (const paths of possiblePaths) {
+                const pdfExists = await checkFileExists(paths.pdf);
+                const jsonExists = await checkFileExists(paths.json);
+
+                console.log(`🔍 Checking: PDF=${paths.pdf} (${pdfExists ? '✅' : '❌'}), JSON=${paths.json} (${jsonExists ? '✅' : '❌'})`);
+
+                if (pdfExists && jsonExists) {
+                    foundFiles = paths;
+                    console.log(`✅ Found generated files: ${paths.pdf}, ${paths.json}`);
+                    break;
+                }
             }
         }
 
         if (foundFiles) {
-            console.log('📄 Auto-loading newly generated files...');
+            console.log('📄 Auto-loading files...');
 
             // Show loading notification
             showProcessingNotification('📥 Auto-loading generated PDF and coordinates...', 'info');
@@ -1473,16 +1509,23 @@ async function loadNewGeneratedFiles() {
 
                 console.log(`✅ Loaded ${overlayData.length} coordinate items from ${foundFiles.json}`);
 
-                // Update JSON status
-                document.getElementById("jsonStatus").textContent = `${overlayData.length} items`;
-                document.getElementById("jsonStatus").className = "status-value status-loaded";
+                // Update JSON status (if element exists in UI)
+                const jsonStatus = document.getElementById("jsonStatus");
+                if (jsonStatus) {
+                    jsonStatus.textContent = `${overlayData.length} items`;
+                    jsonStatus.className = "status-value status-loaded";
+                }
 
                 // Update the PDF URL and load - add timestamp to force reload
                 const pdfUrlWithTimestamp = `${foundFiles.pdf}?t=${Date.now()}`;
-                pdfUrlInput.value = foundFiles.pdf;
+                if (pdfUrlInput) {
+                    pdfUrlInput.value = foundFiles.pdf;
+                }
 
                 // Clear dropdown selections to encourage using generated files
-                jsonSelect.value = "";
+                if (jsonSelect) {
+                    jsonSelect.value = "";
+                }
 
                 // Load the PDF
                 console.log(`📄 Loading PDF: ${foundFiles.pdf}`);
@@ -1523,6 +1566,58 @@ async function loadNewGeneratedFiles() {
         // Always reset the loading flag
         isAutoLoadingInProgress = false;
     }
+}
+
+/**
+ * Converts absolute filesystem paths to relative web URLs
+ * e.g., /Users/che/Code/.../TeX/file.pdf -> /TeX/file.pdf
+ */
+function convertToRelativeUrl(filePath) {
+    if (!filePath) return filePath;
+    
+    // If it already looks like a relative URL (starts with / and is short), return as-is
+    if (filePath.startsWith('/') && !filePath.includes('/Users/') && !filePath.includes('/home/')) {
+        return filePath;
+    }
+    
+    // Find common web-accessible directories
+    const webDirs = ['TeX', 'ui', 'xml', 'images', 'assets'];
+    
+    for (const dir of webDirs) {
+        const index = filePath.lastIndexOf(`/${dir}/`);
+        if (index !== -1) {
+            // Extract everything from this directory onwards
+            const relativePath = filePath.substring(index);
+            console.log(`🔄 Converted ${filePath} -> ${relativePath}`);
+            return relativePath;
+        }
+        
+        // Also check for the directory at the end (no trailing slash)
+        const dirPattern = new RegExp(`/${dir}/([^/]+)$`);
+        if (dirPattern.test(filePath)) {
+            const relativePath = filePath.substring(filePath.lastIndexOf(`/${dir}/`));
+            console.log(`🔄 Converted ${filePath} -> ${relativePath}`);
+            return relativePath;
+        }
+    }
+    
+    // If no web directory found, check if it's already relative
+    if (!filePath.startsWith('/')) {
+        return '/' + filePath;
+    }
+    
+    // As a fallback, try to find the workspace name in the path
+    const workspacePattern = /prototype-pdf-object-overlay\/(.+)$/;
+    const match = filePath.match(workspacePattern);
+    if (match) {
+        const relativePath = '/' + match[1];
+        console.log(`🔄 Converted ${filePath} -> ${relativePath}`);
+        return relativePath;
+    }
+    
+    // If all else fails, return as-is and log a warning
+    console.warn(`⚠️ Could not convert path to relative URL: ${filePath}`);
+    return filePath;
 }
 
 async function checkFileExists(url) {
@@ -1692,13 +1787,20 @@ function testProgressBar() {
 window.testProgressBar = testProgressBar;
 
 // Test function for auto-loading
-function testAutoLoad() {
-    console.log('🧪 Testing auto-load...');
-    showProcessingNotification('🔄 Testing auto-load functionality...', 'info');
-
-    setTimeout(() => {
-        loadNewGeneratedFiles();
-    }, 1000);
+function testAutoLoad(pdfPath = null, jsonPath = null) {
+    if (pdfPath && jsonPath) {
+        console.log(`🧪 Testing auto-load with specific paths: ${pdfPath}, ${jsonPath}`);
+        showProcessingNotification('🔄 Testing auto-load with specific paths...', 'info');
+        setTimeout(() => {
+            loadNewGeneratedFiles(pdfPath, jsonPath);
+        }, 1000);
+    } else {
+        console.log('🧪 Testing auto-load with default locations...');
+        showProcessingNotification('🔄 Testing auto-load from default locations...', 'info');
+        setTimeout(() => {
+            loadNewGeneratedFiles();
+        }, 1000);
+    }
 }
 
 // Make auto-load test globally accessible
