@@ -53,7 +53,7 @@ echo "TeX file generated: $TEX_FILE"
 
 # Step 3: Fix HTML entities
 echo "Step 3: Fixing HTML entities..."
-sed -i 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g' "$TEX_FILE"
+sed -i '' 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g' "$TEX_FILE"
 
 # Step 4: Fix mathematical expressions and LaTeX issues
 echo "Step 4: Fixing mathematical expressions..."
@@ -68,28 +68,28 @@ fi
 echo "Step 5: Applying additional LaTeX fixes..."
 
 # Fix lonely \item commands
-sed -i 's/\\item[[:space:]]*\([^\\]\)/\1/g' "$TEX_FILE"
-sed -i '/^[[:space:]]*\\item[[:space:]]*$/d' "$TEX_FILE"
+sed -i '' 's/\\item[[:space:]]*\([^\\]\)/\1/g' "$TEX_FILE"
+sed -i '' '/^[[:space:]]*\\item[[:space:]]*$/d' "$TEX_FILE"
 
 # Fix malformed textsuperscript commands more conservatively
-sed -i 's/\\textsuperscript{\[mathematical expression\]}/[math]/g' "$TEX_FILE"
-sed -i 's/\\textsuperscript{\[^}]*mathematical[^}]*}/[math]/g' "$TEX_FILE"
-sed -i 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
-sed -i 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[mathematical expression\]}/[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*mathematical[^}]*}/[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 
 # Remove empty superscripts
-sed -i 's/\\textsuperscript{\[^}]*\}/[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*\}/[math]/g' "$TEX_FILE"
 
 # Conservative brace fixing - only remove clearly malformed ones
-sed -i 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
-sed -i 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
+sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 
 # Fix bibliography issues
 if grep -q "\\bibitem" "$TEX_FILE"; then
     echo "Fixing bibliography..."
     # Add bibliography environment if missing
     if ! grep -q "\\begin{thebibliography}" "$TEX_FILE"; then
-        sed -i '/\\bibitem/a\
+        sed -i '' '/\\bibitem/a\
 \\begin{thebibliography}{99}
 ' "$TEX_FILE"
         echo "\\end{thebibliography}" >> "$TEX_FILE"
