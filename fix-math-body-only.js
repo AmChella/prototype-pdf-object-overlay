@@ -46,8 +46,10 @@ function fixMathInBody(body) {
     fixed = fixed.replace(/\\frac\{[^}]*\}\{\}/g, '');
     
     // Remove all complex mathematical expressions that cause LaTeX errors
+    // But exclude known commands that use multiple braced arguments (like \geommarkinline, \frac, etc.)
     fixed = fixed.replace(/J=\{[^}]*\}\{[^}]*\}/g, 'J = [mathematical expression]');
-    fixed = fixed.replace(/\{[^}]*\}\{[^}]*\}/g, '[mathematical expression]');
+    // Match {}{} patterns that are NOT preceded by a backslash-command
+    fixed = fixed.replace(/([^\\a-zA-Z])\{[^}]*\}\{[^}]*\}/g, '$1[mathematical expression]');
     
     // Remove any remaining problematic mathematical content
     fixed = fixed.replace(/∑[^}]*\}/g, '[sum]');
@@ -58,9 +60,9 @@ function fixMathInBody(body) {
     fixed = fixed.replace(/\\begin\[[^\]]*mathematical[^\]]*\]/g, '');
     fixed = fixed.replace(/\\begin\[[^\]]*\]/g, '');
     
-    // Fix lonely \item commands
-    fixed = fixed.replace(/\\item\s*([^\\])/g, '$1');
-    fixed = fixed.replace(/\\item\s*$/gm, '');
+    // Fix lonely \item commands (disabled - we now have proper list environments)
+    // fixed = fixed.replace(/\\item\s*([^\\])/g, '$1');
+    // fixed = fixed.replace(/\\item\s*$/gm, '');
     
     // Fix malformed mathematical expressions and extra braces
     fixed = fixed.replace(/\[mathematical expression\]/g, '');
@@ -101,22 +103,22 @@ function fixMathInBody(body) {
     fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\}\s*([^}])/g, '\\textsuperscript{$1}');
     fixed = fixed.replace(/\\textsuperscript\{[^}]*\}\s*\}\s*([^}])/g, '\\textsuperscript{$1}');
     
-    // Fix bibliography environment
-    if (fixed.includes('\\bibitem{}')) {
-        // Find the first \bibitem and add \begin{thebibliography} before it
-        const bibitemIndex = fixed.indexOf('\\bibitem{}');
-        if (bibitemIndex > 0) {
-            // Look for the line before the first \bibitem
-            const beforeBibitem = fixed.substring(0, bibitemIndex);
-            const afterBibitem = fixed.substring(bibitemIndex);
-            
-            // Add \begin{thebibliography} before the first \bibitem
-            fixed = beforeBibitem + '\\begin{thebibliography}{99}\n' + afterBibitem;
-            
-            // Add \end{thebibliography} at the end
-            fixed = fixed + '\n\\end{thebibliography}';
-        }
-    }
+    // Fix bibliography environment (disabled - template now handles this)
+    // if (fixed.includes('\\bibitem{}')) {
+    //     // Find the first \bibitem and add \begin{thebibliography} before it
+    //     const bibitemIndex = fixed.indexOf('\\bibitem{}');
+    //     if (bibitemIndex > 0) {
+    //         // Look for the line before the first \bibitem
+    //         const beforeBibitem = fixed.substring(0, bibitemIndex);
+    //         const afterBibitem = fixed.substring(bibitemIndex);
+    //         
+    //         // Add \begin{thebibliography} before the first \bibitem
+    //         fixed = beforeBibitem + '\\begin{thebibliography}{99}\n' + afterBibitem;
+    //         
+    //         // Add \end{thebibliography} at the end
+    //         fixed = fixed + '\n\\end{thebibliography}';
+    //     }
+    // }
     
     // Fix only the most basic and safe mathematical expressions
     fixed = fixed.replace(/\bP\s+value\b/g, '$P$ value');

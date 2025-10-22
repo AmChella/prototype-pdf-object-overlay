@@ -57,8 +57,16 @@
 }
 \makeatother
 
-% Inline mark attaches to the current line; safe in paragraph mode
-\def\geommarkinline#1#2{\vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}}}
+% Inline mark attaches to the current line; safe in both paragraph and vertical mode
+\def\geommarkinline#1#2{%
+  \ifvmode
+    % In vertical mode, use \vspace{0pt} to not disrupt layout
+    \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}%
+  \else
+    % In horizontal mode, use \vadjust
+    \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}}%
+  \fi
+}
 
 % Immediate mark for floats (figures, tables) - improved version
 % This version uses \label mechanism to get more accurate page numbers

@@ -47,6 +47,9 @@
 \IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
 \input{../TeX-lib/geom-marks.tex}
 
+% Paragraph ID command for hyperlink targets
+\newcommand{\paraid}[1]{\par\noindent\hypertarget{#1}{\ignorespaces}}
+
 % ---------- Document ----------
 \begin{document}
 
@@ -158,7 +161,7 @@
 
     <!-- Paragraph template -->
     <template data-xml-selector="p" xml:space="preserve">
-[[...]]
+\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}[[...]]\geommarkinline{[[@id | raw]]}{P-end}
 
 </template>
 
@@ -189,11 +192,11 @@
     <!-- Note: Mathematical expressions will be handled by post-processing -->
 
     <!-- List templates -->
-    <!-- <template data-xml-selector="list[list-type='bullet']" xml:space="preserve">
+    <template data-xml-selector="list[list-type='bullet']" xml:space="preserve">
 \begin{itemize}
 <apply-template data-xml-selector="list-item"/>
 \end{itemize}
-</template> -->
+</template>
 
     <template data-xml-selector="list-item" xml:space="preserve">
 \item <apply-template data-xml-selector="p"/>

@@ -67,9 +67,10 @@ fi
 # Step 5: Additional LaTeX fixes
 echo "Step 5: Applying additional LaTeX fixes..."
 
-# Fix lonely \item commands
-sed -i '' 's/\\item[[:space:]]*\([^\\]\)/\1/g' "$TEX_FILE"
-sed -i '' '/^[[:space:]]*\\item[[:space:]]*$/d' "$TEX_FILE"
+# Fix lonely \item commands (skip this if we have itemize environments)
+# These commands would remove \item from proper lists, so we comment them out
+# sed -i '' 's/\\item[[:space:]]*\([^\\]\)/\1/g' "$TEX_FILE"
+# sed -i '' '/^[[:space:]]*\\item[[:space:]]*$/d' "$TEX_FILE"
 
 # Fix malformed textsuperscript commands more conservatively
 sed -i '' 's/\\textsuperscript{\[mathematical expression\]}/[math]/g' "$TEX_FILE"
@@ -84,17 +85,17 @@ sed -i '' 's/\\textsuperscript{\[^}]*\}/[math]/g' "$TEX_FILE"
 sed -i '' 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
 sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 
-# Fix bibliography issues
-if grep -q "\\bibitem" "$TEX_FILE"; then
-    echo "Fixing bibliography..."
-    # Add bibliography environment if missing
-    if ! grep -q "\\begin{thebibliography}" "$TEX_FILE"; then
-        sed -i '' '/\\bibitem/a\
-\\begin{thebibliography}{99}
-' "$TEX_FILE"
-        echo "\\end{thebibliography}" >> "$TEX_FILE"
-    fi
-fi
+# Fix bibliography issues (disabled - template now handles this)
+# if grep -q "\\bibitem" "$TEX_FILE"; then
+#     echo "Fixing bibliography..."
+#     # Add bibliography environment if missing
+#     if ! grep -q "\\begin{thebibliography}" "$TEX_FILE"; then
+#         sed -i '' '/\\bibitem/a\
+# \\begin{thebibliography}{99}
+# ' "$TEX_FILE"
+#         echo "\\end{thebibliography}" >> "$TEX_FILE"
+#     fi
+# fi
 
 # Step 6: Compile to PDF
 echo "Step 6: Compiling to PDF..."
