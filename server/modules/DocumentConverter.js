@@ -8,7 +8,10 @@ class DocumentConverter {
         this.configManager = configManager;
 
         // Paths to existing conversion system
-        this.templatePath = path.join(__dirname, '../../template/document.tex.xml');
+        this.templatePath = path.join(
+          __dirname,
+          "../../template/ENDEND10921-sample-style.tex.xml"
+        );
         this.texToPdfScript = path.join(__dirname, '../../src/tex-to-pdf.js');
         this.cliScript = path.join(__dirname, '../../src/cli.js');
     }
@@ -259,7 +262,7 @@ class DocumentConverter {
 
             // Convert to standard coordinate format
             const coordinates = [];
-            
+
             for (const [id, recordList] of Object.entries(grouped)) {
                 const startRecord = recordList.find(r => r.role.endsWith('-start'));
                 const endRecord = recordList.find(r => r.role.endsWith('-end'));

@@ -89,10 +89,10 @@
     }
   },
   "fileSettings": {
-    "xmlInput": "xml/document.xml",
-    "texOutput": "TeX/document-generated.tex",
-    "pdfOutput": "TeX/document-generated.pdf",
-    "jsonOutput": "TeX/document-generated-marked-boxes.json",
+    "xmlInput": "xml/ENDEND10921.xml",
+    "texOutput": "TeX/ENDEND10921-generated.tex",
+    "pdfOutput": "TeX/ENDEND10921-generated.pdf",
+    "jsonOutput": "TeX/ENDEND10921-generated-marked-boxes.json",
     "uiOutputDir": "ui/"
   }
 }

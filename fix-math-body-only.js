@@ -46,10 +46,11 @@ function fixMathInBody(body) {
     fixed = fixed.replace(/\\frac\{[^}]*\}\{\}/g, '');
     
     // Remove all complex mathematical expressions that cause LaTeX errors
-    // But exclude known commands that use multiple braced arguments (like \geommarkinline, \frac, etc.)
+    // But exclude known commands that use multiple braced arguments (like \geommarkinline, \frac, \hypertarget, etc.)
     fixed = fixed.replace(/J=\{[^}]*\}\{[^}]*\}/g, 'J = [mathematical expression]');
-    // Match {}{} patterns that are NOT preceded by a backslash-command
-    fixed = fixed.replace(/([^\\a-zA-Z])\{[^}]*\}\{[^}]*\}/g, '$1[mathematical expression]');
+    // Match {}{} patterns that are NOT preceded by a backslash-command or closing brace
+    // Disabled: too aggressive, breaks legitimate commands like \hypertarget{id}{content}
+    // fixed = fixed.replace(/([^\\a-zA-Z}])\{[^}]*\}\{[^}]*\}/g, '$1[mathematical expression]');
     
     // Remove any remaining problematic mathematical content
     fixed = fixed.replace(/∑[^}]*\}/g, '[sum]');

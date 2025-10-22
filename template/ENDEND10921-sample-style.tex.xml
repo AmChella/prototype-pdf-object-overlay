@@ -50,6 +50,20 @@
 % Paragraph ID command for hyperlink targets
 \newcommand{\paraid}[1]{\par\noindent\hypertarget{#1}{\ignorespaces}}
 
+% Safe image inclusion - only includes if path is not empty
+\makeatletter
+\newcommand{\safeincludegraphics}[2][]{%
+    \begingroup
+        \edef\@tempa{#2}%
+        \ifx\@tempa\@empty
+            \PackageWarning{xml2tex}{Image path empty; figure omitted.}%
+        \else
+            \IfFileExists{#2}{\includegraphics[#1]{#2}}{\PackageWarning{xml2tex}{Image #2 not found; figure omitted.}}%
+        \fi
+    \endgroup
+}
+\makeatother
+
 % ---------- Document ----------
 \begin{document}
 
@@ -125,6 +139,7 @@
         \vspace{-1mm}
         \footnotesize
         <apply-template data-xml-selector="p"/>
+        <apply-template data-xml-selector="fig"/>
         \vspace{3mm}
         \par
     </template>
@@ -136,6 +151,7 @@
         \vspace{-1mm}
         \footnotesize
         <apply-template data-xml-selector="p"/>
+        <apply-template data-xml-selector="fig"/>
         \vspace{3mm}
         \par
     </template>
@@ -147,12 +163,14 @@
     <template data-xml-selector="sec" xml:space="preserve">
 \section{[[title:.]]}
 <apply-template data-xml-selector="p"/>
+<apply-template data-xml-selector="fig"/>
 <apply-template data-xml-selector="sec"/>
 </template>
 
     <template data-xml-selector="sec > sec" xml:space="preserve">
 \subsection{[[title:.]]}
 <apply-template data-xml-selector="p"/>
+<apply-template data-xml-selector="fig"/>
 <apply-template data-xml-selector="sec"/>
 </template>
 
@@ -330,15 +348,41 @@
     <template data-xml-selector="mml:mo[text()='&chi;']" xml:space="preserve">\chi</template>
     <template data-xml-selector="mml:mo[text()='&psi;']" xml:space="preserve">\psi</template>
     <template data-xml-selector="mml:mo[text()='&omega;']" xml:space="preserve">\omega</template>
-    <null-template data-xml-selector="fig"/>
-    <null-template data-xml-selector="table-wrap"/>
-    <null-template data-xml-selector="graphic"/>
 
-    <!-- Graphic template -->
-    <template data-xml-selector="graphic" xml:space="preserve">
-% Image: [[@xlink:href]]
-% Note: Image file not found, skipping inclusion
+    <!-- Figure templates -->
+    <template data-xml-selector="fig" xml:space="preserve">
+\begin{figure}[[@placement]]
+\centering
+\geommarkfloat{[[@id | raw]]}{FIG-start}
+<apply-template data-xml-selector="image"/>
+<apply-template data-xml-selector="graphic"/>
+\caption{[[label:.]]\space <apply-template data-xml-selector="caption"/>}
+\label{[[@id | raw]]}
+\geommarkfloat{[[@id | raw]]}{FIG-end}
+\end{figure}
 </template>
+
+    <!-- Null template for caption inside fig (already handled in fig template) -->
+    <null-template data-xml-selector="fig > caption"/>
+    <null-template data-xml-selector="fig > label"/>
+
+    <!-- Image template for figures -->
+    <template data-xml-selector="image" xml:space="preserve">
+\safeincludegraphics[width=[[@width | raw]]]{[[@src | raw]]}
+</template>
+
+    <!-- Graphic template (for equations) -->
+    <template data-xml-selector="graphic" xml:space="preserve">
+% Equation graphic: [[@xlink:href]]
+</template>
+
+    <!-- Inline graphic template (for inline equations) -->
+    <template data-xml-selector="inline-graphic" xml:space="preserve">
+% Inline equation graphic: [[@xlink:href]]
+</template>
+
+    <!-- Table wrap template -->
+    <null-template data-xml-selector="table-wrap"/>
 
     <!-- Table template -->
     <template data-xml-selector="table" xml:space="preserve">

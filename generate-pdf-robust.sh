@@ -55,6 +55,15 @@ echo "TeX file generated: $TEX_FILE"
 echo "Step 3: Fixing HTML entities..."
 sed -i '' 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g' "$TEX_FILE"
 
+# Step 3b: Fix image file extensions (convert .tif to .png for LaTeX compatibility)
+echo "Step 3b: Fixing image file extensions..."
+sed -i '' 's/\.tif}/.png}/g' "$TEX_FILE"
+
+# Step 3c: Fix inline math newlines (remove newlines between $ delimiters)
+echo "Step 3c: Fixing inline math formatting..."
+# Use perl multiline mode to match $\nformula\n$ and make it inline
+perl -i -0777 -pe 's/\$\n([^\n]+)\n\$ /\$$1\$ /g' "$TEX_FILE"
+
 # Step 4: Fix mathematical expressions and LaTeX issues
 echo "Step 4: Fixing mathematical expressions..."
 node fix-math-body-only.js "$TEX_FILE"
