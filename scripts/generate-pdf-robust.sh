@@ -58,7 +58,7 @@ echo "TeX file generated: $TEX_FILE"
 
 # Step 3: Fix HTML entities
 echo "Step 3: Fixing HTML entities..."
-sed -i '' 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g' "$TEX_FILE"
+sed -i 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g' "$TEX_FILE"
 
 # Step 4: Fix mathematical expressions and LaTeX issues
 echo "Step 4: Fixing mathematical expressions..."
@@ -74,7 +74,7 @@ echo "Step 5: Applying additional LaTeX fixes..."
 
 # Fix image file extensions (convert .tif to .png for LaTeX compatibility)
 echo "Step 5a: Fixing image file extensions..."
-sed -i '' 's/\.tif}/.png}/g' "$TEX_FILE"
+sed -i 's/\.tif}/.png}/g' "$TEX_FILE"
 
 # Fix lonely \item commands (skip this if we have itemize environments)
 # These commands would remove \item from proper lists, so we comment them out
@@ -82,17 +82,17 @@ sed -i '' 's/\.tif}/.png}/g' "$TEX_FILE"
 # sed -i '' '/^[[:space:]]*\\item[[:space:]]*$/d' "$TEX_FILE"
 
 # Fix malformed textsuperscript commands more conservatively
-sed -i '' 's/\\textsuperscript{\[mathematical expression\]}/[math]/g' "$TEX_FILE"
-sed -i '' 's/\\textsuperscript{\[^}]*mathematical[^}]*}/[math]/g' "$TEX_FILE"
-sed -i '' 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
-sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[mathematical expression\]}/[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*mathematical[^}]*}/[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 
 # Remove empty superscripts
-sed -i '' 's/\\textsuperscript{\[^}]*\}/[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*\}/[math]/g' "$TEX_FILE"
 
 # Conservative brace fixing - only remove clearly malformed ones
-sed -i '' 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
-sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*\}\}/[math]/g' "$TEX_FILE"
+sed -i 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 
 # Fix bibliography issues (disabled - template now handles this)
 # if grep -q "\\bibitem" "$TEX_FILE"; then
