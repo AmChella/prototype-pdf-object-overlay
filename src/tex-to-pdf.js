@@ -833,15 +833,30 @@ async function main() {
     }
 
     /**
-     * Group start/end records by ID
+     * Group start/end records by ID and page (to handle figures appearing on multiple pages)
      */
     function groupRecordsById(records) {
         const grouped = {};
+        const seenRecords = new Set(); // Track unique (id, page, role) to avoid duplicates
+        
         for (const record of records) {
-            if (!grouped[record.id]) {
-                grouped[record.id] = [];
+            // Create a unique key for deduplication (id, page, role)
+            const dedupKey = `${record.id}-${record.page}-${record.role}`;
+            
+            // Skip if we've already seen this exact record
+            if (seenRecords.has(dedupKey)) {
+                console.log(`Info: Skipping duplicate record for ${record.id} on page ${record.page} (role: ${record.role})`);
+                continue;
             }
-            grouped[record.id].push(record);
+            
+            seenRecords.add(dedupKey);
+            
+            // Group by both ID and page to handle same figure on different pages
+            const key = `${record.id}-page${record.page}`;
+            if (!grouped[key]) {
+                grouped[key] = [];
+            }
+            grouped[key].push(record);
         }
         return grouped;
     }
@@ -941,9 +956,9 @@ async function main() {
         const records = parseNdjson(inputFile);
         console.log(`Parsed ${records.length} records from ${path.basename(inputFile)}`);
         
-        // Group records by ID
+        // Group records by ID and page
         const groupedRecords = groupRecordsById(records);
-        console.log(`Found ${Object.keys(groupedRecords).length} unique IDs`);
+        console.log(`Found ${Object.keys(groupedRecords).length} unique ID-page combinations`);
         
         // Convert to marked boxes format
         const markedBoxes = [];

@@ -31,10 +31,25 @@ def pt_to_px(pt_value, dpi=72):
     return pt_value * (dpi / 72.0)
 
 def group_records_by_id(records):
-    """Group start/end records by ID"""
+    """Group start/end records by ID and page (to handle figures appearing on multiple pages)"""
     grouped = defaultdict(list)
+    seen_records = set()  # Track unique (id, page, role) to avoid duplicates
+    
     for record in records:
-        grouped[record['id']].append(record)
+        # Create a unique key for deduplication (id, page, role)
+        dedup_key = (record['id'], record['page'], record['role'])
+        
+        # Skip if we've already seen this exact record
+        if dedup_key in seen_records:
+            print(f"Info: Skipping duplicate record for {record['id']} on page {record['page']} (role: {record['role']})")
+            continue
+        
+        seen_records.add(dedup_key)
+        
+        # Group by both ID and page to handle same figure on different pages
+        key = (record['id'], record['page'])
+        grouped[key].append(record)
+    
     return grouped
 
 def calculate_bounding_box(records):
@@ -142,19 +157,19 @@ def convert_ndjson_to_marked_boxes(input_file, output_file=None):
         print("   For floats, this may result in incorrect page numbers.")
         print("   Recommendation: Run LaTeX 2-3 times to stabilize page references.")
     
-    # Group records by ID
+    # Group records by ID and page
     grouped_records = group_records_by_id(records)
-    print(f"\nFound {len(grouped_records)} unique IDs")
+    print(f"\nFound {len(grouped_records)} unique ID-page combinations")
     
     # Convert to marked boxes format
     marked_boxes = []
     
-    for item_id, item_records in grouped_records.items():
+    for (item_id, page_num), item_records in grouped_records.items():
         bbox = calculate_bounding_box(item_records)
         if bbox:
             marked_boxes.append(bbox)
         else:
-            print(f"Skipping {item_id} due to calculation error")
+            print(f"Skipping {item_id} (page {page_num}) due to calculation error")
     
     # Sort by page and then by ID for consistent output
     marked_boxes.sort(key=lambda x: (x['page'], x['id']))

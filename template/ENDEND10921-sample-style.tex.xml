@@ -111,7 +111,7 @@
     <template data-xml-selector="article-meta > title-group > article-title" xml:space="preserve">[[.]]</template>
 
     <!-- Author template -->
-    <template data-xml-selector="contrib" xml:space="preserve">[[name > given-names:.]], [[name > surname:.]]\textsuperscript{<apply-template xml-data-selector="contrib > xref"/>},</template>
+    <template data-xml-selector="contrib" xml:space="preserve">[[name > given-names:.]], [[name > surname:.]],</template>
 
     <!-- Author Affiliation template -->
     <template data-xml-selector="contrib > xref" xml:space="preserve">\textsuperscript{[[...]]}</template>
@@ -195,10 +195,6 @@
 
     <!-- Handle unhandled tags that might appear in mathematical content -->
     <null-template data-xml-selector="*[local-name()='unhandledtag']"/>
-    <null-template data-xml-selector="*[local-name()='mml:mstyle']"/>
-    <null-template data-xml-selector="*[local-name()='mml:munder']"/>
-    <null-template data-xml-selector="*[local-name()='mml:mover']"/>
-    <null-template data-xml-selector="*[local-name()='mml:munderover']"/>
     <null-template data-xml-selector="*[local-name()='mml:mtable']"/>
     <null-template data-xml-selector="*[local-name()='mml:mtr']"/>
     <null-template data-xml-selector="*[local-name()='mml:mtd']"/>
@@ -285,9 +281,14 @@
     <null-template data-xml-selector="back > ack"/>
     <null-template data-xml-selector="back > sec"/>
 
-    <!-- Mathematical content -->
-    <template data-xml-selector="disp-formula" xml:space="preserve">
+    <!-- Display formula without MathML (just graphic/label) - skip entirely -->
+    <null-template data-xml-selector="disp-formula"/>
+
+    <!-- Mathematical content - display formula with MathML -->
+    <template data-xml-selector="disp-formula[mml:math]" xml:space="preserve">
+\[
 <apply-template data-xml-selector="mml:math"/>
+\]
 </template>
 
     <template data-xml-selector="inline-formula" xml:space="preserve">
@@ -300,15 +301,19 @@
     <template data-xml-selector="mml:mi" xml:space="preserve">[[...]]</template>
     <template data-xml-selector="mml:mo" xml:space="preserve">[[...]]</template>
     <template data-xml-selector="mml:mn" xml:space="preserve">[[...]]</template>
-    <template data-xml-selector="mml:msup" xml:space="preserve">[[...]]^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
-    <template data-xml-selector="mml:msub" xml:space="preserve">[[...]]_{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
-    <template data-xml-selector="mml:msubsup" xml:space="preserve">[[...]]_{[[apply-template data-xml-selector="mml:mrow[2]"/]]}^{[[apply-template data-xml-selector="mml:mrow[3]"/]]}</template>
-    <template data-xml-selector="mml:mfrac" xml:space="preserve">\frac{[[apply-template data-xml-selector="mml:mrow[1]"/]]}{[[apply-template data-xml-selector="mml:mrow[2]"/]]}</template>
+    <template data-xml-selector="mml:mtext" xml:space="preserve">\text{[[...]]}</template>
+    <template data-xml-selector="mml:msup" xml:space="preserve">[[apply-template data-xml-selector="*[1]"/]]^{[[apply-template data-xml-selector="*[2]"/]]}</template>
+    <template data-xml-selector="mml:msub" xml:space="preserve">[[apply-template data-xml-selector="*[1]"/]]_{[[apply-template data-xml-selector="*[2]"/]]}</template>
+    <template data-xml-selector="mml:msubsup" xml:space="preserve">[[apply-template data-xml-selector="*[1]"/]]_{[[apply-template data-xml-selector="*[2]"/]]}^{[[apply-template data-xml-selector="*[3]"/]]}</template>
+    <template data-xml-selector="mml:mfrac" xml:space="preserve">\frac{[[apply-template data-xml-selector="*[1]"/]]}{[[apply-template data-xml-selector="*[2]"/]]}</template>
     <template data-xml-selector="mml:msqrt" xml:space="preserve">\sqrt{[[...]]}</template>
     <template data-xml-selector="mml:mroot" xml:space="preserve">\sqrt[[apply-template data-xml-selector="mml:mrow[2]"/]]{[[apply-template data-xml-selector="mml:mrow[1]"/]]}</template>
     <template data-xml-selector="mml:msum" xml:space="preserve">\sum_{[[apply-template data-xml-selector="mml:mrow[1]"/]]}^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}[[apply-template data-xml-selector="mml:mrow[3]"/]]</template>
     <template data-xml-selector="mml:mint" xml:space="preserve">\int_{[[apply-template data-xml-selector="mml:mrow[1]"/]]}^{[[apply-template data-xml-selector="mml:mrow[2]"/]]}[[apply-template data-xml-selector="mml:mrow[3]"/]]</template>
     <template data-xml-selector="mml:munderover" xml:space="preserve">\underset{[[apply-template data-xml-selector="mml:mrow[1]"/]]}{\overset{[[apply-template data-xml-selector="mml:mrow[2]"/]]}{[[apply-template data-xml-selector="mml:mrow[3]"/]]}}</template>
+    <template data-xml-selector="mml:munder" xml:space="preserve">\underset{[[apply-template data-xml-selector="*[2]"/]]}{[[apply-template data-xml-selector="*[1]"/]]}</template>
+    <template data-xml-selector="mml:mover" xml:space="preserve">\overset{[[apply-template data-xml-selector="*[2]"/]]}{[[apply-template data-xml-selector="*[1]"/]]}</template>
+    <template data-xml-selector="mml:mstyle" xml:space="preserve">[[...]]</template>
     <template data-xml-selector="mml:mtable" xml:space="preserve">\begin{matrix}[[apply-template data-xml-selector="mml:mtr"/]]\end{matrix}</template>
     <template data-xml-selector="mml:mtr" xml:space="preserve">[[apply-template data-xml-selector="mml:mtd"/]] \\</template>
     <template data-xml-selector="mml:mtd" xml:space="preserve">[[...]] &amp;</template>

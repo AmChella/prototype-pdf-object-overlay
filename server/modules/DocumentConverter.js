@@ -41,8 +41,22 @@ class DocumentConverter {
             // Ensure output directory exists
             await fs.ensureDir(path.dirname(texPath));
 
+            // Post-process: Fix HTML entities and inline math formatting
+            let processedOutput = output;
+            
+            // Fix HTML entities
+            processedOutput = processedOutput.replace(/&lt;/g, '<');
+            processedOutput = processedOutput.replace(/&gt;/g, '>');
+            processedOutput = processedOutput.replace(/&amp;/g, '\\&');
+            
+            // Fix inline math with newlines (pattern: $\n<formula>\n$ )
+            processedOutput = processedOutput.replace(/\$\n([^\n]+)\n\$ /g, '$$$1$$ ');
+            
+            // Fix image file extensions (.tif to .png for LaTeX compatibility)
+            processedOutput = processedOutput.replace(/\.tif}/g, '.png}');
+
             // Write TeX file
-            await fs.writeFile(texPath, output, 'utf8');
+            await fs.writeFile(texPath, processedOutput, 'utf8');
 
             console.log(`✅ TeX file generated: ${texPath}`);
 

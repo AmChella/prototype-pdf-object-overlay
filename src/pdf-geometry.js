@@ -370,24 +370,38 @@ async function extractPdfGeometry(pdfPath, options = {}) {
             // Determine margins (assume LaTeX geometry margin=1in => 72pt)
             const leftMargin = 72;
             const rightMargin = viewport.width - 72;
+            const processedFloats = new Set(); // Track (id, pageIndex) to avoid duplicates
 
             for (const role of floatRoles) {
                 const list = idQueues[role] || [];
                 for (const id of list) {
-                    const startInfo = floatAnchorStartMap.get(id);
-                    const endInfo = floatAnchorEndMap.get(`${id}-end`);
-                    if (!startInfo || startInfo.pageIndex !== pageIndex) continue;
-                    if (!endInfo || endInfo.pageIndex !== pageIndex) continue;
-                    const yTop = Math.max(startInfo.y, endInfo.y);
-                    const yBottom = Math.min(startInfo.y, endInfo.y);
-                    const quad = makeQuad(leftMargin, rightMargin, yTop, yBottom);
-                    elements.push({
-                        id,
-                        role,
-                        lang: language,
-                        quads: [quad],
-                        paragraphQuad: quad
-                    });
+                    const floatKey = `${id}-${pageIndex}`;
+                    if (processedFloats.has(floatKey)) continue;
+                    
+                    const startInfos = floatAnchorStartMap.get(id) || [];
+                    const endInfos = floatAnchorEndMap.get(`${id}-end`) || [];
+                    
+                    // Handle figures appearing on multiple pages - find matching page entries
+                    for (const startInfo of startInfos) {
+                        if (startInfo.pageIndex !== pageIndex) continue;
+                        
+                        // Find corresponding end info on the same page
+                        const endInfo = endInfos.find(e => e.pageIndex === pageIndex);
+                        if (!endInfo) continue;
+                        
+                        const yTop = Math.max(startInfo.y, endInfo.y);
+                        const yBottom = Math.min(startInfo.y, endInfo.y);
+                        const quad = makeQuad(leftMargin, rightMargin, yTop, yBottom);
+                        elements.push({
+                            id,
+                            role,
+                            lang: language,
+                            quads: [quad],
+                            paragraphQuad: quad
+                        });
+                        processedFloats.add(floatKey);
+                        break; // Only add once per page
+                    }
                 }
             }
         }
@@ -410,7 +424,7 @@ async function extractPdfGeometry(pdfPath, options = {}) {
 }
 
 async function extractParagraphAnchors(pdfDocument, paraIds) {
-    // Build a map: id -> { pageIndex, y }
+    // Build a map: id -> array of { pageIndex, y } to handle multi-page figures
     const result = new Map();
     // pdfjs named destination API varies; try destinations by name via getDestination
     for (const id of paraIds) {
@@ -425,7 +439,13 @@ async function extractParagraphAnchors(pdfDocument, paraIds) {
             if (Array.isArray(dest) && dest.length >= 4 && typeof dest[3] === 'number') {
                 top = dest[3];
             }
-            result.set(id, { pageIndex: page, y: top });
+            const info = { pageIndex: page, y: top };
+            
+            // Store as array to support figures appearing on multiple pages
+            if (!result.has(id)) {
+                result.set(id, []);
+            }
+            result.get(id).push(info);
         } catch (e) {
             // ignore missing destinations
         }
@@ -467,10 +487,21 @@ function sliceLinesByAnchors(lines, anchorsOnPage, viewportHeight) {
 }
 
 async function processPageWithAnchors(lines, pageIndex, anchorMap, classifierContext, thresholds, language, startCounter) {
-    // Collect anchors for this page
+    // Collect anchors for this page (anchorMap now stores arrays of page occurrences)
     const anchorsOnPage = [];
-    for (const [id, info] of anchorMap.entries()) {
-        if (info.pageIndex === pageIndex) anchorsOnPage.push({ id, y: info.y });
+    const seenAnchors = new Set(); // Track (id, pageIndex) to avoid duplicates
+    
+    for (const [id, infos] of anchorMap.entries()) {
+        // infos is now an array of { pageIndex, y }
+        for (const info of infos) {
+            if (info.pageIndex === pageIndex) {
+                const anchorKey = `${id}-${pageIndex}`;
+                if (!seenAnchors.has(anchorKey)) {
+                    anchorsOnPage.push({ id, y: info.y });
+                    seenAnchors.add(anchorKey);
+                }
+            }
+        }
     }
     if (!anchorsOnPage.length) {
         // Fallback: no anchors, return empty (caller will still push page with empty elements)
