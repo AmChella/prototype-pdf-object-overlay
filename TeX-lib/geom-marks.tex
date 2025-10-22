@@ -7,13 +7,24 @@
 % IMPORTANT: Run LaTeX at least twice, preferably three times for documents
 % with floats to ensure accurate page numbers in the output NDJSON.
 
-% Ensure macro exists even if the package is missing (no-ops)
+% Ensure macros exist even if the package is missing (no-ops)
 \providecommand\zsavepos[1]{}
 \providecommand\zposx[1]{0}
 \providecommand\zposy[1]{0}
 \providecommand\zpageref[1]{1}
 
 \makeatletter
+\providecommand\zref@extractdefault[3]{#3}
+\providecommand\zref@addprop[2]{}
+\providecommand\zref@refused[1]{}
+
+% Configure zref to save page numbers in addition to positions
+% This is needed for accurate float page detection
+\@ifpackageloaded{zref-savepos}{%
+  % Add 'page' property to the savepos property list
+  \zref@addprop{savepos}{page}%
+}{}
+
 \newcommand*\geom@colindex{%
   \if@twocolumn
     \if@firstcolumn 0\else 1\fi
@@ -39,9 +50,11 @@
     \edef\grole{#2}%%
     \edef\gx{\zposx{gm:#1:#2}}%% scaled points
     \edef\gy{\zposy{gm:#1:#2}}%% scaled points
-    % Robust page number detection - start with page counter
-    \edef\gpage{\the\value{page}}%% current page counter
-    \def\gpagesource{counter}%%
+    % Use zref@extractdefault to get ACTUAL page number from zref label
+    % This requires 2-3 LaTeX runs but gives accurate page numbers for floats
+    % The "page" property is automatically saved by zref when using \zsavepos
+    \edef\gpage{\zref@extractdefault{gm:#1:#2}{page}{1}}%% actual PDF page from zref, default to 1 if not found
+    \def\gpagesource{zref}%%
     \edef\gpw{\the\paperwidth}%% e.g., 597.50787pt for A4 with 1in margins
     \edef\gph{\the\paperheight}%%
     \edef\gcw{\number\dimexpr\columnwidth\relax}%% column width (sp)

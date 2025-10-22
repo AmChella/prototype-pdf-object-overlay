@@ -76,12 +76,15 @@ def calculate_bounding_box(records):
     if start_record['page'] != end_record['page']:
         print(f"Warning: {start_record['id']} spans multiple pages ({start_record['page']} to {end_record['page']})")
     
-    # Check page source for accuracy warnings
+    # Check page source for accuracy info
     start_source = start_record.get('page_source', 'unknown')
     end_source = end_record.get('page_source', 'unknown')
     
-    if start_source == 'counter' or end_source == 'counter':
-        print(f"Info: {start_record['id']} uses page counter (may be inaccurate for floats)")
+    if start_source == 'zref' and end_source == 'zref':
+        # Good! Using zref means accurate page numbers
+        pass
+    elif start_source == 'counter' or end_source == 'counter':
+        print(f"Warning: {start_record['id']} uses page counter (may be inaccurate for floats) - run LaTeX 3x with zref-savepos")
     elif start_source == 'counter-fallback' or end_source == 'counter-fallback':
         print(f"Warning: {start_record['id']} fell back to page counter - consider running LaTeX again")
     

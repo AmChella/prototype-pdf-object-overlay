@@ -102,10 +102,27 @@ sed -i '' 's/\\textsuperscript{\[^}]*\}\./[math]/g' "$TEX_FILE"
 # fi
 
 # Step 6: Compile to PDF
-echo "Step 6: Compiling to PDF..."
+echo "Step 6: Compiling to PDF (multiple passes for accurate page numbers)..."
 cd TeX
+
+# First pass: Generate initial PDF and write positions
+echo "  Pass 1/3: Initial compilation..."
 lualatex "${OUTPUT_NAME}.tex"
 
+if [ $? -ne 0 ]; then
+    echo "Error: First LaTeX pass failed!"
+    exit 1
+fi
+
+# Second pass: Read positions from first pass and update references
+echo "  Pass 2/3: Updating cross-references..."
+lualatex "${OUTPUT_NAME}.tex" > /dev/null
+
+# Third pass: Ensure all positions and page numbers are accurate (especially for floats)
+echo "  Pass 3/3: Finalizing positions..."
+lualatex "${OUTPUT_NAME}.tex" > /dev/null
+
+# Check if the PDF was created
 if [ $? -ne 0 ]; then
     echo "Error: LaTeX compilation failed!"
     echo "Check the log file: TeX/${OUTPUT_NAME}.log"

@@ -329,12 +329,20 @@ async function main() {
 
     try {
         const start = Date.now();
+        
+        // First pass: Initial compilation
+        console.log('Pass 1/3: Initial compilation...');
         await runLatex(latexArgs, workingDir);
-        // If TeX positions NDJSON is produced, rerun once to stabilize positions
+        
+        // If TeX positions NDJSON is produced, run 2 more passes for accurate page numbers
         const texPosCandidate = path.join(outputDir, `${jobName}-texpos.ndjson`);
         const texPosCandidateOut = path.join(outputDir, `${jobName}-texpos.ndjson`);
         const texPosCandidateCwd = path.join(workingDir, `${jobName}-texpos.ndjson`);
         if (fs.existsSync(texPosCandidate) || fs.existsSync(texPosCandidateOut) || fs.existsSync(texPosCandidateCwd)) {
+            console.log('Pass 2/3: Updating cross-references...');
+            try { await runLatex(latexArgs, workingDir); } catch (_) {}
+            
+            console.log('Pass 3/3: Finalizing positions for accurate page numbers...');
             try { await runLatex(latexArgs, workingDir); } catch (_) {}
         }
         const elapsed = ((Date.now() - start) / 1000).toFixed(2);
