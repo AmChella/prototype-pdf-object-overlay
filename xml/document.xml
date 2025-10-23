@@ -59,7 +59,7 @@
 </inline-math>
       <run> Engineers rely on detailed telemetry to tune the performance of the Lua callbacks.</run>
     </para>
-    <para id="sec1-p6">
+    <para id="sec1-p6" spacing="loose">
       <run>The artifact registry stores both PDFs and intermediate TeX sources for reproducibility. </run>
       <inline-math>
 <![CDATA[\nabla f_{7}(x) = 0]]>
@@ -104,7 +104,7 @@
 <![CDATA[\mathbf{J}_{1} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
     <figure id="fig-sec1" label="fig:fig-sec1" placement="[b]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 1 asset overview</caption>
     </figure>
   </section>
@@ -330,7 +330,7 @@
 <![CDATA[\operatorname{argmin}_{x \in \mathbb{R}^{n}} \left\{ f_{3}(x) + \lambda_{4} g(x) \right\}]]>
 </display-math>
     <figure id="fig-sec3" label="fig:fig-sec3" placement="[b]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 3 asset overview</caption>
     </figure>
   </section>
@@ -557,7 +557,7 @@
 <![CDATA[\mathbf{J}_{5} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
     <figure id="fig-sec5" label="fig:fig-sec5" placement="[htbp]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 5 asset overview</caption>
     </figure>
   </section>
@@ -782,8 +782,8 @@
     <display-math id="sec7-disp1">
 <![CDATA[\operatorname{argmin}_{x \in \mathbb{R}^{n}} \left\{ f_{7}(x) + \lambda_{8} g(x) \right\}]]>
 </display-math>
-    <figure id="fig-sec7" label="fig:fig-sec7" placement="[htbp]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+    <figure id="fig-sec7" label="fig:fig-sec7" placement="[t]">
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 7 asset overview</caption>
     </figure>
   </section>
@@ -1009,7 +1009,7 @@
 <![CDATA[\mathbf{C}_{9} = Q_{10}^{\top} \mathbf{D}_{11} Q_{12}]]>
 </display-math>
     <figure id="fig-sec9" label="fig:fig-sec9" placement="[htbp]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 9 asset overview</caption>
     </figure>
   </section>
@@ -1235,7 +1235,7 @@
 <![CDATA[\mathbf{J}_{11} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
     <figure id="fig-sec11" label="fig:fig-sec11" placement="[htbp]">
-      <image src="../assets/images/placeholder2.png" width="0.82\linewidth"/>
+      <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 11 asset overview</caption>
     </figure>
   </section>

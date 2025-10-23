@@ -315,6 +315,97 @@
             color: white;
         }
 
+        /* Document Selection */
+        .document-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .document-btn {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .document-btn:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .document-btn.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        }
+
+        .document-btn.generating {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .doc-icon {
+            font-size: 2rem;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+            border-radius: var(--radius-sm);
+        }
+
+        .doc-info {
+            flex: 1;
+            text-align: left;
+        }
+
+        .doc-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .doc-desc {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
+        .status-info {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-top: 0.25rem;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
         /* Developer Tools (Hidden by default) */
         .dev-tools {
             max-height: 0;
@@ -851,6 +942,41 @@
     <div class="container">
         <!-- Sidebar -->
         <aside class="sidebar">
+            <!-- Document Generation -->
+            <div class="card" id="documentGenerationCard">
+                <div class="card-header">
+                    <span>🚀</span>
+                    <span>Document Generation</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Select Document to Generate</label>
+                        <div class="document-selection">
+                            <button class="document-btn" data-document="document" id="generateDocumentBtn">
+                                <div class="doc-icon">📄</div>
+                                <div class="doc-info">
+                                    <div class="doc-title">Sample Document</div>
+                                    <div class="doc-desc">document.xml</div>
+                                </div>
+                            </button>
+                            <button class="document-btn" data-document="ENDEND10921" id="generateEndend10921Btn">
+                                <div class="doc-icon">📰</div>
+                                <div class="doc-info">
+                                    <div class="doc-title">Article Sample</div>
+                                    <div class="doc-desc">ENDEND10921.xml</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="currentDocumentStatus" style="display: none;">
+                        <div class="status-info">
+                            <span class="status-label">Current Document:</span>
+                            <span class="status-value" id="currentDocumentName">None</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- File Management -->
             <div class="card">
                 <div class="card-header">

@@ -30,13 +30,13 @@
   "xmlProcessingRules": {
     "figure": {
       "move_bottom": {
-        "xpath": "//fig[@id='{elementId}']",
+        "xpath": "//figure[@id='{elementId}']",
         "operation": "setAttribute",
         "attribute": "placement",
         "value": "[b]"
       },
       "move_top": {
-        "xpath": "//fig[@id='{elementId}']",
+        "xpath": "//figure[@id='{elementId}']",
         "operation": "setAttribute",
         "attribute": "placement",
         "value": "[t]"
@@ -44,13 +44,13 @@
     },
     "paragraph": {
       "para_tight": {
-        "xpath": "//p[@id='{elementId}']",
+        "xpath": "//para[@id='{elementId}']",
         "operation": "setAttribute",
         "attribute": "spacing",
         "value": "tight"
       },
       "para_loose": {
-        "xpath": "//p[@id='{elementId}']",
+        "xpath": "//para[@id='{elementId}']",
         "operation": "setAttribute",
         "attribute": "spacing",
         "value": "loose"

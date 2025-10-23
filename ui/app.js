@@ -48,6 +48,7 @@ let showOutline = false;
 let overlaysVisible = true; // track overlay visibility state
 let currentPdfObjectUrl = null; // Track object URL for cleanup
 let enableWebSocket = true; // Set to true to enable WebSocket connection
+let currentDocument = null; // Track currently loaded document (document or ENDEND10921)
 
 // loadBtn.addEventListener("click", () => {
 //   const url = pdfUrlInput.value.trim();
@@ -566,9 +567,88 @@ function initializeApp() {
   } else {
     console.log('🔌 WebSocket connection disabled (set enableWebSocket = true to enable)');
   }
+
+  // Document Generation Event Listeners
+  setupDocumentGeneration();
 }
 
 document.addEventListener("DOMContentLoaded", initializeApp);
+
+// Document Generation Setup
+function setupDocumentGeneration() {
+  const generateDocumentBtn = document.getElementById('generateDocumentBtn');
+  const generateEndend10921Btn = document.getElementById('generateEndend10921Btn');
+  
+  if (generateDocumentBtn) {
+    generateDocumentBtn.addEventListener('click', () => {
+      generateDocument('document');
+    });
+  }
+  
+  if (generateEndend10921Btn) {
+    generateEndend10921Btn.addEventListener('click', () => {
+      generateDocument('ENDEND10921');
+    });
+  }
+}
+
+// Generate Document Function
+async function generateDocument(documentName) {
+  console.log(`🚀 Generating document: ${documentName}`);
+  
+  // Show generating state
+  const btn = document.querySelector(`[data-document="${documentName}"]`);
+  if (btn) {
+    btn.classList.add('generating');
+  }
+  
+  // Show progress
+  showProgress(`Generating ${documentName}.xml...`);
+  
+  // Send generation request to server
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'generate_document',
+      documentName: documentName
+    }));
+    
+    // Store which document we're generating
+    currentDocument = documentName;
+  } else {
+    console.error('❌ WebSocket not connected');
+    hideProgress();
+    if (btn) {
+      btn.classList.remove('generating');
+    }
+    alert('Not connected to server. Please refresh the page.');
+  }
+}
+
+// Update Current Document UI
+function updateCurrentDocumentUI(documentName) {
+  console.log(`📝 Updating UI for document: ${documentName}`);
+  currentDocument = documentName;
+  
+  // Update status display
+  const statusDiv = document.getElementById('currentDocumentStatus');
+  const statusValue = document.getElementById('currentDocumentName');
+  
+  if (statusDiv && statusValue) {
+    statusDiv.style.display = 'block';
+    statusValue.textContent = documentName;
+  }
+  
+  // Update button states
+  const allBtns = document.querySelectorAll('.document-btn');
+  allBtns.forEach(btn => {
+    btn.classList.remove('active', 'generating');
+  });
+  
+  const activeBtn = document.querySelector(`[data-document="${documentName}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+}
 
 async function goToPage(pageNum) {
   if (!currentPdf || pageNum < 1 || pageNum > currentPdf.numPages) {
@@ -1198,6 +1278,60 @@ function handleWebSocketMessage(data) {
         case 'config':
             dropdownOptions = data.data.dropdownOptions;
             console.log('✅ Dropdown options loaded:', dropdownOptions);
+            break;
+
+        case 'generation_started':
+            console.log('🚀 Document generation started:', data.documentName);
+            showProgress(`Generating ${data.documentName}...`);
+            break;
+
+        case 'generation_progress':
+            console.log('📊 Generation progress:', data.message);
+            if (data.message && progressModalStatus) {
+                progressModalStatus.textContent = data.message;
+            }
+            break;
+
+        case 'generation_complete':
+            console.log('✅ Document generation complete', data);
+            
+            // Update status
+            if (progressModalStatus) {
+                progressModalStatus.textContent = 'Generation complete! Loading files...';
+            }
+            
+            // Update UI to show current document
+            updateCurrentDocumentUI(data.documentName);
+            
+            // Auto-load the generated files
+            setTimeout(() => {
+                const pdfPath = convertToRelativeUrl(data.pdfPath);
+                const jsonPath = convertToRelativeUrl(data.jsonPath);
+                
+                console.log(`📄 Loading generated files: PDF=${pdfPath}, JSON=${jsonPath}`);
+                
+                loadNewGeneratedFiles(pdfPath, jsonPath).then(() => {
+                    setTimeout(() => {
+                        hideProgress();
+                    }, 500);
+                }).catch(error => {
+                    console.error('❌ Failed to load generated files:', error);
+                    hideProgress();
+                    alert('Generated files successfully, but failed to load them. Please reload manually.');
+                });
+            }, 500);
+            break;
+
+        case 'generation_error':
+            console.error('❌ Generation error:', data.error);
+            hideProgress();
+            alert(`Failed to generate document: ${data.error}`);
+            
+            // Remove generating state
+            const btn = document.querySelector(`[data-document="${data.documentName}"]`);
+            if (btn) {
+                btn.classList.remove('generating');
+            }
             break;
 
         case 'processing_started':

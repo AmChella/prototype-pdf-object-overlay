@@ -14,6 +14,9 @@ const FileWatcher = require('./modules/FileWatcher');
 
 class PDFOverlayServer {
     constructor() {
+        // Set project root directory
+        this.projectRoot = path.join(__dirname, '..');
+        
         this.configManager = new ConfigManager();
         this.xmlProcessor = new XMLProcessor(this.configManager);
         
@@ -25,6 +28,7 @@ class PDFOverlayServer {
         
         this.clients = new Set();
         this.port = process.env.PORT || 8081;
+        this.currentDocument = null; // Track current document
         
         // Setup process event listeners
         this.setupProcessEventListeners();
@@ -169,6 +173,10 @@ class PDFOverlayServer {
         console.log('📨 Received message:', data);
 
         switch (data.type) {
+            case 'generate_document':
+                await this.generateDocument(ws, data);
+                break;
+
             case 'instruction':
                 await this.processInstruction(ws, data);
                 break;
@@ -187,6 +195,113 @@ class PDFOverlayServer {
                     type: 'error',
                     message: `Unknown message type: ${data.type}`
                 });
+        }
+    }
+
+    async generateDocument(ws, data) {
+        const { documentName } = data;
+        console.log(`🚀 Generating document: ${documentName}`);
+
+        try {
+            // Validate projectRoot is set
+            if (!this.projectRoot) {
+                throw new Error('Project root is not set');
+            }
+
+            console.log(`📁 Project root: ${this.projectRoot}`);
+
+            // Send generation started notification
+            this.sendToClient(ws, {
+                type: 'generation_started',
+                documentName
+            });
+
+            // Determine XML and template paths based on document name
+            let xmlPath, templatePath, outputName;
+            
+            if (documentName === 'document') {
+                xmlPath = path.join(this.projectRoot, 'xml/document.xml');
+                templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
+                outputName = 'document-generated';
+            } else if (documentName === 'ENDEND10921') {
+                xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
+                templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
+                outputName = 'ENDEND10921-generated';
+            } else {
+                throw new Error(`Unknown document: ${documentName}`);
+            }
+
+            // Validate paths
+            console.log(`📄 XML path: ${xmlPath}`);
+            console.log(`📋 Template path: ${templatePath}`);
+            console.log(`📦 Output name: ${outputName}`);
+
+            if (!await fs.pathExists(xmlPath)) {
+                throw new Error(`XML file not found: ${xmlPath}`);
+            }
+
+            if (!await fs.pathExists(templatePath)) {
+                throw new Error(`Template file not found: ${templatePath}`);
+            }
+
+            // Track current document
+            this.currentDocument = documentName;
+
+            // Progress updates
+            this.sendToClient(ws, {
+                type: 'generation_progress',
+                message: `Converting ${documentName}.xml to TeX...`
+            });
+
+            // Convert XML to TeX
+            const texResult = await this.documentConverter.xmlToTex(xmlPath, templatePath, outputName);
+            
+            if (!texResult.success) {
+                throw new Error(texResult.error);
+            }
+
+            this.sendToClient(ws, {
+                type: 'generation_progress',
+                message: 'Compiling PDF...'
+            });
+
+            // Generate PDF with coordinates
+            const pdfResult = await this.documentConverter.texToPdf(texResult.texPath, outputName);
+            
+            if (!pdfResult.success) {
+                throw new Error(pdfResult.error);
+            }
+
+            this.sendToClient(ws, {
+                type: 'generation_progress',
+                message: 'Copying files to UI directory...'
+            });
+
+            // Copy files to UI directory
+            const uiDir = path.join(this.projectRoot, 'ui');
+            const pdfPath = pdfResult.pdfPath;
+            const jsonPath = pdfResult.jsonPath;
+
+            await fs.promises.copyFile(pdfPath, path.join(uiDir, path.basename(pdfPath)));
+            await fs.promises.copyFile(jsonPath, path.join(uiDir, path.basename(jsonPath)));
+
+            // Send completion notification with file paths
+            this.sendToClient(ws, {
+                type: 'generation_complete',
+                documentName,
+                pdfPath: path.join(uiDir, path.basename(pdfPath)),
+                jsonPath: path.join(uiDir, path.basename(jsonPath))
+            });
+
+            console.log(`✅ Document generation complete: ${documentName}`);
+
+        } catch (error) {
+            console.error('❌ Document generation failed:', error);
+            this.sendToClient(ws, {
+                type: 'generation_error',
+                documentName,
+                error: error.message
+            });
         }
     }
 
@@ -216,9 +331,31 @@ class PDFOverlayServer {
                 throw new Error(result.error);
             }
 
-            // Convert XML to TeX
+            // Determine correct XML and template paths based on current document
+            let xmlPath, templatePath, outputName;
+            if (this.currentDocument === 'ENDEND10921') {
+                xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
+                templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
+                outputName = 'ENDEND10921-generated';
+            } else if (this.currentDocument === 'document') {
+                xmlPath = path.join(this.projectRoot, 'xml/document.xml');
+                templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
+                outputName = 'document-generated';
+            } else {
+                // Fallback to config if no current document is set
+                console.warn('⚠️  No current document set, using config defaults');
+                xmlPath = this.configManager.getFilePath('xmlInput');
+                templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
+                outputName = 'document-generated';
+            }
+
+            console.log(`📋 Using document: ${this.currentDocument || 'default'}`);
+            console.log(`📄 XML path: ${xmlPath}`);
+            console.log(`📋 Template path: ${templatePath}`);
+
+            // Convert XML to TeX with correct template
             console.log('🔄 Converting XML to TeX...');
-            const texResult = await this.documentConverter.xmlToTex();
+            const texResult = await this.documentConverter.xmlToTex(xmlPath, templatePath, outputName);
             
             if (!texResult.success) {
                 throw new Error(texResult.error);
@@ -226,7 +363,7 @@ class PDFOverlayServer {
 
             // Convert TeX to PDF and generate JSON
             console.log('📄 Converting TeX to PDF and generating coordinates...');
-            const pdfResult = await this.documentConverter.texToPdfWithJson();
+            const pdfResult = await this.documentConverter.texToPdf(texResult.texPath, outputName);
             
             if (!pdfResult.success) {
                 throw new Error(pdfResult.error);
@@ -234,7 +371,9 @@ class PDFOverlayServer {
 
             // Copy files to UI directory
             console.log('📁 Copying files to UI directory...');
-            await this.documentConverter.copyToUI();
+            const uiDir = path.join(this.projectRoot, 'ui');
+            await fs.promises.copyFile(pdfResult.pdfPath, path.join(uiDir, path.basename(pdfResult.pdfPath)));
+            await fs.promises.copyFile(pdfResult.jsonPath, path.join(uiDir, path.basename(pdfResult.jsonPath)));
 
             // Notify client of successful completion
             this.broadcastToAllClients({
@@ -243,8 +382,8 @@ class PDFOverlayServer {
                 overlayType,
                 instruction,
                 result: {
-                    pdfPath: pdfResult.pdfPath,
-                    jsonPath: pdfResult.jsonPath,
+                    pdfPath: path.join(uiDir, path.basename(pdfResult.pdfPath)),
+                    jsonPath: path.join(uiDir, path.basename(pdfResult.jsonPath)),
                     timestamp: new Date().toISOString()
                 }
             });

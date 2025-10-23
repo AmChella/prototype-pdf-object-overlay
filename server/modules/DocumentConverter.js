@@ -8,6 +8,9 @@ class DocumentConverter {
         this.configManager = configManager;
         this.eventEmitter = eventEmitter; // For sending real-time updates
 
+        // Set project root directory
+        this.projectRoot = path.join(__dirname, '../..');
+
         // Paths to existing conversion system
         this.templatePath = path.join(
           __dirname,
@@ -59,24 +62,37 @@ class DocumentConverter {
         return isStatus || isError;
     }
 
-    async xmlToTex() {
+    async xmlToTex(customXmlPath = null, customTemplatePath = null, customOutputName = null) {
         try {
             console.log('🔄 Starting XML to TeX conversion using existing engine...');
 
-            const xmlPath = this.configManager.getFilePath('xmlInput');
-            const texPath = this.configManager.getFilePath('texOutput');
+            // Use custom paths if provided, otherwise use config
+            const xmlPath = customXmlPath || this.configManager.getFilePath('xmlInput');
+            const templatePath = customTemplatePath || this.templatePath;
+            
+            let texPath;
+            if (customOutputName) {
+                const outputDir = path.join(this.projectRoot, 'TeX');
+                texPath = path.join(outputDir, `${customOutputName}.tex`);
+            } else {
+                texPath = this.configManager.getFilePath('texOutput');
+            }
 
             if (!await fs.pathExists(xmlPath)) {
                 throw new Error(`XML file not found: ${xmlPath}`);
             }
 
+            if (!await fs.pathExists(templatePath)) {
+                throw new Error(`Template file not found: ${templatePath}`);
+            }
+
             // Read XML content
             const xmlContent = await fs.readFile(xmlPath, 'utf8');
 
-            // Use the existing transformation engine
-            const templateString = await fs.readFile(this.templatePath, 'utf-8');
+            // Use the transformation engine with the specified template
+            const templateString = await fs.readFile(templatePath, 'utf-8');
 
-            console.log('📋 Using template:', this.templatePath);
+            console.log('📋 Using template:', templatePath);
             console.log('📋 Template loaded, length:', templateString.length);
 
             const { output, report, performance } = await transform(xmlContent, templateString);
@@ -193,6 +209,55 @@ class DocumentConverter {
         }
     }
 
+    async texToPdf(customTexPath = null, customOutputName = null) {
+        try {
+            console.log('📄 Starting TeX to PDF conversion...');
+
+            // Use custom path if provided, otherwise use config
+            const texPath = customTexPath || this.configManager.getFilePath('texOutput');
+            const outputDir = path.join(this.projectRoot, 'TeX');
+
+            if (!await fs.pathExists(texPath)) {
+                throw new Error(`TeX file not found: ${texPath}`);
+            }
+
+            // Ensure output directory exists
+            await fs.ensureDir(outputDir);
+
+            // Use the existing tex-to-pdf.js script with --sync-aux for perfect coordinates
+            await this.runTexToPdf(texPath, outputDir);
+
+            const texFileName = customOutputName || path.basename(texPath, '.tex');
+            const pdfPath = path.join(outputDir, `${texFileName}.pdf`);
+            const markedBoxesPath = path.join(outputDir, `${texFileName}-marked-boxes.json`);
+
+            // Check if files were generated
+            if (!await fs.pathExists(pdfPath)) {
+                throw new Error(`PDF was not generated: ${pdfPath}`);
+            }
+
+            if (!await fs.pathExists(markedBoxesPath)) {
+                console.warn(`⚠️  Marked-boxes JSON not found: ${markedBoxesPath}`);
+            }
+
+            console.log(`✅ PDF generated: ${pdfPath}`);
+            console.log(`✅ JSON generated: ${markedBoxesPath}`);
+
+            return {
+                success: true,
+                pdfPath,
+                jsonPath: markedBoxesPath,
+                message: 'TeX to PDF conversion completed successfully'
+            };
+        } catch (error) {
+            console.error('❌ TeX to PDF conversion failed:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
     async runTexToPdf(texPath, outputDir) {
         return new Promise((resolve, reject) => {
             const args = [
@@ -201,6 +266,7 @@ class DocumentConverter {
                 outputDir,
                 '--geometry-json', path.join(outputDir, `${path.basename(texPath, '.tex')}-geometry.json`),
                 '--marked-boxes', // Generate marked-boxes JSON from NDJSON
+                '--sync-aux', // Sync coordinates from aux file for perfect accuracy
                 '--keep-aux' // Keep auxiliary files for debugging
             ];
 

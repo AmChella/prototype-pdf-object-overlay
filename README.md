@@ -17,6 +17,7 @@ A comprehensive system for **XML-to-PDF conversion** with **precise coordinate e
 - **📊 Multi-page Support**: Handle complex documents with accurate page numbers
 - **⚡ 3-Pass LaTeX**: Ensures accurate positioning, especially for floats
 - **🔄 Live Updates**: WebSocket integration for real-time progress
+- **🔀 Multi-Schema Support**: Auto-detects and adapts to different XML tag structures
 
 ---
 
@@ -248,6 +249,49 @@ Templates use **XPath selectors** to transform XML:
   </para>
 </template>
 ```
+
+---
+
+## 🔀 Multi-Schema XML Support
+
+The system **automatically detects and adapts** to different XML tag structures!
+
+### Supported Schemas
+
+**ENDEND Schema** (ENDEND10921.xml):
+```xml
+<fig id="fig-F1">...</fig>
+<p id="para-1">...</p>
+```
+
+**Standard Schema** (document.xml):
+```xml
+<figure id="figure-1">...</figure>
+<para id="para-1">...</para>
+```
+
+### How It Works
+
+1. **Auto-Detection**: System scans XML and detects which tags are present
+2. **XPath Adaptation**: All XPath queries automatically converted to match schema
+3. **Transparent**: No configuration needed - works automatically!
+
+### Console Output
+
+```
+✅ XML document loaded: ENDEND10921.xml
+📋 Detected XML schema: endend
+   Figure tag: <fig>
+   Paragraph tag: <p>
+```
+
+### Test Schema Detection
+
+```bash
+node scripts/test-schema-detection.js
+```
+
+**See:** [XML Schema Adaptation Guide](docs/XML-SCHEMA-ADAPTATION.md) for complete details.
 
 ---
 

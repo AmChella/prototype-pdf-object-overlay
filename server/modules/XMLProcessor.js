@@ -8,6 +8,21 @@ class XMLProcessor {
         this.configManager = configManager;
         this.dom = null;
         this.xmlDocument = null;
+        this.xmlSchema = null; // Detected XML schema (tag mappings)
+        
+        // Define tag mappings for different XML schemas
+        this.schemaDefinitions = {
+            'endend': {
+                figure: 'fig',
+                paragraph: 'p',
+                table: 'table'
+            },
+            'standard': {
+                figure: 'figure',
+                paragraph: 'para',
+                table: 'table'
+            }
+        };
     }
 
     async loadXMLDocument() {
@@ -21,12 +36,77 @@ class XMLProcessor {
             this.dom = new DOMParser();
             this.xmlDocument = this.dom.parseFromString(xmlContent, 'text/xml');
 
+            // Auto-detect XML schema
+            this.xmlSchema = this.detectXMLSchema();
             console.log(`✅ XML document loaded: ${xmlPath}`);
+            console.log(`📋 Detected XML schema: ${this.xmlSchema.name}`);
+            console.log(`   Figure tag: <${this.xmlSchema.tags.figure}>`);
+            console.log(`   Paragraph tag: <${this.xmlSchema.tags.paragraph}>`);
+            
             return true;
         } catch (error) {
             console.error('❌ Failed to load XML document:', error);
             throw error;
         }
+    }
+
+    /**
+     * Auto-detect XML schema by checking which tags are present
+     */
+    detectXMLSchema() {
+        try {
+            // Check for ENDEND schema (<fig> and <p> tags)
+            const hasFigTag = xpath.select('//fig', this.xmlDocument).length > 0;
+            const hasPTag = xpath.select('//p', this.xmlDocument).length > 0;
+            
+            // Check for standard schema (<figure> and <para> tags)
+            const hasFigureTag = xpath.select('//figure', this.xmlDocument).length > 0;
+            const hasParaTag = xpath.select('//para', this.xmlDocument).length > 0;
+            
+            if (hasFigTag || hasPTag) {
+                return {
+                    name: 'endend',
+                    tags: this.schemaDefinitions.endend
+                };
+            } else if (hasFigureTag || hasParaTag) {
+                return {
+                    name: 'standard',
+                    tags: this.schemaDefinitions.standard
+                };
+            }
+            
+            // Default to standard if unable to detect
+            console.warn('⚠️  Could not detect XML schema, using standard schema');
+            return {
+                name: 'standard',
+                tags: this.schemaDefinitions.standard
+            };
+        } catch (error) {
+            console.error('❌ Error detecting XML schema:', error);
+            // Return standard schema as fallback
+            return {
+                name: 'standard',
+                tags: this.schemaDefinitions.standard
+            };
+        }
+    }
+
+    /**
+     * Get the correct tag name for an overlay type based on detected schema
+     */
+    getTagForOverlayType(overlayType) {
+        if (!this.xmlSchema) {
+            console.warn('⚠️  XML schema not detected, using standard tags');
+            return overlayType.toLowerCase();
+        }
+        
+        const mapping = {
+            'figure': this.xmlSchema.tags.figure,
+            'paragraph': this.xmlSchema.tags.paragraph,
+            'table': this.xmlSchema.tags.table
+        };
+        
+        return mapping[overlayType.toLowerCase()] || overlayType.toLowerCase();
     }
 
     async saveXMLDocument() {
@@ -91,9 +171,13 @@ class XMLProcessor {
     async applyProcessingRule(elementId, rule, instructionValue) {
         try {
             // Replace placeholders in xpath
-            const xpathQuery = rule.xpath.replace('{elementId}', elementId);
+            let xpathQuery = rule.xpath.replace('{elementId}', elementId);
+            
+            // Adapt xpath to detected XML schema
+            xpathQuery = this.adaptXPathToSchema(xpathQuery);
 
-            console.log(`🔍 XPath query: ${xpathQuery}`);
+            console.log(`🔍 Original XPath: ${rule.xpath}`);
+            console.log(`🔍 Adapted XPath: ${xpathQuery}`);
 
             // Find elements matching the xpath
             const nodes = xpath.select(xpathQuery, this.xmlDocument);
@@ -125,6 +209,35 @@ class XMLProcessor {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Adapt XPath query to work with detected XML schema
+     * Replaces standard tag names with schema-specific tag names
+     */
+    adaptXPathToSchema(xpathQuery) {
+        if (!this.xmlSchema) {
+            return xpathQuery;
+        }
+
+        let adaptedQuery = xpathQuery;
+
+        // Replace figure-related tags (handle various XPath patterns)
+        adaptedQuery = adaptedQuery
+            .replace(/\/\/figure(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.figure}`)
+            .replace(/([^\/])\/figure(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.figure}`);
+
+        // Replace paragraph-related tags
+        adaptedQuery = adaptedQuery
+            .replace(/\/\/para(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.paragraph}`)
+            .replace(/([^\/])\/para(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.paragraph}`);
+
+        // Replace table-related tags
+        adaptedQuery = adaptedQuery
+            .replace(/\/\/table(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.table}`)
+            .replace(/([^\/])\/table(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.table}`);
+
+        return adaptedQuery;
     }
 
     applyOperation(node, rule, instructionValue) {
