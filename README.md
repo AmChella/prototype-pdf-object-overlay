@@ -143,6 +143,29 @@ The main script `generate-pdf-robust.sh` performs:
   article-output
 ```
 
+### Syncing Coordinates from AUX File
+
+To ensure **perfect coordinate accuracy**, you can synchronize coordinates directly from the `.aux` file (the source of truth):
+
+```bash
+# Sync coordinates from aux file
+make sync-aux AUX=TeX/ENDEND10921-generated.aux
+
+# Or with custom output directory
+make sync-aux AUX=TeX/document.aux OUTDIR=ui
+
+# Direct script usage
+node scripts/external/sync_from_aux.js TeX/document.aux
+```
+
+**Why sync from AUX?**
+- The `.aux` file contains the exact coordinates (in scaled points) as computed by TeX
+- Eliminates any lag from multi-pass compilation
+- Ensures 100% accuracy between PDF and coordinate files
+- Useful when coordinates seem misaligned or after manual aux file edits
+
+See [AUX-SYNC-GUIDE.md](docs/AUX-SYNC-GUIDE.md) for detailed documentation.
+
 ### Server API
 
 The server provides WebSocket-based real-time communication:

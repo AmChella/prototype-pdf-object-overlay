@@ -61,6 +61,8 @@ function printUsage() {
 `  --no-geometry     Skip geometry JSON generation\n` +
 `  --marked-boxes    Generate marked-boxes JSON from NDJSON coordinates\n` +
 `  --convert-ndjson  Convert NDJSON to marked-boxes format (alias for --marked-boxes)\n` +
+`  --sync-aux        Sync coordinates from aux file for perfect accuracy (recommended)\n` +
+`  --sync-from-aux   Alias for --sync-aux\n` +
 `  --lang <code>     Set the language code for geometry metadata (default: en)\n` +
 `  -h, --help        Show this help text\n` +
 `Examples:\n` +
@@ -68,7 +70,7 @@ function printUsage() {
 `  node src/tex-to-pdf.js output.tex dist/\n` +
 `  node src/tex-to-pdf.js output.tex dist/final.pdf --keep-aux\n` +
 `  node src/tex-to-pdf.js output.tex --geometry-json build/layout.json\n` +
-`  node src/tex-to-pdf.js output.tex --marked-boxes`);
+`  node src/tex-to-pdf.js output.tex --marked-boxes --sync-aux`);
 }
 
 function ensureDirectory(dirPath) {
@@ -110,7 +112,9 @@ function sanitizeArgs(rawArgs) {
         language: 'en',
         geometryGrouping: null, // 'strict' or null
         markedBoxes: false,
-        convertNdjson: false
+        convertNdjson: false,
+        syncAux: false,
+        syncFromAux: false
     };
 
     for (let i = 0; i < rawArgs.length; i += 1) {
@@ -138,6 +142,14 @@ function sanitizeArgs(rawArgs) {
         }
         if (arg === '--convert-ndjson') {
             flags.convertNdjson = true;
+            continue;
+        }
+        if (arg === '--sync-aux') {
+            flags.syncAux = true;
+            continue;
+        }
+        if (arg === '--sync-from-aux') {
+            flags.syncFromAux = true;
             continue;
         }
         if (arg === '--geometry-json') {
@@ -329,11 +341,11 @@ async function main() {
 
     try {
         const start = Date.now();
-        
+
         // First pass: Initial compilation
         console.log('Pass 1/3: Initial compilation...');
         await runLatex(latexArgs, workingDir);
-        
+
         // If TeX positions NDJSON is produced, run 2 more passes for accurate page numbers
         const texPosCandidate = path.join(outputDir, `${jobName}-texpos.ndjson`);
         const texPosCandidateOut = path.join(outputDir, `${jobName}-texpos.ndjson`);
@@ -341,7 +353,7 @@ async function main() {
         if (fs.existsSync(texPosCandidate) || fs.existsSync(texPosCandidateOut) || fs.existsSync(texPosCandidateCwd)) {
             console.log('Pass 2/3: Updating cross-references...');
             try { await runLatex(latexArgs, workingDir); } catch (_) {}
-            
+
             console.log('Pass 3/3: Finalizing positions for accurate page numbers...');
             try { await runLatex(latexArgs, workingDir); } catch (_) {}
         }
@@ -778,6 +790,40 @@ async function main() {
                         console.error('Failed to convert NDJSON to marked-boxes format:');
                         console.error(convertError.message);
                     }
+                }
+            }
+
+            // Sync coordinates from aux file for perfect accuracy (if requested)
+            if (flags.syncFromAux || flags.syncAux) {
+                const auxPath = path.join(outputDir, `${jobName}.aux`);
+                if (fs.existsSync(auxPath)) {
+                    try {
+                        console.log('\n📍 Syncing coordinates from aux file for perfect accuracy...');
+                        const { parseAuxFile, generateNdjson, generateMarkedBoxes } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
+
+                        const pageDimensions = { width: '597.50787pt', height: '845.04684pt' };
+                        const columnSettings = { cwsp: 15456563, twsp: 31699558, colsep: 786432, twocolumn: 1 };
+
+                        const positions = parseAuxFile(auxPath);
+
+                        if (positions.length > 0) {
+                            const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+                            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+
+                            generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+                            generateMarkedBoxes(positions, pageDimensions, markedBoxesPath);
+
+                            console.log('✅ Coordinates synchronized from aux file');
+                        } else {
+                            console.warn('⚠️  No position data found in aux file - skipping sync');
+                        }
+                    } catch (syncError) {
+                        console.error('⚠️  Failed to sync coordinates from aux file:');
+                        console.error(syncError.message);
+                        console.log('📝 You can manually sync later with: make sync-aux AUX=' + auxPath);
+                    }
+                } else {
+                    console.warn('⚠️  Aux file not found - skipping coordinate sync');
                 }
             }
 
