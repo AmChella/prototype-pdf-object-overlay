@@ -13,6 +13,7 @@ A comprehensive system for **XML-to-PDF conversion** with **precise coordinate e
 - **📄 XML to PDF Pipeline**: Transform structured XML into professionally formatted PDFs
 - **📍 Accurate Coordinates**: Extract precise element positions using zref-savepos
 - **✂️ Smart Splitting**: Automatically splits elements spanning columns/pages into accurate segments
+- **🖼️ Figure Avoidance**: Paragraphs wrapping around figures have overlays split to exclude figure areas
 - **🎨 Modern Web UI**: Real-time processing with WebSocket updates
 - **🔍 Interactive Overlays**: Visualize and interact with PDF elements
 - **📊 Multi-page Support**: Handle complex documents with accurate page numbers
@@ -225,6 +226,68 @@ node scripts/external/sync_from_aux.js TeX/document.aux
 ```
 
 See [MULTI-COLUMN-PAGE-SPLITTING.md](docs/MULTI-COLUMN-PAGE-SPLITTING.md) for complete documentation.
+
+### Figure Avoidance
+
+The system **automatically detects and avoids figures** when generating paragraph overlays!
+
+**Problem:** Paragraphs wrapping around figures would have overlays that overlap with the figure area.
+
+**Solution:** Automatically split paragraph overlays to exclude figure areas.
+
+**Example Scenario:**
+
+```
+┌─────────────┬─────────────┐
+│ Paragraph   │  ┌────────┐ │
+│ starts here │  │ Figure │ │ ← Figure in right column
+│ in left col │  │  F1    │ │
+│             │  └────────┘ │
+│             │ Para cont'd │ ← Paragraph continues after figure
+└─────────────┴─────────────┘
+```
+
+**Example Output:**
+```json
+[
+  {
+    "id": "para-123_seg1of1_before-figure",
+    "page": 5,
+    "y_pt": 250.0, "h_pt": 50.0,
+    "subSegmentType": "before-figure"
+  },
+  {
+    "id": "para-123_seg1of1_after-figure",
+    "page": 5,
+    "y_pt": 100.0, "h_pt": 80.0,
+    "subSegmentType": "after-figure"
+  }
+]
+```
+
+**Usage:** The feature is **automatic** during coordinate generation:
+```bash
+# During PDF generation (automatic)
+node src/tex-to-pdf.js document.tex --sync-aux
+
+# Manual sync (automatic)
+node scripts/external/sync_from_aux.js TeX/document.aux
+```
+
+**Console Output:**
+```
+📐 Found 3 figures for overlap detection
+🖼️  Avoided figure "fig-F1" in "sec-p-015" (page 5, col 1)
+📊 Split: 27 | Single: 9 | Figure avoidance: 2
+```
+
+**Benefits:**
+- ✅ **No overlaps** - Paragraph overlays don't cover figures
+- ✅ **Clean visualization** - Clear separation of text and figures
+- ✅ **Accurate** - Respects actual document layout
+- ✅ **Automatic** - Works for all scenarios (same column, different columns, multi-page)
+
+See [FIGURE-AVOIDANCE-FEATURE.md](docs/FIGURE-AVOIDANCE-FEATURE.md) for complete documentation.
 
 ### Server API
 

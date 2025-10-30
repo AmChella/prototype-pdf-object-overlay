@@ -508,10 +508,139 @@ function readPositionsFromNdjson(ndjsonPath) {
 }
 
 /**
- * Generate marked-boxes.json from positions with multi-column/page splitting
+ * Extract figure bounding boxes from positions
+ */
+function extractFigureBounds(positions) {
+    const figures = {};
+    
+    for (const pos of positions) {
+        // Check if this is a figure marker
+        if (!pos.role || !pos.role.startsWith('FIG')) continue;
+        
+        const figId = pos.id;
+        if (!figures[figId]) {
+            figures[figId] = { id: figId, positions: [] };
+        }
+        figures[figId].positions.push(pos);
+    }
+    
+    // Calculate bounding boxes for figures
+    const figureBounds = [];
+    
+    for (const [figId, figData] of Object.entries(figures)) {
+        const startPos = figData.positions.find(p => p.role && p.role.endsWith('-start'));
+        const endPos = figData.positions.find(p => p.role && p.role.endsWith('-end'));
+        
+        if (startPos && endPos) {
+            const y1Sp = parseInt(startPos.ysp);
+            const y2Sp = parseInt(endPos.ysp);
+            
+            figureBounds.push({
+                id: figId,
+                page: startPos.page,
+                col: startPos.col,
+                yTopSp: Math.max(y1Sp, y2Sp), // Top (larger Y in TeX coords)
+                yBottomSp: Math.min(y1Sp, y2Sp), // Bottom (smaller Y)
+                yTopPt: Math.max(y1Sp, y2Sp) / 65536,
+                yBottomPt: Math.min(y1Sp, y2Sp) / 65536
+            });
+        }
+    }
+    
+    return figureBounds;
+}
+
+/**
+ * Check if a segment overlaps with any figure
+ * Returns the overlapping figure or null
+ */
+function findOverlappingFigure(segment, figureBounds) {
+    // Get segment Y range
+    const startPos = segment.positions.find(p => p.role && p.role.endsWith('-start'));
+    const endPos = segment.positions.find(p => p.role && p.role.endsWith('-end'));
+    
+    if (!startPos || !endPos) return null;
+    
+    const segYTopSp = Math.max(parseInt(startPos.ysp), parseInt(endPos.ysp));
+    const segYBottomSp = Math.min(parseInt(startPos.ysp), parseInt(endPos.ysp));
+    
+    // Find figures in the same (page, column)
+    for (const fig of figureBounds) {
+        if (fig.page !== segment.page || fig.col !== segment.column) continue;
+        
+        // Check Y overlap
+        // Overlap if: segment bottom < figure top AND segment top > figure bottom
+        if (segYBottomSp < fig.yTopSp && segYTopSp > fig.yBottomSp) {
+            return fig;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Split a segment to avoid figure overlap
+ * Returns array of sub-segments
+ */
+function splitSegmentAroundFigure(segment, figure, pageDimensions, columnSettings) {
+    const startPos = segment.positions.find(p => p.role && p.role.endsWith('-start'));
+    const endPos = segment.positions.find(p => p.role && p.role.endsWith('-end'));
+    
+    if (!startPos || !endPos) return [segment];
+    
+    const segYTopSp = Math.max(parseInt(startPos.ysp), parseInt(endPos.ysp));
+    const segYBottomSp = Math.min(parseInt(startPos.ysp), parseInt(endPos.ysp));
+    
+    const subSegments = [];
+    
+    // Part before figure (if segment starts before figure)
+    if (segYTopSp > figure.yTopSp) {
+        const beforeEnd = {
+            ...startPos,
+            role: startPos.role.replace('-start', '-end'),
+            ysp: String(figure.yTopSp),
+            synthetic: true
+        };
+        
+        subSegments.push({
+            positions: [startPos, beforeEnd],
+            page: segment.page,
+            column: segment.column,
+            segmentIndex: segment.segmentIndex,
+            totalSegments: segment.totalSegments,
+            subSegmentType: 'before-figure'
+        });
+    }
+    
+    // Skip figure area (no segment created for this)
+    
+    // Part after figure (if segment continues after figure)
+    if (segYBottomSp < figure.yBottomSp) {
+        const afterStart = {
+            ...endPos,
+            role: endPos.role.replace('-end', '-start'),
+            ysp: String(figure.yBottomSp),
+            synthetic: true
+        };
+        
+        subSegments.push({
+            positions: [afterStart, endPos],
+            page: segment.page,
+            column: segment.column,
+            segmentIndex: segment.segmentIndex,
+            totalSegments: segment.totalSegments,
+            subSegmentType: 'after-figure'
+        });
+    }
+    
+    return subSegments.length > 0 ? subSegments : [segment];
+}
+
+/**
+ * Generate marked-boxes.json from positions with multi-column/page splitting and figure avoidance
  */
 function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettings) {
-    console.log(`\n🔄 Generating marked-boxes.json with multi-column/page support: ${outputPath}`);
+    console.log(`\n🔄 Generating marked-boxes.json with multi-column/page support and figure avoidance: ${outputPath}`);
 
     // Try to read NDJSON file for better column information
     const ndjsonPath = outputPath.replace('-marked-boxes.json', '-texpos.ndjson');
@@ -520,12 +649,20 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     // Use NDJSON positions if available (they have col field)
     const positionsToUse = ndjsonPositions || positions;
     
+    // Extract figure bounds for overlap detection
+    const figureBounds = extractFigureBounds(positionsToUse);
+    console.log(`   📐 Found ${figureBounds.length} figures for overlap detection`);
+    
     const groupedById = groupPositionsByIdOnly(positionsToUse);
     const markedBoxes = [];
     let splitElementCount = 0;
     let singleElementCount = 0;
+    let figureAvoidanceCount = 0;
 
     for (const [id, elementPositions] of Object.entries(groupedById)) {
+        // Skip if this is a figure itself
+        const isFigure = elementPositions.some(p => p.role && p.role.startsWith('FIG'));
+        
         // Split into segments if element spans columns or pages
         const segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings);
         
@@ -536,11 +673,41 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
             singleElementCount++;
         }
         
-        // Calculate bounding box for each segment
-        for (const segment of segments) {
+        // Process each segment and check for figure overlaps (only for paragraphs, not figures)
+        let finalSegments = [];
+        if (!isFigure) {
+            for (const segment of segments) {
+                // Check if this segment overlaps with any figure
+                const overlappingFigure = findOverlappingFigure(segment, figureBounds);
+                
+                if (overlappingFigure) {
+                    // Split segment to avoid figure
+                    const subSegments = splitSegmentAroundFigure(segment, overlappingFigure, pageDimensions, columnSettings);
+                    if (subSegments.length > 1) {
+                        figureAvoidanceCount++;
+                        console.log(`   🖼️  Avoided figure "${overlappingFigure.id}" in "${id}" (page ${segment.page}, col ${segment.column})`);
+                    }
+                    finalSegments.push(...subSegments);
+                } else {
+                    finalSegments.push(segment);
+                }
+            }
+        } else {
+            finalSegments = segments;
+        }
+        
+        // Calculate bounding box for each final segment
+        let segIdx = 0;
+        for (const segment of finalSegments) {
             const bbox = calculateBoundingBoxForSegment(segment, pageDimensions, id);
             if (bbox) {
+                // Add sub-segment indicator if needed
+                if (segment.subSegmentType) {
+                    bbox.id = bbox.id.replace(/_seg(\d+)of(\d+)/, `_seg$1of$2_${segment.subSegmentType}`);
+                    bbox.subSegmentType = segment.subSegmentType;
+                }
                 markedBoxes.push(bbox);
+                segIdx++;
             } else {
                 console.warn(`   ⚠️  Skipping segment for ${id} (page ${segment.page}, col ${segment.column}) due to calculation error`);
             }
@@ -555,7 +722,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
 
     fs.writeFileSync(outputPath, JSON.stringify(markedBoxes, null, 2));
     console.log(`\n✅ Generated ${markedBoxes.length} marked boxes from ${Object.keys(groupedById).length} elements`);
-    console.log(`   📊 Split: ${splitElementCount} | Single: ${singleElementCount}`);
+    console.log(`   📊 Split: ${splitElementCount} | Single: ${singleElementCount} | Figure avoidance: ${figureAvoidanceCount}`);
     console.log(`   📄 Written to: ${outputPath}`);
 }
 
