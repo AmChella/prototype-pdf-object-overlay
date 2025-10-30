@@ -1228,26 +1228,127 @@
         </div>
     </div>
 
-    <!-- Progress Modal (Rebuilt) -->
+    <!-- Progress Modal with Stages -->
     <div id="progressModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 3000; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+        <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
             <h3 id="progressModalTitle" style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 1.5rem; text-align: center;">
-                Processing...
+                Processing Document...
             </h3>
-            <div style="background: #f1f5f9; height: 8px; border-radius: 20px; overflow: hidden; margin-bottom: 1rem;">
-                <div id="progressModalBar" style="height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 20px; width: 100%; animation: indeterminate 1.5s ease-in-out infinite;">
+            
+            <!-- Progress Stages -->
+            <div style="margin-bottom: 2rem;">
+                <!-- Stage 1: XML Changes -->
+                <div class="progress-stage" id="stage-xml" style="display: flex; align-items: center; margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #f8fafc; transition: all 0.3s ease;">
+                    <div class="stage-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1rem; background: #e2e8f0; color: #64748b; flex-shrink: 0;">
+                        1
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div class="stage-title" style="font-weight: 600; color: #64748b; font-size: 0.875rem;">XML Changes</div>
+                        <div class="stage-desc" style="font-size: 0.75rem; color: #94a3b8;">Applying modifications</div>
+                    </div>
+                    <div class="stage-status" style="font-size: 1.25rem;">⏳</div>
+                </div>
+                
+                <!-- Stage 2: TeX Generation -->
+                <div class="progress-stage" id="stage-tex" style="display: flex; align-items: center; margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #f8fafc; transition: all 0.3s ease;">
+                    <div class="stage-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1rem; background: #e2e8f0; color: #64748b; flex-shrink: 0;">
+                        2
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div class="stage-title" style="font-weight: 600; color: #64748b; font-size: 0.875rem;">TeX Generation</div>
+                        <div class="stage-desc" style="font-size: 0.75rem; color: #94a3b8;">Converting XML to TeX</div>
+                    </div>
+                    <div class="stage-status" style="font-size: 1.25rem;">⏳</div>
+                </div>
+                
+                <!-- Stage 3: PDF Compilation -->
+                <div class="progress-stage" id="stage-pdf" style="display: flex; align-items: center; margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #f8fafc; transition: all 0.3s ease;">
+                    <div class="stage-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1rem; background: #e2e8f0; color: #64748b; flex-shrink: 0;">
+                        3
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div class="stage-title" style="font-weight: 600; color: #64748b; font-size: 0.875rem;">PDF Compilation</div>
+                        <div class="stage-desc" style="font-size: 0.75rem; color: #94a3b8;">Compiling document</div>
+                    </div>
+                    <div class="stage-status" style="font-size: 1.25rem;">⏳</div>
+                </div>
+                
+                <!-- Stage 4: JSON Coordination -->
+                <div class="progress-stage" id="stage-json" style="display: flex; align-items: center; padding: 0.75rem; border-radius: 8px; background: #f8fafc; transition: all 0.3s ease;">
+                    <div class="stage-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1rem; background: #e2e8f0; color: #64748b; flex-shrink: 0;">
+                        4
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div class="stage-title" style="font-weight: 600; color: #64748b; font-size: 0.875rem;">JSON Coordination</div>
+                        <div class="stage-desc" style="font-size: 0.75rem; color: #94a3b8;">Extracting coordinates</div>
+                    </div>
+                    <div class="stage-status" style="font-size: 1.25rem;">⏳</div>
                 </div>
             </div>
+            
+            <!-- Overall Progress Bar -->
+            <div style="background: #f1f5f9; height: 8px; border-radius: 20px; overflow: hidden; margin-bottom: 1rem;">
+                <div id="progressModalBar" style="height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 20px; width: 0%; transition: width 0.5s ease;">
+                </div>
+            </div>
+            
             <div id="progressModalStatus" style="text-align: center; color: #64748b; font-size: 0.875rem; min-height: 24px; padding: 0.5rem;">
-                Initializing...
+                Preparing...
             </div>
         </div>
     </div>
     
     <style>
-        @keyframes indeterminate {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(400%); }
+        /* Progress Stage Styles */
+        .progress-stage.pending .stage-icon {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+        
+        .progress-stage.active {
+            background: #eff6ff !important;
+            border: 1px solid #bfdbfe;
+        }
+        
+        .progress-stage.active .stage-icon {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .progress-stage.active .stage-title {
+            color: #1e293b;
+        }
+        
+        .progress-stage.completed {
+            background: #f0fdf4 !important;
+        }
+        
+        .progress-stage.completed .stage-icon {
+            background: #10b981;
+            color: white;
+        }
+        
+        .progress-stage.completed .stage-title {
+            color: #059669;
+        }
+        
+        .progress-stage.error {
+            background: #fef2f2 !important;
+        }
+        
+        .progress-stage.error .stage-icon {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .progress-stage.error .stage-title {
+            color: #dc2626;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
     </style>
 

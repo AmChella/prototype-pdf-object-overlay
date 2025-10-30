@@ -1283,17 +1283,36 @@ function handleWebSocketMessage(data) {
         case 'generation_started':
             console.log('🚀 Document generation started:', data.documentName);
             showProgress(`Generating ${data.documentName}...`);
+            // Start with XML stage
+            activateStage('xml');
             break;
 
         case 'generation_progress':
             console.log('📊 Generation progress:', data.message);
             if (data.message && progressModalStatus) {
                 progressModalStatus.textContent = data.message;
+                
+                // Update stages based on message content
+                const message = data.message.toLowerCase();
+                if (message.includes('xml') || message.includes('modif')) {
+                    activateStage('xml');
+                } else if (message.includes('tex') || message.includes('convert')) {
+                    activateStage('tex');
+                } else if (message.includes('pdf') || message.includes('compil')) {
+                    activateStage('pdf');
+                } else if (message.includes('json') || message.includes('coordinat')) {
+                    activateStage('json');
+                } else if (message.includes('copying') || message.includes('complete')) {
+                    completeStagesUpTo('json');
+                }
             }
             break;
 
         case 'generation_complete':
             console.log('✅ Document generation complete', data);
+            
+            // Mark all stages as completed
+            completeStagesUpTo('json');
             
             // Update status
             if (progressModalStatus) {
@@ -1337,6 +1356,8 @@ function handleWebSocketMessage(data) {
         case 'processing_started':
             console.log('🚀 Processing started for:', data.overlayType);
             showProgress(`Processing ${data.overlayType} instruction...`);
+            // Start with XML stage
+            activateStage('xml');
             break;
 
         case 'processing_progress':
@@ -1349,11 +1370,28 @@ function handleWebSocketMessage(data) {
 
             if (data.message && progressModalStatus) {
                 progressModalStatus.textContent = data.message;
+                
+                // Update stages based on message content
+                const message = data.message.toLowerCase();
+                if (message.includes('xml') || message.includes('modif')) {
+                    activateStage('xml');
+                } else if (message.includes('tex') || message.includes('convert')) {
+                    activateStage('tex');
+                } else if (message.includes('pdf') || message.includes('compil')) {
+                    activateStage('pdf');
+                } else if (message.includes('json') || message.includes('coordinat')) {
+                    activateStage('json');
+                } else if (message.includes('copying') || message.includes('complete')) {
+                    completeStagesUpTo('json');
+                }
             }
             break;
 
         case 'processing_complete':
             console.log('✅ Processing complete', data);
+            
+            // Mark all stages as completed
+            completeStagesUpTo('json');
             
             // Update status
             if (progressModalStatus) {
@@ -1876,22 +1914,144 @@ function showProgress(title = "Processing...") {
     
     if (progressModal) {
         progressModalTitle.textContent = title;
-        progressModalStatus.textContent = "Initializing...";
+        progressModalStatus.textContent = "Preparing...";
         progressModalStatus.style.color = '#64748b';
         progressModal.style.display = 'flex';
+        
+        // Reset all stages to pending
+        resetProgressStages();
+        
+        // Reset progress bar
+        if (progressModalBar) {
+            progressModalBar.style.width = '0%';
+        }
+        
         console.log('✅ Progress modal shown');
     } else {
         console.error('❌ Progress modal element not found!');
     }
 }
 
-// Old progress functions - replaced by simple modal
+// Reset all progress stages
+function resetProgressStages() {
+    const stages = ['xml', 'tex', 'pdf', 'json'];
+    stages.forEach(stage => {
+        const stageElement = document.getElementById(`stage-${stage}`);
+        if (stageElement) {
+            stageElement.className = 'progress-stage pending';
+            const statusIcon = stageElement.querySelector('.stage-status');
+            if (statusIcon) {
+                statusIcon.textContent = '⏳';
+            }
+        }
+    });
+}
+
+// Update progress stage state
+function setProgressStage(stageName, state) {
+    const stageElement = document.getElementById(`stage-${stageName}`);
+    if (!stageElement) {
+        console.warn(`⚠️ Stage element not found: stage-${stageName}`);
+        return;
+    }
+    
+    // Remove all state classes
+    stageElement.classList.remove('pending', 'active', 'completed', 'error');
+    
+    // Add new state class
+    stageElement.classList.add(state);
+    
+    // Update status icon
+    const statusIcon = stageElement.querySelector('.stage-status');
+    if (statusIcon) {
+        switch(state) {
+            case 'active':
+                statusIcon.textContent = '⏳';
+                break;
+            case 'completed':
+                statusIcon.textContent = '✅';
+                break;
+            case 'error':
+                statusIcon.textContent = '❌';
+                break;
+            default:
+                statusIcon.textContent = '⏳';
+        }
+    }
+    
+    // Update overall progress bar
+    updateOverallProgress();
+    
+    console.log(`📊 Stage ${stageName} set to: ${state}`);
+}
+
+// Activate a stage and mark all previous stages as completed
+function activateStage(stageName) {
+    const stages = ['xml', 'tex', 'pdf', 'json'];
+    const currentIndex = stages.indexOf(stageName);
+    
+    if (currentIndex === -1) {
+        console.warn(`⚠️ Unknown stage: ${stageName}`);
+        return;
+    }
+    
+    // Mark all previous stages as completed
+    for (let i = 0; i < currentIndex; i++) {
+        setProgressStage(stages[i], 'completed');
+    }
+    
+    // Mark current stage as active
+    setProgressStage(stageName, 'active');
+    
+    console.log(`🎯 Activated stage: ${stageName} (completed ${currentIndex} previous stages)`);
+}
+
+// Mark all stages up to and including the specified stage as completed
+function completeStagesUpTo(stageName) {
+    const stages = ['xml', 'tex', 'pdf', 'json'];
+    const targetIndex = stages.indexOf(stageName);
+    
+    if (targetIndex === -1) {
+        console.warn(`⚠️ Unknown stage: ${stageName}`);
+        return;
+    }
+    
+    // Mark all stages up to and including target as completed
+    for (let i = 0; i <= targetIndex; i++) {
+        setProgressStage(stages[i], 'completed');
+    }
+    
+    console.log(`✅ Completed stages up to: ${stageName}`);
+}
+
+// Update overall progress bar based on stage completion
+function updateOverallProgress() {
+    const stages = ['xml', 'tex', 'pdf', 'json'];
+    let completedCount = 0;
+    
+    stages.forEach(stage => {
+        const stageElement = document.getElementById(`stage-${stage}`);
+        if (stageElement && stageElement.classList.contains('completed')) {
+            completedCount++;
+        }
+    });
+    
+    const percentage = (completedCount / stages.length) * 100;
+    
+    if (progressModalBar) {
+        progressModalBar.style.width = `${percentage}%`;
+    }
+    
+    console.log(`📊 Overall progress: ${percentage}%`);
+}
+
+// Old progress functions - replaced by stage system
 function updateProgressSteps(steps) {
     // No longer used - kept for compatibility
 }
 
 function nextProgressStep(message = null) {
-    // No longer used - old complex progress system replaced with simple modal
+    // No longer used - old complex progress system replaced with stage system
     // Kept as stub for backward compatibility
     console.log('📝 nextProgressStep (deprecated):', message);
 }
