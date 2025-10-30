@@ -509,6 +509,7 @@ function readPositionsFromNdjson(ndjsonPath) {
 
 /**
  * Extract figure bounding boxes from positions
+ * Handles figures that span multiple pages/columns by creating separate bounds for each segment
  */
 function extractFigureBounds(positions) {
     const figures = {};
@@ -528,22 +529,87 @@ function extractFigureBounds(positions) {
     const figureBounds = [];
     
     for (const [figId, figData] of Object.entries(figures)) {
-        const startPos = figData.positions.find(p => p.role && p.role.endsWith('-start'));
-        const endPos = figData.positions.find(p => p.role && p.role.endsWith('-end'));
+        // Check if figure appears on multiple pages or columns by examining ALL positions
+        const uniqueLocations = new Set();
+        for (const pos of figData.positions) {
+            uniqueLocations.add(`p${pos.page}c${pos.col}`);
+        }
+        const spansMultiple = uniqueLocations.size > 1;
         
-        if (startPos && endPos) {
-            const y1Sp = parseInt(startPos.ysp);
-            const y2Sp = parseInt(endPos.ysp);
+        if (spansMultiple) {
+                // For multi-page/column figures, create bounds for each segment
+                // Group positions by (page, column)
+                const segmentMap = new Map();
+                for (const pos of figData.positions) {
+                    const key = `p${pos.page}c${pos.col}`;
+                    if (!segmentMap.has(key)) {
+                        segmentMap.set(key, { page: pos.page, col: pos.col, positions: [] });
+                    }
+                    segmentMap.get(key).positions.push(pos);
+                }
+                
+                // Define text body boundaries (excluding header/footer)
+                const pageHeightSp = 845.04684 * 65536; // Default page height
+                const headerMarginSp = 71 * 65536;
+                const footerMarginSp = 69 * 65536;
+                const textBodyTopSp = pageHeightSp - headerMarginSp;
+                const textBodyBottomSp = footerMarginSp;
+                
+                // Create figure bound for each segment
+                for (const [key, segment] of segmentMap.entries()) {
+                    const segStart = segment.positions.find(p => p.role && p.role.endsWith('-start'));
+                    const segEnd = segment.positions.find(p => p.role && p.role.endsWith('-end'));
+                    
+                    let yTopSp, yBottomSp;
+                    
+                    if (segStart && segEnd) {
+                        // Both markers present - use actual coordinates
+                        const segY1Sp = parseInt(segStart.ysp);
+                        const segY2Sp = parseInt(segEnd.ysp);
+                        yTopSp = Math.max(segY1Sp, segY2Sp);
+                        yBottomSp = Math.min(segY1Sp, segY2Sp);
+                    } else if (segStart) {
+                        // Only start marker - figure continues to bottom of text body
+                        yTopSp = parseInt(segStart.ysp);
+                        yBottomSp = textBodyBottomSp;
+                    } else if (segEnd) {
+                        // Only end marker - figure starts from top of text body
+                        yTopSp = textBodyTopSp;
+                        yBottomSp = parseInt(segEnd.ysp);
+                    } else {
+                        // No markers in this segment - skip
+                        continue;
+                    }
+                    
+                    figureBounds.push({
+                        id: figId,
+                        page: segment.page,
+                        col: segment.col,
+                        yTopSp: yTopSp,
+                        yBottomSp: yBottomSp,
+                        yTopPt: yTopSp / 65536,
+                        yBottomPt: yBottomSp / 65536
+                    });
+                }
+        } else {
+            // Single page/column figure - use original logic
+            const startPos = figData.positions.find(p => p.role && p.role.endsWith('-start'));
+            const endPos = figData.positions.find(p => p.role && p.role.endsWith('-end'));
             
-            figureBounds.push({
-                id: figId,
-                page: startPos.page,
-                col: startPos.col,
-                yTopSp: Math.max(y1Sp, y2Sp), // Top (larger Y in TeX coords)
-                yBottomSp: Math.min(y1Sp, y2Sp), // Bottom (smaller Y)
-                yTopPt: Math.max(y1Sp, y2Sp) / 65536,
-                yBottomPt: Math.min(y1Sp, y2Sp) / 65536
-            });
+            if (startPos && endPos) {
+                const y1Sp = parseInt(startPos.ysp);
+                const y2Sp = parseInt(endPos.ysp);
+                
+                figureBounds.push({
+                    id: figId,
+                    page: startPos.page,
+                    col: startPos.col,
+                    yTopSp: Math.max(y1Sp, y2Sp), // Top (larger Y in TeX coords)
+                    yBottomSp: Math.min(y1Sp, y2Sp), // Bottom (smaller Y)
+                    yTopPt: Math.max(y1Sp, y2Sp) / 65536,
+                    yBottomPt: Math.min(y1Sp, y2Sp) / 65536
+                });
+            }
         }
     }
     
@@ -651,7 +717,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     
     // Extract figure bounds for overlap detection
     const figureBounds = extractFigureBounds(positionsToUse);
-    console.log(`   📐 Found ${figureBounds.length} figures for overlap detection`);
+    console.log(`   📐 Found ${figureBounds.length} figure bounds for overlap detection`);
     
     const groupedById = groupPositionsByIdOnly(positionsToUse);
     const markedBoxes = [];
