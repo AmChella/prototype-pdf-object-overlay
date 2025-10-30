@@ -915,6 +915,80 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-light);
         }
+
+        /* Accordion Styles */
+        .accordion-item {
+            background: white;
+            border-radius: var(--radius);
+            margin-bottom: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .accordion-item:hover {
+            box-shadow: var(--shadow);
+        }
+
+        .accordion-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+            background: white;
+            border: none;
+            width: 100%;
+            text-align: left;
+            transition: background-color 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background: var(--light);
+        }
+
+        .accordion-header-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .accordion-header-icon {
+            font-size: 1.25rem;
+        }
+
+        .accordion-toggle {
+            font-size: 1.25rem;
+            transition: transform 0.3s ease;
+            color: var(--text-light);
+        }
+
+        .accordion-item.active .accordion-toggle {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .accordion-item.active .accordion-content {
+            max-height: 2000px;
+        }
+
+        .accordion-body {
+            padding: 0 1.25rem 1.25rem;
+        }
+
+        /* Update card styles for accordion */
+        .accordion-item .card-body {
+            padding: 0;
+        }
     </style>
 </head>
 
@@ -943,122 +1017,140 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <!-- Document Generation -->
-            <div class="card" id="documentGenerationCard">
-                <div class="card-header">
-                    <span>🚀</span>
-                    <span>Document Generation</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label class="form-label">Select Document to Generate</label>
-                        <div class="document-selection">
-                            <button class="document-btn" data-document="document" id="generateDocumentBtn">
-                                <div class="doc-icon">📄</div>
-                                <div class="doc-info">
-                                    <div class="doc-title">Sample Document</div>
-                                    <div class="doc-desc">document.xml</div>
-                                </div>
-                            </button>
-                            <button class="document-btn" data-document="ENDEND10921" id="generateEndend10921Btn">
-                                <div class="doc-icon">📰</div>
-                                <div class="doc-info">
-                                    <div class="doc-title">Article Sample</div>
-                                    <div class="doc-desc">ENDEND10921.xml</div>
-                                </div>
-                            </button>
-                        </div>
+            <div class="accordion-item active" id="documentGenerationCard">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-content">
+                        <span class="accordion-header-icon">🚀</span>
+                        <span>Document Generation</span>
                     </div>
-                    <div id="currentDocumentStatus" style="display: none;">
-                        <div class="status-info">
-                            <span class="status-label">Current Document:</span>
-                            <span class="status-value" id="currentDocumentName">None</span>
+                    <span class="accordion-toggle">▼</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-group">
+                            <label class="form-label">Select Document to Generate</label>
+                            <div class="document-selection">
+                                <button class="document-btn" data-document="document" id="generateDocumentBtn">
+                                    <div class="doc-icon">📄</div>
+                                    <div class="doc-info">
+                                        <div class="doc-title">Sample Document</div>
+                                        <div class="doc-desc">document.xml</div>
+                                    </div>
+                                </button>
+                                <button class="document-btn" data-document="ENDEND10921" id="generateEndend10921Btn">
+                                    <div class="doc-icon">📰</div>
+                                    <div class="doc-info">
+                                        <div class="doc-title">Article Sample</div>
+                                        <div class="doc-desc">ENDEND10921.xml</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="currentDocumentStatus" style="display: none;">
+                            <div class="status-info">
+                                <span class="status-label">Current Document:</span>
+                                <span class="status-value" id="currentDocumentName">None</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- File Management -->
-            <div class="card">
-                <div class="card-header">
-                    <span>📁</span>
-                    <span>File Management</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label class="form-label">PDF Document</label>
-                        <div class="file-upload-area" id="pdfUploadArea">
-                            <div class="upload-icon">📄</div>
-                            <div class="upload-text">Drop PDF here or click to browse</div>
-                            <div class="upload-hint">Supports .pdf files</div>
-                        </div>
-                        <input type="file" id="pdfFileInput" accept=".pdf">
-                        <input type="text" id="pdfUrl" style="display: none;">
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-content">
+                        <span class="accordion-header-icon">📁</span>
+                        <span>File Management</span>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Coordinate Data</label>
-                        <div class="file-upload-area" id="jsonUploadArea">
-                            <div class="upload-icon">📊</div>
-                            <div class="upload-text">Drop JSON here or click to browse</div>
-                            <div class="upload-hint">Supports .json files</div>
+                    <span class="accordion-toggle">▼</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-group">
+                            <label class="form-label">PDF Document</label>
+                            <div class="file-upload-area" id="pdfUploadArea">
+                                <div class="upload-icon">📄</div>
+                                <div class="upload-text">Drop PDF here or click to browse</div>
+                                <div class="upload-hint">Supports .pdf files</div>
+                            </div>
+                            <input type="file" id="pdfFileInput" accept=".pdf">
+                            <input type="text" id="pdfUrl" style="display: none;">
                         </div>
-                        <input type="file" id="jsonFileInput" accept=".json">
-                    </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Or select preset</label>
-                        <select id="jsonSelect">
-                            <option value="">Choose a preset...</option>
-                        </select>
+                        <div class="form-group">
+                            <label class="form-label">Coordinate Data</label>
+                            <div class="file-upload-area" id="jsonUploadArea">
+                                <div class="upload-icon">📊</div>
+                                <div class="upload-text">Drop JSON here or click to browse</div>
+                                <div class="upload-hint">Supports .json files</div>
+                            </div>
+                            <input type="file" id="jsonFileInput" accept=".json">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Or select preset</label>
+                            <select id="jsonSelect">
+                                <option value="">Choose a preset...</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- View Options -->
-            <div class="card">
-                <div class="card-header">
-                    <span>⚙️</span>
-                    <span>View Options</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label class="form-label">Coordinate Unit</label>
-                        <select id="unitSelect">
-                            <option value="pt">Points (pt)</option>
-                            <option value="mm">Millimeters (mm)</option>
-                            <option value="px">Pixels (px)</option>
-                        </select>
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-content">
+                        <span class="accordion-header-icon">⚙️</span>
+                        <span>View Options</span>
                     </div>
+                    <span class="accordion-toggle">▼</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-group">
+                            <label class="form-label">Coordinate Unit</label>
+                            <select id="unitSelect">
+                                <option value="pt">Points (pt)</option>
+                                <option value="mm">Millimeters (mm)</option>
+                                <option value="px">Pixels (px)</option>
+                            </select>
+                        </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Coordinate Origin</label>
-                        <select id="coordinateOrigin">
-                            <option value="bottom-left">Bottom-Left (PDF Standard)</option>
-                            <option value="top-left">Top-Left</option>
-                        </select>
-                    </div>
+                        <div class="form-group">
+                            <label class="form-label">Coordinate Origin</label>
+                            <select id="coordinateOrigin">
+                                <option value="bottom-left">Bottom-Left (PDF Standard)</option>
+                                <option value="top-left">Top-Left</option>
+                            </select>
+                        </div>
 
-                    <div class="quick-actions">
-                        <button class="action-btn" id="toggleOverlaysBtn">
-                            <span>👁️</span>
-                            <span>Hide Overlays</span>
-                        </button>
-                        <button class="action-btn" id="toggleOutlineBtn">
-                            <span>📐</span>
-                            <span>Show Outline</span>
-                        </button>
+                        <div class="quick-actions">
+                            <button class="action-btn" id="toggleOverlaysBtn">
+                                <span>👁️</span>
+                                <span>Hide Overlays</span>
+                            </button>
+                            <button class="action-btn" id="toggleOutlineBtn">
+                                <span>📐</span>
+                                <span>Show Outline</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Developer Tools -->
-            <div class="card">
-                <button class="dev-toggle" onclick="toggleDevTools()">
-                    <span>🛠️ Developer Tools</span>
-                    <span class="dev-toggle-icon">▼</span>
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-content">
+                        <span class="accordion-header-icon">🛠️</span>
+                        <span>Developer Tools</span>
+                    </div>
+                    <span class="accordion-toggle">▼</span>
                 </button>
-                <div class="dev-tools" id="devTools">
-                    <div class="card-body compact">
+                <div class="accordion-content">
+                    <div class="accordion-body">
                         <button class="btn btn-secondary btn-sm" id="debugBtn" style="margin-bottom: 0.5rem;">
                             🐛 Debug Info
                         </button>
@@ -1172,10 +1264,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
     <script src="app.js"></script>
     <script>
-        // Add helper function for developer tools toggle
-        function toggleDevTools() {
-            const devTools = document.getElementById('devTools');
-            devTools.classList.toggle('expanded');
+        // Accordion toggle function
+        function toggleAccordion(button) {
+            const accordionItem = button.closest('.accordion-item');
+            const isActive = accordionItem.classList.contains('active');
+            
+            // Toggle the current accordion item
+            accordionItem.classList.toggle('active');
         }
 
         // Enhanced file upload areas
