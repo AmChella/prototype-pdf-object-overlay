@@ -811,9 +811,9 @@ async function main() {
                             const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
 
                             generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
-                            generateMarkedBoxes(positions, pageDimensions, markedBoxesPath);
+                            generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
 
-                            console.log('✅ Coordinates synchronized from aux file');
+                            console.log('✅ Coordinates synchronized from aux file with multi-column/page splitting');
                         } else {
                             console.warn('⚠️  No position data found in aux file - skipping sync');
                         }

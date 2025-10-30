@@ -12,6 +12,7 @@ A comprehensive system for **XML-to-PDF conversion** with **precise coordinate e
 
 - **📄 XML to PDF Pipeline**: Transform structured XML into professionally formatted PDFs
 - **📍 Accurate Coordinates**: Extract precise element positions using zref-savepos
+- **✂️ Smart Splitting**: Automatically splits elements spanning columns/pages into accurate segments
 - **🎨 Modern Web UI**: Real-time processing with WebSocket updates
 - **🔍 Interactive Overlays**: Visualize and interact with PDF elements
 - **📊 Multi-page Support**: Handle complex documents with accurate page numbers
@@ -166,6 +167,64 @@ node scripts/external/sync_from_aux.js TeX/document.aux
 - Useful when coordinates seem misaligned or after manual aux file edits
 
 See [AUX-SYNC-GUIDE.md](docs/AUX-SYNC-GUIDE.md) for detailed documentation.
+
+### Multi-Column and Multi-Page Splitting
+
+The system **automatically detects and splits** elements that span across columns or pages!
+
+**Supported Scenarios:**
+
+1. **Column Spanning:** Paragraph flows from left to right column on same page → **2 items**
+2. **Page Spanning:** Paragraph starts on page 1, ends on page 2 → **2 items**
+3. **Both:** Paragraph spans left column (p1) → right column (p1) → continues to page 2 → **3 items**
+
+**Example Output:**
+```json
+[
+  {
+    "id": "para-123_seg1of2",
+    "originalId": "para-123",
+    "segmentIndex": 0,
+    "totalSegments": 2,
+    "segmentColumn": 0,
+    "page": 1,
+    "x_pt": 56.0, "y_pt": 100.0,
+    "width_pt": 235.0, "height_pt": 50.0
+  },
+  {
+    "id": "para-123_seg2of2",
+    "originalId": "para-123",
+    "segmentIndex": 1,
+    "totalSegments": 2,
+    "segmentColumn": 1,
+    "page": 1,
+    "x_pt": 320.0, "y_pt": 100.0,
+    "width_pt": 235.0, "height_pt": 50.0
+  }
+]
+```
+
+**Usage:** The splitting is **automatic** during coordinate generation:
+```bash
+# During PDF generation (automatic)
+node src/tex-to-pdf.js document.tex --sync-aux
+
+# Manual sync (automatic)
+node scripts/external/sync_from_aux.js TeX/document.aux
+
+# Test the feature
+./scripts/test-multi-column-splitting.sh TeX/document.aux
+```
+
+**Console Output:**
+```
+✂️  Split "para-sec1-p-001" into 2 segments (pages: 1,1, cols: 0,1)
+✂️  Split "para-sec2-p-045" into 3 segments (pages: 1,1,2, cols: 0,1,0)
+✅ Generated 156 marked boxes from 120 elements
+   📊 Split: 25 | Single: 95
+```
+
+See [MULTI-COLUMN-PAGE-SPLITTING.md](docs/MULTI-COLUMN-PAGE-SPLITTING.md) for complete documentation.
 
 ### Server API
 

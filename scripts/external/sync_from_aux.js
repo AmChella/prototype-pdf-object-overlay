@@ -194,6 +194,22 @@ function groupPositions(positions) {
 }
 
 /**
+ * Group positions by ID only (for multi-page/column detection)
+ */
+function groupPositionsByIdOnly(positions) {
+    const grouped = {};
+
+    for (const pos of positions) {
+        if (!grouped[pos.id]) {
+            grouped[pos.id] = [];
+        }
+        grouped[pos.id].push(pos);
+    }
+
+    return grouped;
+}
+
+/**
  * Calculate bounding box from start/end positions
  */
 function calculateBoundingBox(positions, pageDimensions) {
@@ -277,31 +293,270 @@ function calculateBoundingBox(positions, pageDimensions) {
 }
 
 /**
- * Generate marked-boxes.json from positions
+ * Detect if element spans columns or pages
+ * Returns: { spansColumns: boolean, spansPages: boolean, pages: [], columns: {} }
  */
-function generateMarkedBoxes(positions, pageDimensions, outputPath) {
-    console.log(`Generating marked-boxes.json: ${outputPath}`);
+function detectSpanning(positions, columnSettings) {
+    // Check for multi-page spanning
+    const pages = [...new Set(positions.map(r => r.page))].sort((a, b) => a - b);
+    const spansPages = pages.length > 1;
+    
+    // Detect column for each position based on x coordinate
+    const positionsWithCol = positions.map(pos => {
+        const xPt = spToPt(pos.xsp);
+        // Simplified heuristic: x > 300pt typically means right column
+        // Can be improved with actual column width calculation
+        const col = xPt > 300 ? 1 : 0;
+        return { ...pos, col };
+    });
+    
+    // Group by page to check column spanning within each page
+    const byPage = {};
+    for (const pos of positionsWithCol) {
+        if (!byPage[pos.page]) {
+            byPage[pos.page] = [];
+        }
+        byPage[pos.page].push(pos);
+    }
+    
+    // Check if any page has positions in both columns
+    let spansColumns = false;
+    const columnsByPage = {};
+    for (const [page, pagePositions] of Object.entries(byPage)) {
+        const cols = [...new Set(pagePositions.map(p => p.col))];
+        columnsByPage[page] = cols;
+        if (cols.length > 1) {
+            spansColumns = true;
+        }
+    }
+    
+    return {
+        spansColumns,
+        spansPages,
+        pages,
+        columnsByPage,
+        positionsWithCol
+    };
+}
 
-    const grouped = groupPositions(positions);
+/**
+ * Split positions into segments based on page AND column boundaries
+ * Uses the 'col' field from NDJSON to properly split across columns
+ */
+function splitIntoSegments(positions, pageDimensions, columnSettings) {
+    // Group positions by (page, column) to identify all segments
+    const segmentMap = new Map();
+    
+    for (const pos of positions) {
+        const key = `p${pos.page}c${pos.col}`;
+        if (!segmentMap.has(key)) {
+            segmentMap.set(key, {
+                page: pos.page,
+                column: pos.col,
+                positions: []
+            });
+        }
+        segmentMap.get(key).positions.push(pos);
+    }
+    
+    // If only one segment, no splitting needed
+    if (segmentMap.size === 1) {
+        const segment = Array.from(segmentMap.values())[0];
+        return [{
+            positions: segment.positions,
+            page: segment.page,
+            column: segment.column,
+            segmentIndex: 0,
+            totalSegments: 1
+        }];
+    }
+    
+    // Sort segments by page and column
+    const sortedSegments = Array.from(segmentMap.entries())
+        .sort(([keyA], [keyB]) => {
+            const matchA = keyA.match(/p(\d+)c(\d+)/);
+            const matchB = keyB.match(/p(\d+)c(\d+)/);
+            if (!matchA || !matchB) return 0;
+            const pageA = parseInt(matchA[1]);
+            const pageB = parseInt(matchB[1]);
+            if (pageA !== pageB) {
+                return pageA - pageB;
+            }
+            return parseInt(matchA[2]) - parseInt(matchB[2]);
+        })
+        .map(([_, segment]) => segment);
+    
+    const totalSegments = sortedSegments.length;
+    const pageHeightPt = parseFloat(pageDimensions.height.replace('pt', ''));
+    
+    // Define text body area (excluding header and footer)
+    // Based on analysis: header ~71pt from top, footer ~69pt from bottom
+    const headerMarginPt = 71;
+    const footerMarginPt = 69;
+    const textBodyTopPt = pageHeightPt - headerMarginPt; // ~774pt
+    const textBodyBottomPt = footerMarginPt; // ~69pt
+    
+    // Convert to scaled points
+    const textBodyTopSp = Math.round(textBodyTopPt * 65536);
+    const textBodyBottomSp = Math.round(textBodyBottomPt * 65536);
+    
+    // Create proper start/end pairs for each segment
+    const segments = [];
+    
+    for (let i = 0; i < sortedSegments.length; i++) {
+        const segment = sortedSegments[i];
+        let startPos = segment.positions.find(p => p.role && p.role.endsWith('-start'));
+        let endPos = segment.positions.find(p => p.role && p.role.endsWith('-end'));
+        
+        // If we have both real markers, use them
+        if (startPos && endPos) {
+            segments.push({
+                positions: [startPos, endPos],
+                page: segment.page,
+                column: segment.column,
+                segmentIndex: i,
+                totalSegments: totalSegments
+            });
+            continue;
+        }
+        
+        // Need to create synthetic markers
+        const refPos = startPos || endPos || segment.positions[0];
+        
+        if (!startPos) {
+            // Create synthetic start at top of text body (not page top)
+            startPos = {
+                ...refPos,
+                page: segment.page,
+                col: segment.column,
+                role: refPos.role ? refPos.role.replace('-end', '-start') : 'P-start',
+                ysp: String(textBodyTopSp), // Top of text body (excluding header)
+                synthetic: true
+            };
+        }
+        
+        if (!endPos) {
+            // Create synthetic end at bottom of text body (not page bottom)
+            endPos = {
+                ...refPos,
+                page: segment.page,
+                col: segment.column,
+                role: refPos.role ? refPos.role.replace('-start', '-end') : 'P-end',
+                ysp: String(textBodyBottomSp), // Bottom of text body (excluding footer)
+                synthetic: true
+            };
+        }
+        
+        segments.push({
+            positions: [startPos, endPos],
+            page: segment.page,
+            column: segment.column,
+            segmentIndex: i,
+            totalSegments: totalSegments
+        });
+    }
+    
+    return segments;
+}
+
+/**
+ * Calculate bounding box for a segment
+ */
+function calculateBoundingBoxForSegment(segment, pageDimensions, baseId) {
+    const bbox = calculateBoundingBox(segment.positions, pageDimensions);
+    
+    if (!bbox) return null;
+    
+    // If this is part of a multi-segment element, modify the ID
+    if (segment.totalSegments > 1) {
+        const segmentSuffix = `_seg${segment.segmentIndex + 1}of${segment.totalSegments}`;
+        return {
+            ...bbox,
+            id: `${baseId}${segmentSuffix}`,
+            originalId: baseId,
+            segmentIndex: segment.segmentIndex,
+            totalSegments: segment.totalSegments,
+            segmentColumn: segment.column
+        };
+    }
+    
+    return bbox;
+}
+
+/**
+ * Read positions from NDJSON file (which has column info)
+ */
+function readPositionsFromNdjson(ndjsonPath) {
+    if (!fs.existsSync(ndjsonPath)) {
+        return null;
+    }
+    
+    const content = fs.readFileSync(ndjsonPath, 'utf8');
+    const lines = content.trim().split(/\r?\n/);
+    const positions = [];
+    
+    for (const line of lines) {
+        try {
+            const record = JSON.parse(line);
+            positions.push(record);
+        } catch (err) {
+            console.warn('Failed to parse NDJSON line:', line);
+        }
+    }
+    
+    return positions;
+}
+
+/**
+ * Generate marked-boxes.json from positions with multi-column/page splitting
+ */
+function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettings) {
+    console.log(`\n🔄 Generating marked-boxes.json with multi-column/page support: ${outputPath}`);
+
+    // Try to read NDJSON file for better column information
+    const ndjsonPath = outputPath.replace('-marked-boxes.json', '-texpos.ndjson');
+    const ndjsonPositions = readPositionsFromNdjson(ndjsonPath);
+    
+    // Use NDJSON positions if available (they have col field)
+    const positionsToUse = ndjsonPositions || positions;
+    
+    const groupedById = groupPositionsByIdOnly(positionsToUse);
     const markedBoxes = [];
+    let splitElementCount = 0;
+    let singleElementCount = 0;
 
-    for (const [key, group] of Object.entries(grouped)) {
-        const bbox = calculateBoundingBox(group, pageDimensions);
-        if (bbox) {
-            markedBoxes.push(bbox);
+    for (const [id, elementPositions] of Object.entries(groupedById)) {
+        // Split into segments if element spans columns or pages
+        const segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings);
+        
+        if (segments.length > 1) {
+            splitElementCount++;
+            console.log(`   ✂️  Split "${id}" into ${segments.length} segments (pages: ${segments.map(s => s.page).join(',')}, cols: ${segments.map(s => s.column).join(',')})`);
         } else {
-            console.warn(`Skipping ${key} due to calculation error`);
+            singleElementCount++;
+        }
+        
+        // Calculate bounding box for each segment
+        for (const segment of segments) {
+            const bbox = calculateBoundingBoxForSegment(segment, pageDimensions, id);
+            if (bbox) {
+                markedBoxes.push(bbox);
+            } else {
+                console.warn(`   ⚠️  Skipping segment for ${id} (page ${segment.page}, col ${segment.column}) due to calculation error`);
+            }
         }
     }
 
     // Sort by page and then by ID for consistent output
     markedBoxes.sort((a, b) => {
         if (a.page !== b.page) return a.page - b.page;
-        return a.id.localeCompare(b.id);
+        return (a.originalId || a.id).localeCompare(b.originalId || b.id);
     });
 
     fs.writeFileSync(outputPath, JSON.stringify(markedBoxes, null, 2));
-    console.log(`Written ${markedBoxes.length} marked boxes`);
+    console.log(`\n✅ Generated ${markedBoxes.length} marked boxes from ${Object.keys(groupedById).length} elements`);
+    console.log(`   📊 Split: ${splitElementCount} | Single: ${singleElementCount}`);
+    console.log(`   📄 Written to: ${outputPath}`);
 }
 
 /**
@@ -378,9 +633,9 @@ Examples:
     const columnSettings = getColumnSettings(ndjsonPath);
 
     // Generate files
-    console.log('\n=== Syncing from aux file ===');
+    console.log('\n=== Syncing from aux file with multi-column/page support ===');
     generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
-    generateMarkedBoxes(positions, pageDimensions, markedBoxesPath);
+    generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
 
     console.log('\n✅ Successfully synchronized coordinates from aux file');
     console.log(`   NDJSON: ${ndjsonPath}`);
