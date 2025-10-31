@@ -49,6 +49,13 @@ let overlaysVisible = true; // track overlay visibility state
 let currentPdfObjectUrl = null; // Track object URL for cleanup
 let enableWebSocket = true; // Set to true to enable WebSocket connection
 let currentDocument = null; // Track currently loaded document (document or ENDEND10921)
+let currentScale = 1.5; // Default zoom scale
+
+// Search variables
+let searchQuery = '';
+let searchMatches = [];
+let currentMatchIndex = -1;
+let pageTextContent = new Map(); // Cache text content per page
 
 // loadBtn.addEventListener("click", () => {
 //   const url = pdfUrlInput.value.trim();
@@ -495,10 +502,11 @@ if (pageInput) {
   });
 }
 
-// Keyboard navigation
+// Keyboard navigation and shortcuts
 document.addEventListener("keydown", (e) => {
-  // Only handle arrow keys when not in an input field
-  if (document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+  // Only handle shortcuts when not in an input field
+  if (document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA" && document.activeElement.tagName !== "SELECT") {
+    // Page navigation
     if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
       if (currentPageNumber > 1) {
@@ -517,15 +525,46 @@ document.addEventListener("keydown", (e) => {
       if (currentPdf) {
         goToPage(currentPdf.numPages);
       }
-    } else if (e.key === "o" || e.key === "O") {
+    } 
+    // Overlay toggle
+    else if (e.key === "o" || e.key === "O") {
       e.preventDefault();
       toggleOverlays();
+    }
+    // Sidebar toggle
+    else if (e.key === "s" || e.key === "S") {
+      e.preventDefault();
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+      }
+    }
+    // Zoom controls
+    else if ((e.ctrlKey || e.metaKey) && e.key === '+') {
+      e.preventDefault();
+      const newScale = Math.min(currentScale + 0.25, 3);
+      setZoom(newScale);
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+      e.preventDefault();
+      const newScale = Math.max(currentScale - 0.25, 0.25);
+      setZoom(newScale);
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+      e.preventDefault();
+      setZoom(1.0);
+    }
+    // Search toggle
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      toggleSearch();
     }
   }
 });
 
 // Initialize on page load - Main initialization function
 function initializeApp() {
+  console.log('🚀 Initializing PDF Overlay System...');
+  console.log('📋 Document readyState:', document.readyState);
+  
   // Set PDF Standard (bottom-left) as default coordinate origin
   const coordOrigin = document.getElementById('coordinateOrigin');
   if (coordOrigin) {
@@ -570,9 +609,481 @@ function initializeApp() {
 
   // Document Generation Event Listeners
   setupDocumentGeneration();
+  
+  // Setup toolbar controls
+  setupToolbarControls();
 }
 
-document.addEventListener("DOMContentLoaded", initializeApp);
+// Check if DOM is already loaded (script at end of body)
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", initializeApp);
+} else {
+  // DOM is already loaded, run init immediately
+  initializeApp();
+}
+
+// Setup toolbar controls (PDF.js-style)
+function setupToolbarControls() {
+  console.log('🔧 Setting up toolbar controls...');
+  
+  // Sidebar toggle
+  const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+  const sidebar = document.getElementById('sidebar');
+  if (sidebarToggleBtn && sidebar) {
+    sidebarToggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      console.log('Sidebar toggled:', sidebar.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+    });
+    console.log('✅ Sidebar toggle attached');
+  }
+  
+  // Toolbar page navigation
+  const firstPageBtnToolbar = document.getElementById('firstPageBtnToolbar');
+  const prevPageBtnToolbar = document.getElementById('prevPageBtnToolbar');
+  const nextPageBtnToolbar = document.getElementById('nextPageBtnToolbar');
+  const lastPageBtnToolbar = document.getElementById('lastPageBtnToolbar');
+  const pageInputToolbar = document.getElementById('pageInputToolbar');
+  
+  console.log('Navigation elements found:', {
+    firstPageBtnToolbar: !!firstPageBtnToolbar,
+    prevPageBtnToolbar: !!prevPageBtnToolbar,
+    nextPageBtnToolbar: !!nextPageBtnToolbar,
+    lastPageBtnToolbar: !!lastPageBtnToolbar,
+    pageInputToolbar: !!pageInputToolbar
+  });
+  
+  if (firstPageBtnToolbar) {
+    firstPageBtnToolbar.addEventListener('click', () => {
+      console.log('First page button clicked');
+      goToPage(1);
+    });
+    console.log('✅ First page button listener attached');
+  } else {
+    console.error('❌ firstPageBtnToolbar not found!');
+  }
+  
+  if (prevPageBtnToolbar) {
+    prevPageBtnToolbar.addEventListener('click', () => {
+      console.log('Previous page button clicked, current page:', currentPageNumber);
+      if (currentPageNumber > 1) goToPage(currentPageNumber - 1);
+    });
+    console.log('✅ Previous page button listener attached');
+  } else {
+    console.error('❌ prevPageBtnToolbar not found!');
+  }
+  
+  if (nextPageBtnToolbar) {
+    nextPageBtnToolbar.addEventListener('click', () => {
+      console.log('Next page button clicked, current page:', currentPageNumber);
+      if (currentPdf && currentPageNumber < currentPdf.numPages) {
+        goToPage(currentPageNumber + 1);
+      }
+    });
+    console.log('✅ Next page button listener attached');
+  } else {
+    console.error('❌ nextPageBtnToolbar not found!');
+  }
+  
+  if (lastPageBtnToolbar) {
+    lastPageBtnToolbar.addEventListener('click', () => {
+      console.log('Last page button clicked');
+      if (currentPdf) goToPage(currentPdf.numPages);
+    });
+    console.log('✅ Last page button listener attached');
+  } else {
+    console.error('❌ lastPageBtnToolbar not found!');
+  }
+  
+  if (pageInputToolbar) {
+    pageInputToolbar.addEventListener('change', () => {
+      const pageNum = parseInt(pageInputToolbar.value);
+      console.log('Page input changed to:', pageNum);
+      if (pageNum && pageNum >= 1 && currentPdf && pageNum <= currentPdf.numPages) {
+        goToPage(pageNum);
+      } else {
+        pageInputToolbar.value = currentPageNumber;
+      }
+    });
+    
+    pageInputToolbar.addEventListener('keypress', (e) => {
+      if (e.key === "Enter") {
+        pageInputToolbar.blur(); // This will trigger the change event
+      }
+    });
+    console.log('✅ Page input listener attached');
+  } else {
+    console.error('❌ pageInputToolbar not found!');
+  }
+  
+  // Zoom controls
+  const zoomSelect = document.getElementById('zoomSelect');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  
+  if (zoomSelect) {
+    zoomSelect.addEventListener('change', () => {
+      handleZoomChange(zoomSelect.value);
+    });
+  }
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      const newScale = Math.min(currentScale + 0.25, 3);
+      setZoom(newScale);
+    });
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      const newScale = Math.max(currentScale - 0.25, 0.25);
+      setZoom(newScale);
+    });
+  }
+  
+  // Toolbar overlay toggle
+  const toggleOverlaysBtnToolbar = document.getElementById('toggleOverlaysBtnToolbar');
+  if (toggleOverlaysBtnToolbar) {
+    toggleOverlaysBtnToolbar.addEventListener('click', toggleOverlays);
+  }
+  
+  // Search controls
+  setupSearchControls();
+}
+
+// Setup search controls
+function setupSearchControls() {
+  const searchToggleBtn = document.getElementById('searchToggleBtn');
+  const searchContainer = document.getElementById('searchContainer');
+  const toolbarTitle = document.getElementById('toolbarTitle');
+  const searchInput = document.getElementById('searchInput');
+  const searchCloseBtn = document.getElementById('searchCloseBtn');
+  const searchPrevBtn = document.getElementById('searchPrevBtn');
+  const searchNextBtn = document.getElementById('searchNextBtn');
+  
+  // Toggle search UI
+  if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', () => {
+      toggleSearch();
+    });
+  }
+  
+  // Close search
+  if (searchCloseBtn) {
+    searchCloseBtn.addEventListener('click', () => {
+      toggleSearch();
+    });
+  }
+  
+  // Search input
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      performSearch(e.target.value);
+    });
+    
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (e.shiftKey) {
+          findPrevMatch();
+        } else {
+          findNextMatch();
+        }
+      } else if (e.key === 'Escape') {
+        toggleSearch();
+      }
+    });
+  }
+  
+  // Navigation buttons
+  if (searchPrevBtn) {
+    searchPrevBtn.addEventListener('click', findPrevMatch);
+  }
+  
+  if (searchNextBtn) {
+    searchNextBtn.addEventListener('click', findNextMatch);
+  }
+  
+  console.log('✅ Search controls initialized');
+}
+
+// Toggle search UI
+function toggleSearch() {
+  const searchContainer = document.getElementById('searchContainer');
+  const toolbarTitle = document.getElementById('toolbarTitle');
+  const searchInput = document.getElementById('searchInput');
+  
+  if (searchContainer.style.display === 'none') {
+    searchContainer.style.display = 'flex';
+    toolbarTitle.style.display = 'none';
+    searchInput.focus();
+  } else {
+    searchContainer.style.display = 'none';
+    toolbarTitle.style.display = 'block';
+    clearSearch();
+  }
+}
+
+// Perform search
+async function performSearch(query) {
+  searchQuery = query.trim();
+  
+  if (!searchQuery || !currentPdf) {
+    clearSearch();
+    return;
+  }
+  
+  console.log('🔍 Searching for:', searchQuery);
+  searchMatches = [];
+  
+  // Search through all pages
+  for (let pageNum = 1; pageNum <= currentPdf.numPages; pageNum++) {
+    const matches = await searchInPage(pageNum, searchQuery);
+    searchMatches.push(...matches);
+  }
+  
+  console.log(`Found ${searchMatches.length} matches`);
+  updateSearchCount();
+  
+  if (searchMatches.length > 0) {
+    currentMatchIndex = 0;
+    // Re-render current page to show highlights
+    if (currentPageNumber) {
+      await renderPage(currentPageNumber);
+    }
+    highlightCurrentMatch();
+  } else {
+    // Re-render to clear any old highlights
+    if (currentPageNumber) {
+      await renderPage(currentPageNumber);
+    }
+  }
+}
+
+// Search in a specific page
+async function searchInPage(pageNum, query) {
+  const page = await currentPdf.getPage(pageNum);
+  const textContent = await page.getTextContent();
+  
+  // Cache text content
+  pageTextContent.set(pageNum, textContent);
+  
+  const matches = [];
+  const queryLower = query.toLowerCase();
+  
+  textContent.items.forEach((item, itemIndex) => {
+    const text = item.str.toLowerCase();
+    let startIndex = 0;
+    
+    while ((startIndex = text.indexOf(queryLower, startIndex)) !== -1) {
+      matches.push({
+        pageNum,
+        itemIndex,
+        charIndex: startIndex,
+        length: query.length,
+        item
+      });
+      startIndex += query.length;
+    }
+  });
+  
+  return matches;
+}
+
+// Highlight current match
+function highlightCurrentMatch() {
+  if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.length) {
+    return;
+  }
+  
+  const match = searchMatches[currentMatchIndex];
+  
+  // Navigate to the page if needed
+  if (match.pageNum !== currentPageNumber) {
+    goToPage(match.pageNum).then(() => {
+      updateHighlights();
+    });
+  } else {
+    updateHighlights();
+  }
+  
+  updateSearchCount();
+}
+
+// Scroll to match
+function scrollToMatch(match) {
+  console.log('Scrolling to match on page', match.pageNum);
+  updateHighlights();
+}
+
+// Find next match
+function findNextMatch() {
+  if (searchMatches.length === 0) return;
+  
+  currentMatchIndex = (currentMatchIndex + 1) % searchMatches.length;
+  highlightCurrentMatch();
+}
+
+// Find previous match
+function findPrevMatch() {
+  if (searchMatches.length === 0) return;
+  
+  currentMatchIndex = currentMatchIndex - 1;
+  if (currentMatchIndex < 0) {
+    currentMatchIndex = searchMatches.length - 1;
+  }
+  highlightCurrentMatch();
+}
+
+// Update search count display
+function updateSearchCount() {
+  const searchCount = document.getElementById('searchCount');
+  if (searchCount) {
+    if (searchMatches.length === 0) {
+      searchCount.textContent = '0 / 0';
+    } else {
+      searchCount.textContent = `${currentMatchIndex + 1} / ${searchMatches.length}`;
+    }
+  }
+}
+
+// Clear search
+function clearSearch() {
+  searchQuery = '';
+  searchMatches = [];
+  currentMatchIndex = -1;
+  updateSearchCount();
+  
+  // Re-render current page to remove highlights
+  if (currentPdf && currentPageNumber) {
+    renderPage(currentPageNumber);
+  }
+}
+
+// Render text layer for search highlighting
+function renderTextLayer(textLayerDiv, viewport, textContent, pageNum) {
+  textLayerDiv.innerHTML = '';
+  
+  textContent.items.forEach((item, itemIndex) => {
+    const tx = pdfjsLib.Util.transform(
+      viewport.transform,
+      item.transform
+    );
+    
+    const style = textContent.styles[item.fontName] || {};
+    const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]);
+    const fontAscent = style.ascent ? style.ascent * fontHeight : fontHeight * 0.75;
+    
+    const textDiv = document.createElement('span');
+    textDiv.textContent = item.str;
+    textDiv.style.position = 'absolute';
+    textDiv.style.left = tx[4] + 'px';
+    textDiv.style.top = (tx[5] - fontAscent) + 'px';
+    textDiv.style.fontSize = fontHeight + 'px';
+    textDiv.style.fontFamily = item.fontName || 'sans-serif';
+    textDiv.setAttribute('data-item-index', itemIndex);
+    
+    textLayerDiv.appendChild(textDiv);
+  });
+  
+  // Apply highlights if there's an active search
+  if (searchQuery) {
+    highlightMatchesOnPage(textLayerDiv, pageNum);
+  }
+}
+
+// Highlight matches on a specific page
+function highlightMatchesOnPage(textLayerDiv, pageNum) {
+  const pageMatches = searchMatches.filter(m => m.pageNum === pageNum);
+  console.log(`🎨 Highlighting ${pageMatches.length} matches on page ${pageNum}`);
+  
+  pageMatches.forEach((match, index) => {
+    const textSpan = textLayerDiv.querySelector(`[data-item-index="${match.itemIndex}"]`);
+    if (!textSpan) {
+      console.warn(`⚠️ Could not find text span for item index ${match.itemIndex}`);
+      return;
+    }
+    
+    const text = textSpan.textContent;
+    const beforeText = text.substring(0, match.charIndex);
+    const matchText = text.substring(match.charIndex, match.charIndex + match.length);
+    const afterText = text.substring(match.charIndex + match.length);
+    
+    console.log(`  Match ${index}: "${matchText}" at char ${match.charIndex} in item ${match.itemIndex}`);
+    
+    // Replace content with highlighted version
+    textSpan.innerHTML = '';
+    
+    if (beforeText) {
+      textSpan.appendChild(document.createTextNode(beforeText));
+    }
+    
+    const highlight = document.createElement('span');
+    highlight.className = 'highlight';
+    highlight.textContent = matchText;
+    
+    // Check if this is the current match
+    const globalMatchIndex = searchMatches.indexOf(match);
+    if (globalMatchIndex === currentMatchIndex) {
+      highlight.classList.add('selected');
+      console.log(`  ✨ This is the selected match (${globalMatchIndex + 1}/${searchMatches.length})`);
+    }
+    
+    textSpan.appendChild(highlight);
+    
+    if (afterText) {
+      textSpan.appendChild(document.createTextNode(afterText));
+    }
+  });
+}
+
+// Re-highlight when navigating between matches
+function updateHighlights() {
+  // Remove all selected highlights
+  document.querySelectorAll('.textLayer .highlight.selected').forEach(h => {
+    h.classList.remove('selected');
+  });
+  
+  // Add selected to current match
+  if (currentMatchIndex >= 0 && currentMatchIndex < searchMatches.length) {
+    const match = searchMatches[currentMatchIndex];
+    const textLayer = pageWrapper?.querySelector('.textLayer');
+    
+    if (textLayer && match.pageNum === currentPageNumber) {
+      const highlights = textLayer.querySelectorAll('.highlight');
+      const pageMatches = searchMatches.filter(m => m.pageNum === currentPageNumber);
+      const localIndex = pageMatches.indexOf(match);
+      
+      if (highlights[localIndex]) {
+        highlights[localIndex].classList.add('selected');
+        highlights[localIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
+}
+
+// Handle zoom changes
+function handleZoomChange(value) {
+  if (value === 'auto' || value === 'page-fit' || value === 'page-width') {
+    // Special zoom modes - for now just use defaults
+    if (value === 'page-fit') setZoom(1.0);
+    else if (value === 'page-width') setZoom(1.5);
+    else setZoom(1.5);
+  } else {
+    const scale = parseFloat(value);
+    if (!isNaN(scale)) {
+      setZoom(scale);
+    }
+  }
+}
+
+// Set zoom level
+function setZoom(scale) {
+  currentScale = scale;
+  const zoomSelect = document.getElementById('zoomSelect');
+  if (zoomSelect) {
+    zoomSelect.value = scale.toString();
+  }
+  if (currentPdf && currentPageNumber) {
+    renderPage(currentPageNumber);
+  }
+}
 
 // Document Generation Setup
 function setupDocumentGeneration() {
@@ -651,7 +1162,15 @@ function updateCurrentDocumentUI(documentName) {
 }
 
 async function goToPage(pageNum) {
-  if (!currentPdf || pageNum < 1 || pageNum > currentPdf.numPages) {
+  console.log('📄 goToPage called with pageNum:', pageNum);
+  
+  if (!currentPdf) {
+    console.warn('⚠️ No PDF loaded, cannot navigate');
+    return;
+  }
+  
+  if (pageNum < 1 || pageNum > currentPdf.numPages) {
+    console.warn('⚠️ Invalid page number:', pageNum, 'Valid range: 1-' + currentPdf.numPages);
     return;
   }
 
@@ -659,27 +1178,48 @@ async function goToPage(pageNum) {
   selectedOverlayId = null;
 
   currentPageNumber = pageNum;
+  console.log('✅ Navigating to page:', currentPageNumber);
   await renderPage(currentPageNumber);
   updatePageNavigation();
 }
 
 function updatePageNavigation() {
-  if (!pageNavigation) return; // Guard clause if element doesn't exist
-  
   if (!currentPdf) {
-    pageNavigation.style.display = "none";
     return;
   }
 
-  // Show navigation if PDF has more than 1 page
-  if (currentPdf.numPages > 1) {
-    pageNavigation.style.display = "flex"; // Changed to flex for proper layout
-  } else {
-    pageNavigation.style.display = "none";
-    return;
+  // Update toolbar page controls
+  const pageInputToolbar = document.getElementById('pageInputToolbar');
+  const totalPagesToolbar = document.getElementById('totalPagesToolbar');
+  const firstPageBtnToolbar = document.getElementById('firstPageBtnToolbar');
+  const prevPageBtnToolbar = document.getElementById('prevPageBtnToolbar');
+  const nextPageBtnToolbar = document.getElementById('nextPageBtnToolbar');
+  const lastPageBtnToolbar = document.getElementById('lastPageBtnToolbar');
+  
+  if (pageInputToolbar) {
+    pageInputToolbar.value = currentPageNumber;
+    pageInputToolbar.max = currentPdf.numPages;
+  }
+  
+  if (totalPagesToolbar) {
+    totalPagesToolbar.textContent = currentPdf.numPages;
   }
 
-  // Update page input and total pages
+  // Update button states
+  if (firstPageBtnToolbar) firstPageBtnToolbar.disabled = currentPageNumber === 1;
+  if (prevPageBtnToolbar) prevPageBtnToolbar.disabled = currentPageNumber === 1;
+  if (nextPageBtnToolbar) nextPageBtnToolbar.disabled = currentPageNumber === currentPdf.numPages;
+  if (lastPageBtnToolbar) lastPageBtnToolbar.disabled = currentPageNumber === currentPdf.numPages;
+
+  // Also update legacy navigation if it exists
+  if (pageNavigation) {
+    if (currentPdf.numPages > 1) {
+      pageNavigation.style.display = "flex";
+    } else {
+      pageNavigation.style.display = "none";
+    }
+  }
+
   if (pageInput) {
     pageInput.value = currentPageNumber;
   }
@@ -689,24 +1229,10 @@ function updatePageNavigation() {
     totalPagesEl.textContent = currentPdf.numPages;
   }
 
-  // Update button states
   if (firstPageBtn) firstPageBtn.disabled = currentPageNumber === 1;
   if (prevPageBtn) prevPageBtn.disabled = currentPageNumber === 1;
   if (nextPageBtn) nextPageBtn.disabled = currentPageNumber === currentPdf.numPages;
   if (lastPageBtn) lastPageBtn.disabled = currentPageNumber === currentPdf.numPages;
-
-  // Update button styles based on state
-  [firstPageBtn, prevPageBtn, nextPageBtn, lastPageBtn].forEach(btn => {
-    if (btn) {
-      if (btn.disabled) {
-        btn.style.opacity = "0.5";
-        btn.style.cursor = "not-allowed";
-      } else {
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
-      }
-    }
-  });
 
   // Update page info
   const overlayCount = overlayData.filter(item => item.page === currentPageNumber).length;
@@ -891,8 +1417,8 @@ async function renderPage(pageNum) {
   };
   console.log("Page info:", pageInfo);
 
-  // choose a scale (can be dynamic, fit-to-width, etc.)
-  const scale = 1.5;
+  // Use current zoom scale
+  const scale = currentScale;
   const viewport = page.getViewport({ scale });
   currentViewport = viewport;
 
@@ -924,6 +1450,23 @@ async function renderPage(pageNum) {
 
   // render PDF page into canvas
   await page.render({ canvasContext: ctx, viewport }).promise;
+
+  // Text layer for search highlighting
+  const textLayerDiv = document.createElement("div");
+  textLayerDiv.className = "textLayer";
+  textLayerDiv.style.width = viewport.width + "px";
+  textLayerDiv.style.height = viewport.height + "px";
+  textLayerDiv.style.position = "absolute";
+  textLayerDiv.style.left = "0";
+  textLayerDiv.style.top = "0";
+  pageWrapper.appendChild(textLayerDiv);
+
+  // Render text layer
+  console.log('📝 Rendering text layer for page', pageNum);
+  const textContent = await page.getTextContent();
+  pageTextContent.set(pageNum, textContent);
+  renderTextLayer(textLayerDiv, viewport, textContent, pageNum);
+  console.log('✅ Text layer rendered with', textContent.items.length, 'text items');
 
   // overlay layer (absolute)
   const overlayLayer = document.createElement("div");
@@ -1127,6 +1670,7 @@ function getDisplayCoordinates(item, selectedUnit) {
 function toggleOverlays() {
   overlaysVisible = !overlaysVisible;
   const btn = document.getElementById('toggleOverlaysBtn');
+  const toolbarBtn = document.getElementById('toggleOverlaysBtnToolbar');
 
   if (overlaysVisible) {
     // Show overlays
@@ -1134,6 +1678,9 @@ function toggleOverlays() {
     if (btn) {
       btn.innerHTML = '<span>👁️</span><span>Hide Overlays</span>';
       btn.classList.remove('active');
+    }
+    if (toolbarBtn) {
+      toolbarBtn.style.background = 'transparent';
     }
     // Show overlay selector panel
     if (overlayData.length > 0 && overlaySelector) {
@@ -1146,6 +1693,9 @@ function toggleOverlays() {
     if (btn) {
       btn.innerHTML = '<span>🙈</span><span>Show Overlays</span>';
       btn.classList.add('active');
+    }
+    if (toolbarBtn) {
+      toolbarBtn.style.background = 'rgba(255,255,255,0.15)';
     }
     // Hide overlay selector panel
     if (overlaySelector) {
