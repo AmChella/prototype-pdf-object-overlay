@@ -1,0 +1,56 @@
+/* Text Layer for Search Highlighting */
+.text-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1.0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.text-layer > span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  pointer-events: auto;
+}
+
+/* Search Highlights */
+.text-layer .highlight {
+  margin: -1px;
+  padding: 1px;
+  background-color: rgba(255, 255, 0, 0.4);
+  border-radius: 2px;
+  color: transparent;
+  box-shadow: 0 0 0 1px rgba(255, 255, 0, 0.5);
+}
+
+.text-layer .highlight.selected {
+  background-color: rgba(255, 140, 0, 0.6);
+  box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.8);
+  animation: pulse-highlight 1s ease-in-out;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(255, 140, 0, 1);
+  }
+}
+
+/* Allow text selection */
+.text-layer span {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+

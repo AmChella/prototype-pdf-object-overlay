@@ -1,0 +1,122 @@
+/* PDF Viewer Container */
+.pdf-viewer {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  background: #525252;
+  padding: 20px;
+}
+
+/* Page Wrapper */
+.page-wrapper {
+  position: relative;
+  margin: 0 auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  background: white;
+}
+
+/* PDF Canvas */
+.pdf-canvas {
+  display: block;
+  background: white;
+}
+
+/* No PDF Message */
+.no-pdf-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.no-pdf-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.no-pdf-message h2 {
+  font-size: 24px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.no-pdf-message p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Rendering Overlay */
+.rendering-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Scrollbar Styling */
+.pdf-viewer::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.pdf-viewer::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.pdf-viewer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.pdf-viewer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+  background-clip: content-box;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pdf-viewer {
+    padding: 10px;
+  }
+  
+  .no-pdf-icon {
+    font-size: 60px;
+  }
+  
+  .no-pdf-message h2 {
+    font-size: 20px;
+  }
+  
+  .no-pdf-message p {
+    font-size: 14px;
+  }
+}
+
