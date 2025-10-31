@@ -73,3 +73,5 @@ archive/
 
 # Test output
 test-output/
+
+ui-react/node_modules/
