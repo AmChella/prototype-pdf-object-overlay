@@ -646,7 +646,7 @@ function findOverlappingFigure(segment, figureBounds) {
 
 /**
  * Split a segment to avoid figure overlap
- * Returns array of sub-segments
+ * Returns array of sub-segments with padding around figure
  */
 function splitSegmentAroundFigure(segment, figure, pageDimensions, columnSettings) {
     const startPos = segment.positions.find(p => p.role && p.role.endsWith('-start'));
@@ -657,14 +657,35 @@ function splitSegmentAroundFigure(segment, figure, pageDimensions, columnSetting
     const segYTopSp = Math.max(parseInt(startPos.ysp), parseInt(endPos.ysp));
     const segYBottomSp = Math.min(parseInt(startPos.ysp), parseInt(endPos.ysp));
     
+    // Add padding around figure (in points, converted to scaled points)
+    // Typical line height is ~12-14pt, using 6pt padding (~half line) for visual separation
+    const figurePaddingPt = 6; // Points of space around figure
+    const figurePaddingSp = Math.round(figurePaddingPt * 65536);
+    
+    // Apply padding to figure bounds
+    const figureTopWithPadding = figure.yTopSp + figurePaddingSp;
+    const figureBottomWithPadding = figure.yBottomSp - figurePaddingSp;
+    
     const subSegments = [];
     
+    // Debug logging
+    const debug = false;
+    if (debug) {
+        console.log(`      Splitting ${segment.positions[0]?.id || 'unknown'}:`);
+        console.log(`        Segment Y: ${segYBottomSp} to ${segYTopSp}`);
+        console.log(`        Figure Y (original): ${figure.yBottomSp} to ${figure.yTopSp}`);
+        console.log(`        Figure Y (padded): ${figureBottomWithPadding} to ${figureTopWithPadding}`);
+        console.log(`        Check before: ${segYTopSp} > ${figureTopWithPadding} = ${segYTopSp > figureTopWithPadding}`);
+        console.log(`        Check after: ${segYBottomSp} < ${figureBottomWithPadding} = ${segYBottomSp < figureBottomWithPadding}`);
+    }
+    
     // Part before figure (if segment starts before figure)
-    if (segYTopSp > figure.yTopSp) {
+    // End the segment BEFORE the figure (with padding)
+    if (segYTopSp > figureTopWithPadding) {
         const beforeEnd = {
             ...startPos,
             role: startPos.role.replace('-start', '-end'),
-            ysp: String(figure.yTopSp),
+            ysp: String(figureTopWithPadding),
             synthetic: true
         };
         
@@ -678,14 +699,15 @@ function splitSegmentAroundFigure(segment, figure, pageDimensions, columnSetting
         });
     }
     
-    // Skip figure area (no segment created for this)
+    // Skip figure area + padding (no segment created for this)
     
     // Part after figure (if segment continues after figure)
-    if (segYBottomSp < figure.yBottomSp) {
+    // Start the segment AFTER the figure (with padding)
+    if (segYBottomSp < figureBottomWithPadding) {
         const afterStart = {
             ...endPos,
             role: endPos.role.replace('-end', '-start'),
-            ysp: String(figure.yBottomSp),
+            ysp: String(figureBottomWithPadding),
             synthetic: true
         };
         
@@ -749,7 +771,8 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
                 if (overlappingFigure) {
                     // Split segment to avoid figure
                     const subSegments = splitSegmentAroundFigure(segment, overlappingFigure, pageDimensions, columnSettings);
-                    if (subSegments.length > 1) {
+                    // Count as figure avoidance if any sub-segments have subSegmentType (indicates splitting occurred)
+                    if (subSegments.some(s => s.subSegmentType)) {
                         figureAvoidanceCount++;
                         console.log(`   🖼️  Avoided figure "${overlappingFigure.id}" in "${id}" (page ${segment.page}, col ${segment.column})`);
                     }
