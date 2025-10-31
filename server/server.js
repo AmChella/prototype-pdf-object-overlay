@@ -16,26 +16,26 @@ class PDFOverlayServer {
     constructor() {
         // Set project root directory
         this.projectRoot = path.join(__dirname, '..');
-        
+
         this.configManager = new ConfigManager();
         this.xmlProcessor = new XMLProcessor(this.configManager);
-        
+
         // Create event emitter for real-time process output
         this.processEmitter = new EventEmitter();
         this.documentConverter = new DocumentConverter(this.configManager, this.processEmitter);
-        
+
         this.fileWatcher = new FileWatcher(this.configManager);
-        
+
         this.clients = new Set();
         this.port = process.env.PORT || 8081;
         this.currentDocument = null; // Track current document
-        
+
         // Setup process event listeners
         this.setupProcessEventListeners();
-        
+
         this.init();
     }
-    
+
     setupProcessEventListeners() {
         // Listen for process output events and broadcast to WebSocket clients
         this.processEmitter.on('process_output', (data) => {
@@ -56,45 +56,45 @@ class PDFOverlayServer {
 
             // Setup Express app for serving API endpoints
             this.app = express();
-            
+
             // Enable CORS for React app
             this.app.use((req, res, next) => {
                 res.header('Access-Control-Allow-Origin', '*');
                 res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
                 res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-                
+
                 // Handle preflight requests
                 if (req.method === 'OPTIONS') {
                     return res.sendStatus(200);
                 }
                 next();
             });
-            
+
             this.app.use(express.json());
             this.app.use(express.static(path.join(__dirname, '../')));
-            
+
             // Setup HTTP server
             this.server = http.createServer(this.app);
-            
+
             // Setup WebSocket server
             this.wss = new WebSocket.Server({ server: this.server });
-            
+
             // Setup routes
             this.setupRoutes();
-            
+
             // Setup WebSocket handlers
             this.setupWebSocketHandlers();
-            
+
             // Setup file watcher
             this.setupFileWatcher();
-            
+
             // Start server
             this.server.listen(this.port, () => {
                 console.log(`🚀 PDF Overlay Server running on port ${this.port}`);
                 console.log(`📡 WebSocket server ready for connections`);
                 console.log(`🌐 HTTP server: http://localhost:${this.port}`);
             });
-            
+
         } catch (error) {
             console.error('❌ Failed to initialize server:', error);
             process.exit(1);
@@ -107,11 +107,11 @@ class PDFOverlayServer {
             try {
                 const { type } = req.params;
                 const options = this.configManager.getDropdownOptions(type);
-                
+
                 if (!options) {
                     return res.status(404).json({ error: `Unknown overlay type: ${type}` });
                 }
-                
+
                 res.json({ type, options });
             } catch (error) {
                 console.error('Error getting dropdown options:', error);
@@ -132,10 +132,10 @@ class PDFOverlayServer {
 
         // Health check endpoint
         this.app.get('/api/health', (req, res) => {
-            res.json({ 
-                status: 'ok', 
+            res.json({
+                status: 'ok',
                 timestamp: new Date().toISOString(),
-                clients: this.clients.size 
+                clients: this.clients.size
             });
         });
 
@@ -194,15 +194,15 @@ class PDFOverlayServer {
             case 'instruction':
                 await this.processInstruction(ws, data);
                 break;
-                
+
             case 'ping':
                 this.sendToClient(ws, { type: 'pong', timestamp: Date.now() });
                 break;
-                
+
             case 'getDropdownOptions':
                 this.sendDropdownOptions(ws, data.overlayType);
                 break;
-                
+
             default:
                 console.warn('⚠️ Unknown message type:', data.type);
                 this.sendToClient(ws, {
@@ -232,7 +232,7 @@ class PDFOverlayServer {
 
             // Determine XML and template paths based on document name
             let xmlPath, templatePath, outputName;
-            
+
             if (documentName === 'document') {
                 xmlPath = path.join(this.projectRoot, 'xml/document.xml');
                 templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
@@ -261,34 +261,37 @@ class PDFOverlayServer {
             // Track current document
             this.currentDocument = documentName;
 
-            // Progress updates
+            // Progress updates with percentages
             this.sendToClient(ws, {
                 type: 'generation_progress',
+                progress: 10,
                 message: `Converting ${documentName}.xml to TeX...`
             });
 
             // Convert XML to TeX
             const texResult = await this.documentConverter.xmlToTex(xmlPath, templatePath, outputName);
-            
+
             if (!texResult.success) {
                 throw new Error(texResult.error);
             }
 
             this.sendToClient(ws, {
                 type: 'generation_progress',
-                message: 'Compiling PDF...'
+                progress: 33,
+                message: 'TeX conversion complete. Compiling PDF...'
             });
 
             // Generate PDF with coordinates
             const pdfResult = await this.documentConverter.texToPdf(texResult.texPath, outputName);
-            
+
             if (!pdfResult.success) {
                 throw new Error(pdfResult.error);
             }
 
             this.sendToClient(ws, {
                 type: 'generation_progress',
-                message: 'Copying files to UI directory...'
+                progress: 75,
+                message: 'PDF compiled. Copying files to UI directory...'
             });
 
             // Copy files to UI directory
@@ -298,6 +301,12 @@ class PDFOverlayServer {
 
             await fs.promises.copyFile(pdfPath, path.join(uiDir, path.basename(pdfPath)));
             await fs.promises.copyFile(jsonPath, path.join(uiDir, path.basename(jsonPath)));
+
+            this.sendToClient(ws, {
+                type: 'generation_progress',
+                progress: 95,
+                message: 'Files copied. Finalizing...'
+            });
 
             // Send completion notification with file paths
             this.sendToClient(ws, {
@@ -322,9 +331,9 @@ class PDFOverlayServer {
     async processInstruction(ws, data) {
         try {
             const { elementId, overlayType, instruction, instructionValue } = data;
-            
+
             console.log(`🎯 Processing instruction: ${overlayType} - ${instruction} for element ${elementId}`);
-            
+
             // Send processing started notification
             this.sendToClient(ws, {
                 type: 'processing_started',
@@ -335,9 +344,9 @@ class PDFOverlayServer {
 
             // Apply instruction to XML
             const result = await this.xmlProcessor.applyInstruction(
-                elementId, 
-                overlayType, 
-                instruction, 
+                elementId,
+                overlayType,
+                instruction,
                 instructionValue
             );
 
@@ -369,25 +378,49 @@ class PDFOverlayServer {
 
             // Convert XML to TeX with correct template
             console.log('🔄 Converting XML to TeX...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 20,
+                message: 'Converting modified XML to TeX...'
+            });
+
             const texResult = await this.documentConverter.xmlToTex(xmlPath, templatePath, outputName);
-            
+
             if (!texResult.success) {
                 throw new Error(texResult.error);
             }
 
             // Convert TeX to PDF and generate JSON
             console.log('📄 Converting TeX to PDF and generating coordinates...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 50,
+                message: 'Compiling updated PDF...'
+            });
+
             const pdfResult = await this.documentConverter.texToPdf(texResult.texPath, outputName);
-            
+
             if (!pdfResult.success) {
                 throw new Error(pdfResult.error);
             }
 
             // Copy files to UI directory
             console.log('📁 Copying files to UI directory...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 85,
+                message: 'Copying updated files...'
+            });
+
             const uiDir = path.join(this.projectRoot, 'ui');
             await fs.promises.copyFile(pdfResult.pdfPath, path.join(uiDir, path.basename(pdfResult.pdfPath)));
             await fs.promises.copyFile(pdfResult.jsonPath, path.join(uiDir, path.basename(pdfResult.jsonPath)));
+
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 95,
+                message: 'Files updated. Finalizing...'
+            });
 
             // Notify client of successful completion
             this.broadcastToAllClients({
@@ -406,7 +439,7 @@ class PDFOverlayServer {
 
         } catch (error) {
             console.error('❌ Error processing instruction:', error);
-            
+
             this.sendToClient(ws, {
                 type: 'processing_error',
                 elementId: data.elementId,
@@ -416,10 +449,10 @@ class PDFOverlayServer {
     }
 
     sendDropdownOptions(ws, overlayType) {
-        const options = overlayType 
+        const options = overlayType
             ? this.configManager.getDropdownOptions(overlayType)
             : this.configManager.getAllDropdownOptions();
-            
+
         this.sendToClient(ws, {
             type: 'dropdown_options',
             overlayType,
@@ -431,7 +464,7 @@ class PDFOverlayServer {
         // Watch for changes to generated files and notify clients
         this.fileWatcher.onFileChange((eventType, filePath) => {
             console.log(`📁 File ${eventType}: ${filePath}`);
-            
+
             this.broadcastToAllClients({
                 type: 'file_change',
                 eventType,
@@ -457,24 +490,24 @@ class PDFOverlayServer {
 
     async shutdown() {
         console.log('🛑 Shutting down server...');
-        
+
         // Close all WebSocket connections
         this.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.close();
             }
         });
-        
+
         // Stop file watcher
         if (this.fileWatcher) {
             this.fileWatcher.stop();
         }
-        
+
         // Close HTTP server
         if (this.server) {
             this.server.close();
         }
-        
+
         console.log('✅ Server shutdown complete');
     }
 }

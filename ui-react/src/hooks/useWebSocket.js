@@ -48,6 +48,7 @@ export const useWebSocket = (url, handlers = {}) => {
               break;
               
             case 'generation_progress':
+            case 'processing_progress':
             case 'progress':
               if (handlersRef.current.onProgress) {
                 handlersRef.current.onProgress(data);

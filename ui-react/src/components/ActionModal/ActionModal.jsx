@@ -29,10 +29,14 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
   // Detect overlay type from ID
   const detectOverlayType = (id) => {
     if (!id) return 'unknown';
-    const idLower = id.toLowerCase();
-    if (idLower.includes('fig') || idLower.includes('figure')) return 'figure';
-    if (idLower.includes('tab') || idLower.includes('table')) return 'table';
-    if (idLower.includes('para') || idLower.includes('p-') || idLower.includes('-p')) return 'paragraph';
+    
+    // Strip segment suffix first (e.g., "para-123_seg1of2" -> "para-123")
+    const baseId = id.replace(/_seg\d+of\d+$/i, '');
+    
+    // Use startsWith for more accurate detection (matching vanilla JS logic)
+    if (baseId.startsWith('fig-') || baseId.includes('figure')) return 'figure';
+    if (baseId.startsWith('tbl-') || baseId.includes('table')) return 'table';
+    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para')) return 'paragraph';
     return 'unknown';
   };
   
@@ -78,6 +82,21 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
     return defaultOptions[overlayType] || defaultOptions.unknown;
   }, [overlayType, serverDropdownOptions]);
   
+  // Strip segment suffix from element ID (e.g., "para-123_seg1of2" -> "para-123")
+  // This is necessary because XML files only contain base IDs, not segmented IDs
+  const getBaseElementId = (id) => {
+    if (!id) return id;
+    
+    // Remove segment patterns like _seg1of2, _seg2of3, etc.
+    const baseId = id.replace(/_seg\d+of\d+$/i, '');
+    
+    if (baseId !== id) {
+      console.log(`📝 Stripped segment suffix: "${id}" -> "${baseId}"`);
+    }
+    
+    return baseId;
+  };
+  
   const handleSubmit = () => {
     if (!selectedAction) {
       toast.showWarning('Please select an action');
@@ -85,12 +104,16 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
     }
     
     if (onSubmit) {
+      const baseElementId = getBaseElementId(overlay.id);
+      
       onSubmit({
-        elementId: overlay.id,
+        elementId: baseElementId, // Use base ID without segment suffix
         overlayType: overlayType,
         instruction: selectedAction,
         timestamp: new Date().toISOString()
       });
+      
+      console.log(`📤 Sending instruction for element: ${baseElementId} (original: ${overlay.id})`);
     }
     
     onClose();

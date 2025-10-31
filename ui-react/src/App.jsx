@@ -159,30 +159,44 @@ function AppContent() {
     onProgress: (data) => {
       console.log('📊 Progress update:', data);
       
-      // Update progress based on message
+      // Update progress based on message and progress value
       let updatedStages = [...(progress.stages || [])];
       const message = data.message || '';
+      const progressValue = data.progress !== undefined ? data.progress : 0;
       
-      // Update stages based on progress message
-      if (message.includes('Compiling') || message.includes('LaTeX')) {
+      // Update stages based on progress percentage
+      if (progressValue < 30) {
+        // Stage 1: Converting/Processing
+        updatedStages = updatedStages.map((stage, i) => {
+          if (i === 0) return { ...stage, status: 'active' };
+          return stage;
+        });
+      } else if (progressValue < 70) {
+        // Stage 2: Compiling
         updatedStages = updatedStages.map((stage, i) => {
           if (i === 0) return { ...stage, status: 'completed' };
           if (i === 1) return { ...stage, status: 'active' };
           return stage;
         });
-      } else if (message.includes('Generating') || message.includes('PDF')) {
+      } else if (progressValue < 90) {
+        // Stage 3: Generating/Copying
         updatedStages = updatedStages.map((stage, i) => {
           if (i === 0 || i === 1) return { ...stage, status: 'completed' };
           if (i === 2) return { ...stage, status: 'active' };
           return stage;
         });
-      } else if (message.includes('Copying')) {
-        updatedStages = updatedStages.map(s => ({ ...s, status: 'completed' }));
+      } else {
+        // Almost done
+        updatedStages = updatedStages.map((stage, i) => {
+          if (i < 3) return { ...stage, status: 'completed' };
+          if (i === 3) return { ...stage, status: 'active' };
+          return stage;
+        });
       }
       
       setProgress(prev => ({
         ...prev,
-        progress: data.progress || (message.includes('Copying') ? 90 : prev.progress),
+        progress: progressValue,
         status: message || prev.status,
         stages: updatedStages
       }));

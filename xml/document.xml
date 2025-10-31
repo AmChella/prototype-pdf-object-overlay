@@ -48,7 +48,7 @@
 </inline-math>
       <run> Integration tests verify compatibility with math-heavy manuscripts and resource intensive figures.</run>
     </para>
-    <para id="sec1-p5">
+    <para id="sec1-p5" spacing="loose">
       <run>User research highlights the importance of rapid preview cycles for editorial teams. </run>
       <inline-math>
 <![CDATA[e^{i\pi} + 1 = 0]]>
@@ -103,7 +103,7 @@
     <display-math id="sec1-disp1">
 <![CDATA[\mathbf{J}_{1} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
-    <figure id="fig-sec1" label="fig:fig-sec1" placement="[b]">
+    <figure id="fig-sec1" label="fig:fig-sec1" placement="[t]">
       <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 1 asset overview</caption>
     </figure>

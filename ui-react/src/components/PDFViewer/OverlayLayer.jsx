@@ -104,10 +104,14 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
   // Detect overlay type from ID
   const detectOverlayType = (id) => {
     if (!id) return 'unknown';
-    const idLower = id.toLowerCase();
-    if (idLower.includes('fig') || idLower.includes('figure')) return 'figure';
-    if (idLower.includes('tab') || idLower.includes('table')) return 'table';
-    if (idLower.includes('para') || idLower.includes('p-') || idLower.includes('-p')) return 'paragraph';
+    
+    // Strip segment suffix first (e.g., "para-123_seg1of2" -> "para-123")
+    const baseId = id.replace(/_seg\d+of\d+$/i, '');
+    
+    // Use startsWith for more accurate detection (matching vanilla JS logic)
+    if (baseId.startsWith('fig-') || baseId.includes('figure')) return 'figure';
+    if (baseId.startsWith('tbl-') || baseId.includes('table')) return 'table';
+    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para')) return 'paragraph';
     return 'unknown';
   };
 
