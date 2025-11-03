@@ -1,0 +1,102 @@
+{
+  "title": "PDF Object Overlay - Developer Documentation",
+  "version": "1.0.0",
+  "totalFiles": 10,
+  "categories": [
+    {
+      "id": "core-guides",
+      "name": "📘 Core Developer Guides",
+      "description": "Essential guides to get started with application development",
+      "docs": [
+        {
+          "id": "dev-guide",
+          "title": "📘 Application Developer Guide",
+          "description": "Main developer guide for PDF Object Overlay application",
+          "file": "./README.md"
+        },
+        {
+          "id": "getting-started",
+          "title": "🚀 Development Environment Setup",
+          "description": "Setup Node.js, LuaLaTeX, and development tools",
+          "file": "./GETTING-STARTED.md"
+        },
+        {
+          "id": "architecture",
+          "title": "🏗️ Application Architecture",
+          "description": "XML→PDF pipeline, coordinate system, and module architecture",
+          "file": "./ARCHITECTURE.md"
+        },
+        {
+          "id": "contributing",
+          "title": "🤝 Contributing to the Application",
+          "description": "How to contribute features, bug fixes, and improvements",
+          "file": "./CONTRIBUTING.md"
+        }
+      ]
+    },
+    {
+      "id": "modules",
+      "name": "🔧 Core Modules",
+      "description": "Deep dives into the application's core modules",
+      "docs": [
+        {
+          "id": "engine-module",
+          "title": "🔧 XML Transformation Engine",
+          "description": "How the XML→TeX engine works, templates, and filters",
+          "file": "./modules/ENGINE.md"
+        },
+        {
+          "id": "server-module",
+          "title": "🖥️ Server Module (API & WebSocket)",
+          "description": "HTTP REST API, WebSocket server, and orchestration",
+          "file": "./modules/SERVER.md"
+        },
+        {
+          "id": "pdf-geometry-module",
+          "title": "📍 PDF Geometry & Coordinates",
+          "description": "Coordinate extraction system using zref-savepos",
+          "file": "./modules/PDF-GEOMETRY.md"
+        }
+      ]
+    },
+    {
+      "id": "workflows",
+      "name": "🔄 Application Workflows",
+      "description": "Understanding the application's key workflows",
+      "docs": [
+        {
+          "id": "xml-pdf-pipeline",
+          "title": "🔄 XML→PDF Pipeline Workflow",
+          "description": "Complete document generation workflow from XML to PDF",
+          "file": "./workflows/XML-TO-PDF-PIPELINE.md"
+        }
+      ]
+    },
+    {
+      "id": "api-reference",
+      "name": "🌐 API Reference",
+      "description": "Complete API documentation for integration",
+      "docs": [
+        {
+          "id": "rest-api",
+          "title": "🌐 REST API Reference",
+          "description": "Complete HTTP API endpoint documentation",
+          "file": "./api/REST-API.md"
+        }
+      ]
+    },
+    {
+      "id": "how-to-guides",
+      "name": "📝 How-To Guides",
+      "description": "Practical step-by-step guides for common tasks",
+      "docs": [
+        {
+          "id": "adding-instructions",
+          "title": "📝 How to Add New Instructions",
+          "description": "Step-by-step guide to adding XML instructions (e.g., move figure)",
+          "file": "./guides/ADDING-NEW-INSTRUCTIONS.md"
+        }
+      ]
+    }
+  ]
+}

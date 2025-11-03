@@ -1,0 +1,6 @@
+# This file ensures the dev-docs directory structure is preserved in git
+
+The dev-docs directory contains developer documentation for the PDF Object Overlay System.
+
+See README.md in this directory for the main developer guide.
+

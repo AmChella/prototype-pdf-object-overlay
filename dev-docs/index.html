@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Object Overlay - Developer Documentation</title>
+
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #42b883;
+            --color-primary-dark: #35495e;
+            --color-bg: #ffffff;
+            --color-bg-secondary: #f6f8fa;
+            --color-text: #2c3e50;
+            --color-text-light: #7f8c8d;
+            --color-border: #e5e7eb;
+            --color-code-bg: #f6f8fa;
+            --header-height: 70px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: var(--color-text);
+            background: var(--color-bg);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--color-primary-dark);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .version-badge {
+            padding: 0.25rem 0.75rem;
+            background: var(--color-primary);
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .nav-btn.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: calc(var(--header-height) + 2rem) 2rem 2rem;
+            min-height: 100vh;
+        }
+
+        /* Index Page */
+        .index-page {
+            animation: fadeIn 0.3s;
+        }
+
+        .index-hero {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 2px solid var(--color-border);
+            margin-bottom: 3rem;
+        }
+
+        .index-hero h2 {
+            font-size: 2.5rem;
+            color: var(--color-primary-dark);
+            margin-bottom: 1rem;
+        }
+
+        .index-hero p {
+            font-size: 1.25rem;
+            color: var(--color-text-light);
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .doc-card {
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .doc-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: var(--color-primary);
+        }
+
+        .doc-card-number {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 32px;
+            height: 32px;
+            background: var(--color-bg-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--color-text-light);
+            font-size: 0.875rem;
+        }
+
+        .doc-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--color-primary-dark);
+            padding-right: 3rem;
+        }
+
+        .doc-card p {
+            color: var(--color-text-light);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .doc-card-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+        }
+
+        .doc-section-title {
+            font-size: 1.5rem;
+            color: var(--color-primary-dark);
+            margin: 3rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        /* Document View */
+        .doc-view {
+            animation: fadeIn 0.3s;
+        }
+
+        .doc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .doc-meta {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+            color: var(--color-text-light);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 2px solid var(--color-border);
+        }
+
+        .pagination-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #35a372;
+            transform: translateX(-2px);
+        }
+
+        .pagination-btn.next:hover:not(:disabled) {
+            transform: translateX(2px);
+        }
+
+        .pagination-btn:disabled {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-light);
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            text-align: center;
+            color: var(--color-text-light);
+        }
+
+        .pagination-info strong {
+            color: var(--color-text);
+        }
+
+        /* Index Page */
+        .index-page {
+            padding: 2rem 0;
+        }
+
+        .index-header {
+            margin-bottom: 3rem;
+        }
+
+        .index-header h1 {
+            font-size: 3rem;
+            color: var(--color-primary-dark);
+            margin-bottom: 1rem;
+        }
+
+        .index-header p {
+            font-size: 1.25rem;
+            color: var(--color-text-light);
+        }
+
+        .doc-grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .doc-section h2 {
+            font-size: 1.5rem;
+            color: var(--color-primary-dark);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .doc-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .doc-card {
+            padding: 1.5rem;
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .doc-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(66, 184, 131, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .doc-card h3 {
+            font-size: 1.25rem;
+            color: var(--color-primary-dark);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .doc-card p {
+            color: var(--color-text-light);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        .doc-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--color-primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 0;
+            border-top: 2px solid var(--color-border);
+            margin-top: 3rem;
+            gap: 1rem;
+        }
+
+        .pagination-btn {
+            padding: 0.875rem 1.75rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--color-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .pagination-btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            opacity: 0.6;
+            box-shadow: none;
+        }
+
+        .pagination-btn.prev:hover:not(:disabled) {
+            transform: translateX(-4px) translateY(-2px);
+        }
+
+        .pagination-btn.next:hover:not(:disabled) {
+            transform: translateX(4px) translateY(-2px);
+        }
+
+        .pagination-btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .pagination-info {
+            color: var(--color-text);
+            font-size: 0.9375rem;
+            text-align: center;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .pagination-info strong {
+            color: var(--color-primary);
+            font-size: 1.1rem;
+        }
+
+        /* Markdown Styles */
+        .markdown-body {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .markdown-body h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--color-primary-dark);
+        }
+
+        .markdown-body h2 {
+            font-size: 2rem;
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            color: var(--color-primary-dark);
+        }
+
+        .markdown-body h3 {
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .markdown-body h4 {
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-body p {
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-body code {
+            padding: 0.2rem 0.4rem;
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.875em;
+            color: #d73a49;
+            font-weight: 500;
+        }
+
+        .markdown-body pre {
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            overflow-x: auto;
+            line-height: 1.6;
+            position: relative;
+        }
+
+        .markdown-body pre code {
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: #24292e;
+            font-size: 0.875rem;
+            font-weight: normal;
+        }
+
+        /* Copy button for code blocks */
+        .code-block-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .copy-code-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 0.4rem 0.8rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .code-block-wrapper:hover .copy-code-btn {
+            opacity: 1;
+        }
+
+        .copy-code-btn:hover {
+            background: var(--color-primary-dark);
+        }
+
+        .copy-code-btn.copied {
+            background: #28a745;
+        }
+
+        .copy-code-btn.copied::after {
+            content: ' ✓';
+        }
+
+        /* Mermaid diagram styling */
+        .mermaid {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--color-bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mermaid:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: var(--color-primary);
+        }
+
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Diagram fullscreen modal */
+        .diagram-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            overflow: hidden;
+        }
+
+        .diagram-modal.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .diagram-modal-content {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+
+        .diagram-modal-svg-container {
+            transform-origin: center center;
+            transition: transform 0.2s;
+        }
+
+        .diagram-modal-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10001;
+        }
+
+        .diagram-modal-btn {
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .diagram-modal-btn:hover {
+            background: #fff;
+            transform: scale(1.1);
+        }
+
+        .diagram-modal-close {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+        }
+
+        .diagram-modal-close:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+
+        .diagram-modal-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border-collapse: collapse;
+        }
+
+        .markdown-body th, .markdown-body td {
+            padding: 0.75rem;
+            border: 1px solid var(--color-border);
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background: var(--color-bg-secondary);
+            font-weight: 600;
+        }
+
+        .markdown-body blockquote {
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            border-left: 4px solid var(--color-primary);
+            background: var(--color-bg-secondary);
+        }
+
+        .markdown-body hr {
+            margin: 2rem 0;
+            border: none;
+            border-top: 2px solid var(--color-border);
+        }
+
+        .markdown-body a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: calc(var(--header-height) + 1rem) 1rem 1rem;
+            }
+
+            .docs-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .header-nav {
+                gap: 0.5rem;
+            }
+
+            .nav-btn {
+                padding: 0.5rem;
+                font-size: 0.8rem;
+            }
+
+            .pagination {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .pagination-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Diagram Fullscreen Modal -->
+        <div class="diagram-modal" id="diagramModal" @click="closeDiagramModal">
+            <div class="diagram-modal-controls">
+                <button class="diagram-modal-btn" @click.stop="zoomIn" title="Zoom In">
+                    🔍+
+                </button>
+                <button class="diagram-modal-btn" @click.stop="zoomOut" title="Zoom Out">
+                    🔍−
+                </button>
+                <button class="diagram-modal-btn" @click.stop="resetZoom" title="Reset Zoom">
+                    ↺
+                </button>
+                <button class="diagram-modal-btn diagram-modal-close" @click="closeDiagramModal" title="Close (ESC)">
+                    ✕
+                </button>
+            </div>
+            <div class="diagram-modal-content" @click.stop>
+                <div class="diagram-modal-svg-container" id="diagramContainer" :style="{ transform: `scale(${zoomLevel})` }">
+                </div>
+            </div>
+            <div class="diagram-modal-info">
+                Click outside or press ESC to close • Zoom: {{ Math.round(zoomLevel * 100) }}%
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>👨‍💻 Developer Documentation</h1>
+                <span class="version-badge">v1.0</span>
+            </div>
+            <nav class="header-nav">
+                <button class="nav-btn" :class="{ active: currentView === 'index' }" @click="showIndex">
+                    📚 All Docs
+                </button>
+                <button class="nav-btn" @click="goToFirst" v-if="currentView === 'document'">
+                    ⏮️ First
+                </button>
+            </nav>
+        </header>
+
+        <!-- Container -->
+        <div class="container">
+            <!-- Index View -->
+            <div v-if="currentView === 'index'" class="index-page">
+                <div class="index-hero">
+                    <h2>👨‍💻 PDF Object Overlay - Developer Documentation</h2>
+                    <p>Comprehensive developer guides for the XML to PDF conversion application</p>
+                </div>
+
+                <!-- All Documents by Category -->
+                <div v-for="category in categories" :key="category.id" style="margin-bottom: 3rem;">
+                    <div class="doc-section-title">{{ category.name }}</div>
+                    <p style="color: var(--color-text-light); margin: -0.5rem 0 1rem 0; padding-left: 0.5rem;">{{ category.description }}</p>
+                    <div class="docs-grid">
+                        <div
+                            v-for="doc in category.docs"
+                            :key="doc.id"
+                            class="doc-card"
+                            @click="loadDoc(doc.globalIndex)"
+                        >
+                            <div class="doc-card-number">{{ doc.globalIndex + 1 }}</div>
+                            <h3>{{ doc.title }}</h3>
+                            <p>{{ doc.description }}</p>
+                            <div class="doc-card-meta">
+                                <span>📁 {{ category.name.replace(/^[^a-zA-Z]+\s*/, '') }}</span>
+                                <span>📄 {{ doc.file.split('/').pop() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="doc-section-title">📊 Documentation Stats</div>
+                <div class="docs-grid">
+                    <div class="doc-card" style="cursor: default;">
+                        <h3>{{ allDocs.length }} Documents</h3>
+                        <p>Complete documentation coverage</p>
+                    </div>
+                    <div class="doc-card" style="cursor: default;">
+                        <h3>{{ categories.length }} Categories</h3>
+                        <p>Organized by topic and feature</p>
+                    </div>
+                    <div class="doc-card" style="cursor: default;">
+                        <h3>Navigation</h3>
+                        <p>Use pagination to browse all docs sequentially</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document View -->
+            <div v-if="currentView === 'document'" class="doc-view">
+                <!-- Loading -->
+                <div v-if="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading documentation...</p>
+                </div>
+
+                <!-- Document Content -->
+                <div v-else>
+                    <div class="doc-header">
+                        <div>
+                            <h2>{{ currentDocData.title }}</h2>
+                            <div class="doc-meta">
+                                <span>📁 {{ currentDocData.categoryName ? currentDocData.categoryName.replace(/^[^a-zA-Z]+\s*/, '') : 'Documentation' }}</span>
+                                <span>📄 {{ currentDocData.file.split('/').pop() }}</span>
+                                <span>📍 Document {{ currentDocIndex + 1 }} of {{ allDocs.length }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <article class="markdown-body" v-html="renderedContent"></article>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button
+                            class="pagination-btn prev"
+                            @click="previousDoc"
+                            :disabled="currentDocIndex === 0"
+                        >
+                            ← Previous
+                        </button>
+
+                        <div class="pagination-info">
+                            <strong>{{ currentDocIndex + 1 }}</strong> of <strong>{{ allDocs.length }}</strong>
+                            <br>
+                            <small>{{ currentDocData.title }}</small>
+                        </div>
+
+                        <button
+                            class="pagination-btn next"
+                            @click="nextDoc"
+                            :disabled="currentDocIndex === allDocs.length - 1"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentView: 'index', // 'index' or 'document'
+                    currentDocIndex: 0,
+                    loading: false,
+                    renderedContent: '',
+                    configLoaded: false,
+                    zoomLevel: 1,
+                    diagramModalActive: false,
+
+                    // Will be loaded from docs-config.json
+                    categories: [],
+                    allDocs: []
+                };
+            },
+
+            computed: {
+                currentDocData() {
+                    return this.allDocs[this.currentDocIndex] || {};
+                }
+            },
+
+            async mounted() {
+                // Initialize Mermaid.js
+                mermaid.initialize({ 
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    fontFamily: 'monospace'
+                });
+
+                // Initialize marked
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    },
+                    breaks: true,
+                    gfm: true
+                });
+
+                // Load documentation configuration
+                await this.loadDocsConfig();
+
+                // Check if there's a doc in URL hash
+                const hash = window.location.hash.slice(1);
+                if (hash && !isNaN(hash)) {
+                    const index = parseInt(hash);
+                    if (index >= 0 && index < this.allDocs.length) {
+                        this.loadDoc(index);
+                    }
+                }
+            },
+
+            methods: {
+                async loadDocsConfig() {
+                    try {
+                        const response = await fetch('./docs-config.json');
+                        if (!response.ok) {
+                            throw new Error('Failed to load docs-config.json');
+                        }
+
+                        const config = await response.json();
+                        this.categories = config.categories;
+
+                        // Flatten all docs into a single array with global index
+                        let globalIndex = 0;
+                        this.categories.forEach(category => {
+                            category.docs.forEach(doc => {
+                                doc.globalIndex = globalIndex;
+                                doc.categoryName = category.name;
+                                this.allDocs.push(doc);
+                                globalIndex++;
+                            });
+                        });
+
+                        this.configLoaded = true;
+                        console.log(`✅ Loaded ${this.allDocs.length} documents from ${this.categories.length} categories`);
+
+                    } catch (error) {
+                        console.error('Error loading docs config:', error);
+                        this.renderedContent = `
+                            <h1>Error Loading Documentation Config</h1>
+                            <p>${error.message}</p>
+                            <p>Make sure docs-config.json exists and is valid.</p>
+                        `;
+                    }
+                },
+
+                showIndex() {
+                    this.currentView = 'index';
+                    window.location.hash = '';
+                    window.scrollTo(0, 0);
+                },
+
+                async loadDoc(index) {
+                    this.currentDocIndex = index;
+                    this.currentView = 'document';
+                    this.loading = true;
+                    window.location.hash = index;
+
+                    const doc = this.allDocs[index];
+
+                    try {
+                        const response = await fetch(doc.file);
+                        if (!response.ok) {
+                            throw new Error('Failed to load document');
+                        }
+
+                        const markdown = await response.text();
+                        this.renderedContent = marked.parse(markdown);
+
+                        // Add copy buttons, render diagrams, and intercept links after render
+                        setTimeout(async () => {
+                            this.addCopyButtons();
+                            await this.renderMermaidDiagrams();
+                            this.interceptInternalLinks();
+                        }, 100);
+
+                        window.scrollTo(0, 0);
+
+                    } catch (error) {
+                        console.error('Error loading document:', error);
+                        this.renderedContent = `
+                            <h1>Error Loading Document</h1>
+                            <p>${error.message}</p>
+                            <p>File: ${doc.file}</p>
+                        `;
+                    }
+
+                    this.loading = false;
+                },
+
+                addCopyButtons() {
+                    // Find all code blocks
+                    const codeBlocks = document.querySelectorAll('.markdown-body pre');
+
+                    codeBlocks.forEach((pre) => {
+                        // Skip if already has a copy button
+                        if (pre.parentElement.classList.contains('code-block-wrapper')) {
+                            return;
+                        }
+
+                        // Create wrapper
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'code-block-wrapper';
+                        pre.parentNode.insertBefore(wrapper, pre);
+                        wrapper.appendChild(pre);
+
+                        // Create copy button
+                        const button = document.createElement('button');
+                        button.className = 'copy-code-btn';
+                        button.textContent = '📋 Copy';
+                        button.addEventListener('click', () => {
+                            const code = pre.querySelector('code');
+                            const text = code ? code.textContent : pre.textContent;
+
+                            navigator.clipboard.writeText(text).then(() => {
+                                button.textContent = '✓ Copied!';
+                                button.classList.add('copied');
+
+                                setTimeout(() => {
+                                    button.textContent = '📋 Copy';
+                                    button.classList.remove('copied');
+                                }, 2000);
+                            }).catch(err => {
+                                console.error('Failed to copy:', err);
+                                button.textContent = '❌ Failed';
+                                setTimeout(() => {
+                                    button.textContent = '📋 Copy';
+                                }, 2000);
+                            });
+                        });
+
+                        wrapper.appendChild(button);
+                    });
+                },
+
+                async renderMermaidDiagrams() {
+                    // Find all code blocks with language "mermaid"
+                    const mermaidBlocks = document.querySelectorAll('.markdown-body code.language-mermaid');
+                    
+                    for (const block of mermaidBlocks) {
+                        const pre = block.parentElement;
+                        const mermaidCode = block.textContent;
+                        
+                        try {
+                            // Create a unique ID for this diagram
+                            const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                            
+                            // Create a div to hold the rendered diagram
+                            const div = document.createElement('div');
+                            div.className = 'mermaid';
+                            div.textContent = mermaidCode;
+                            div.setAttribute('title', 'Click to view fullscreen');
+                            
+                            // Replace the pre element with the mermaid div
+                            pre.parentNode.replaceChild(div, pre);
+                            
+                            // Render the diagram
+                            await mermaid.run({
+                                nodes: [div]
+                            });
+                            
+                            // Add click handler for fullscreen
+                            div.addEventListener('click', () => {
+                                this.openDiagramModal(div);
+                            });
+                        } catch (error) {
+                            console.error('Failed to render Mermaid diagram:', error);
+                            // Keep the original code block if rendering fails
+                        }
+                    }
+                },
+
+                interceptInternalLinks() {
+                    // Find all links in the rendered markdown
+                    const links = document.querySelectorAll('.markdown-body a');
+                    
+                    links.forEach(link => {
+                        const href = link.getAttribute('href');
+                        
+                        // Check if it's an internal .md link
+                        if (href && (href.endsWith('.md') || href.includes('.md#'))) {
+                            link.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                
+                                // Extract the file path (remove ./ prefix if present)
+                                let filePath = href.split('#')[0]; // Remove anchor
+                                filePath = filePath.replace(/^\.\//, ''); // Remove ./
+                                
+                                // Find the document in allDocs by matching the file path
+                                const docIndex = this.allDocs.findIndex(doc => {
+                                    const docFile = doc.file.replace(/^\.\//, '').replace(/^\.\.\/dev-docs\//, '');
+                                    return docFile === filePath || doc.file.endsWith('/' + filePath);
+                                });
+                                
+                                if (docIndex !== -1) {
+                                    this.loadDoc(docIndex);
+                                } else {
+                                    console.warn('Document not found:', filePath);
+                                    alert(`Document not found: ${filePath}\n\nThis link may be broken or the document may not be in the docs-config.json file.`);
+                                }
+                            });
+                        }
+                    });
+                },
+
+                nextDoc() {
+                    if (this.currentDocIndex < this.allDocs.length - 1) {
+                        this.loadDoc(this.currentDocIndex + 1);
+                    }
+                },
+
+                previousDoc() {
+                    if (this.currentDocIndex > 0) {
+                        this.loadDoc(this.currentDocIndex - 1);
+                    }
+                },
+
+                goToFirst() {
+                    this.loadDoc(0);
+                },
+
+                openDiagramModal(diagramElement) {
+                    // Clone the SVG from the diagram
+                    const svg = diagramElement.querySelector('svg');
+                    if (!svg) return;
+                    
+                    const clonedSvg = svg.cloneNode(true);
+                    
+                    // Set up the modal
+                    const modal = document.getElementById('diagramModal');
+                    const container = document.getElementById('diagramContainer');
+                    
+                    // Clear previous content
+                    container.innerHTML = '';
+                    container.appendChild(clonedSvg);
+                    
+                    // Reset zoom
+                    this.zoomLevel = 1;
+                    
+                    // Show modal
+                    modal.classList.add('active');
+                    this.diagramModalActive = true;
+                    
+                    // Prevent body scroll
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Add ESC key listener
+                    document.addEventListener('keydown', this.handleEscKey);
+                },
+
+                closeDiagramModal() {
+                    const modal = document.getElementById('diagramModal');
+                    modal.classList.remove('active');
+                    this.diagramModalActive = false;
+                    
+                    // Re-enable body scroll
+                    document.body.style.overflow = '';
+                    
+                    // Remove ESC key listener
+                    document.removeEventListener('keydown', this.handleEscKey);
+                },
+
+                handleEscKey(e) {
+                    if (e.key === 'Escape' && this.diagramModalActive) {
+                        this.closeDiagramModal();
+                    }
+                },
+
+                zoomIn() {
+                    this.zoomLevel = Math.min(this.zoomLevel + 0.2, 3);
+                },
+
+                zoomOut() {
+                    this.zoomLevel = Math.max(this.zoomLevel - 0.2, 0.5);
+                },
+
+                resetZoom() {
+                    this.zoomLevel = 1;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
