@@ -11,6 +11,7 @@ const ConfigManager = require('./modules/ConfigManager');
 const XMLProcessor = require('./modules/XMLProcessor');
 const DocumentConverter = require('./modules/DocumentConverter');
 const FileWatcher = require('./modules/FileWatcher');
+const VersionManager = require('./modules/VersionManager');
 
 class PDFOverlayServer {
     constructor() {
@@ -25,6 +26,8 @@ class PDFOverlayServer {
         this.documentConverter = new DocumentConverter(this.configManager, this.processEmitter);
 
         this.fileWatcher = new FileWatcher(this.configManager);
+        
+        this.versionManager = new VersionManager(this.configManager);
 
         this.clients = new Set();
         this.port = process.env.PORT || 8081;
@@ -203,6 +206,18 @@ class PDFOverlayServer {
                 this.sendDropdownOptions(ws, data.overlayType);
                 break;
 
+            case 'getVersionHistory':
+                await this.getVersionHistory(ws, data);
+                break;
+
+            case 'restoreVersion':
+                await this.restoreVersion(ws, data);
+                break;
+
+            case 'getVersionStats':
+                await this.getVersionStats(ws, data);
+                break;
+
             default:
                 console.warn('⚠️ Unknown message type:', data.type);
                 this.sendToClient(ws, {
@@ -342,19 +357,7 @@ class PDFOverlayServer {
                 instruction
             });
 
-            // Apply instruction to XML
-            const result = await this.xmlProcessor.applyInstruction(
-                elementId,
-                overlayType,
-                instruction,
-                instructionValue
-            );
-
-            if (!result.success) {
-                throw new Error(result.error);
-            }
-
-            // Determine correct XML and template paths based on current document
+            // Determine correct XML and template paths based on current document FIRST
             let xmlPath, templatePath, outputName;
             if (this.currentDocument === 'ENDEND10921') {
                 xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
@@ -375,6 +378,19 @@ class PDFOverlayServer {
             console.log(`📋 Using document: ${this.currentDocument || 'default'}`);
             console.log(`📄 XML path: ${xmlPath}`);
             console.log(`📋 Template path: ${templatePath}`);
+
+            // Apply instruction to XML (pass the correct XML path based on current document)
+            const result = await this.xmlProcessor.applyInstruction(
+                elementId,
+                overlayType,
+                instruction,
+                instructionValue,
+                xmlPath  // Pass the xmlPath so XMLProcessor loads the correct file
+            );
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
 
             // Convert XML to TeX with correct template
             console.log('🔄 Converting XML to TeX...');
@@ -421,6 +437,29 @@ class PDFOverlayServer {
                 progress: 95,
                 message: 'Files updated. Finalizing...'
             });
+
+            // Save version after successful processing
+            try {
+                await this.versionManager.saveVersion({
+                    documentName: this.currentDocument || 'document',
+                    instruction: data.instruction,
+                    instructionValue: data.instructionValue,
+                    elementId: data.elementId,
+                    overlayType: data.overlayType,
+                    xmlPath: xmlPath,
+                    texPath: texResult.texPath,
+                    pdfPath: pdfResult.pdfPath,
+                    jsonPath: pdfResult.jsonPath,
+                    templatePath: templatePath,
+                    userId: data.userId || 'system',
+                    description: `Applied ${data.instruction} to ${data.elementId}`
+                });
+
+                console.log('💾 Version saved successfully');
+            } catch (versionError) {
+                console.error('⚠️  Failed to save version:', versionError);
+                // Don't fail the operation if version saving fails
+            }
 
             // Notify client of successful completion
             this.broadcastToAllClients({
@@ -472,6 +511,104 @@ class PDFOverlayServer {
                 timestamp: new Date().toISOString()
             });
         });
+    }
+
+    async getVersionHistory(ws, data) {
+        try {
+            const { documentName, limit } = data;
+            console.log(`📚 Fetching version history for: ${documentName}`);
+
+            const history = await this.versionManager.getVersionHistory(
+                documentName || this.currentDocument || 'document',
+                limit || 50
+            );
+
+            this.sendToClient(ws, {
+                type: 'version_history',
+                documentName: documentName || this.currentDocument,
+                history: history.map(v => ({
+                    versionNumber: v.versionNumber,
+                    timestamp: v.timestamp,
+                    instruction: v.instruction,
+                    isActive: v.isActive,
+                    userId: v.userId,
+                    description: v.description
+                }))
+            });
+
+        } catch (error) {
+            console.error('❌ Error fetching version history:', error);
+            this.sendToClient(ws, {
+                type: 'error',
+                message: `Failed to fetch version history: ${error.message}`
+            });
+        }
+    }
+
+    async restoreVersion(ws, data) {
+        try {
+            const { documentName, versionNumber } = data;
+            console.log(`⏮️  Restoring version ${versionNumber} for: ${documentName}`);
+
+            this.sendToClient(ws, {
+                type: 'restore_started',
+                documentName,
+                versionNumber
+            });
+
+            const result = await this.versionManager.restoreVersion(
+                documentName || this.currentDocument || 'document',
+                versionNumber
+            );
+
+            // Broadcast to all clients that version was restored
+            this.broadcastToAllClients({
+                type: 'version_restored',
+                documentName: documentName || this.currentDocument,
+                versionNumber: result.version,
+                timestamp: result.timestamp,
+                files: {
+                    pdfPath: result.files.pdf,
+                    jsonPath: result.files.json,
+                    xmlPath: result.files.xml
+                }
+            });
+
+            console.log(`✅ Version ${versionNumber} restored successfully`);
+
+        } catch (error) {
+            console.error('❌ Error restoring version:', error);
+            this.sendToClient(ws, {
+                type: 'restore_error',
+                documentName: data.documentName,
+                versionNumber: data.versionNumber,
+                error: error.message
+            });
+        }
+    }
+
+    async getVersionStats(ws, data) {
+        try {
+            const { documentName } = data;
+            console.log(`📊 Fetching version stats for: ${documentName}`);
+
+            const stats = await this.versionManager.getVersionStats(
+                documentName || this.currentDocument || 'document'
+            );
+
+            this.sendToClient(ws, {
+                type: 'version_stats',
+                documentName: documentName || this.currentDocument,
+                stats
+            });
+
+        } catch (error) {
+            console.error('❌ Error fetching version stats:', error);
+            this.sendToClient(ws, {
+                type: 'error',
+                message: `Failed to fetch version stats: ${error.message}`
+            });
+        }
     }
 
     sendToClient(ws, message) {

@@ -3,15 +3,8 @@
   "version": "1.0.0",
   "description": "PDF overlay coordinate generation and testing",
   "scripts": {
-    "build": "python3 build_pdf_json.py",
-    "build:marked": "python3 build_pdf_json.py MultiColumn-CS-working-marked.tex",
-    "build:original": "python3 build_pdf_json.py MultiColumn-CS-working.tex",
     "clean": "rm -f TeX/*.aux TeX/*.log TeX/*.fls TeX/*.fdb_latexmk TeX/*.synctex.gz TeX/*.out TeX/*.toc TeX/*.pdf TeX/*.tex TeX/*.json TeX/*.ndjson",
-    "serve": "python3 -m http.server 8000",
     "server": "node server/server.js",
-    "dev:server": "node server/server.js & npm run serve",
-    "test": "npm run build && npm run serve",
-    "dev": "npm run build:marked && npm run serve",
     "dev:react": "cd ui-react && npm run dev",
     "build:react": "cd ui-react && npm run build",
     "start": "node src/cli.js",
@@ -38,11 +31,12 @@
     "chokidar": "^3.5.3",
     "express": "^4.18.2",
     "fs-extra": "^11.1.1",
+    "nedb": "^1.8.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "ws": "^8.14.2",
     "xmldom": "^0.6.0",
-    "xpath": "^0.0.32",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "xpath": "^0.0.32"
   },
   "engines": {
     "node": ">=12.0.0"

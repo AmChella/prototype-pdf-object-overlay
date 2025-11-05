@@ -25,9 +25,9 @@ class XMLProcessor {
         };
     }
 
-    async loadXMLDocument() {
+    async loadXMLDocument(customXmlPath = null) {
         try {
-            const xmlPath = this.configManager.getFilePath('xmlInput');
+            const xmlPath = customXmlPath || this.configManager.getFilePath('xmlInput');
             if (!xmlPath || !await fs.pathExists(xmlPath)) {
                 throw new Error(`XML file not found: ${xmlPath}`);
             }
@@ -35,6 +35,7 @@ class XMLProcessor {
             const xmlContent = await fs.readFile(xmlPath, 'utf8');
             this.dom = new DOMParser();
             this.xmlDocument = this.dom.parseFromString(xmlContent, 'text/xml');
+            this.currentXmlPath = xmlPath; // Store current XML path for saving
 
             // Auto-detect XML schema
             this.xmlSchema = this.detectXMLSchema();
@@ -109,7 +110,7 @@ class XMLProcessor {
         return mapping[overlayType.toLowerCase()] || overlayType.toLowerCase();
     }
 
-    async saveXMLDocument() {
+    async saveXMLDocument(customXmlPath = null) {
         try {
             if (!this.xmlDocument) {
                 throw new Error('No XML document loaded');
@@ -121,7 +122,8 @@ class XMLProcessor {
             // Format the XML nicely
             const formattedXml = this.formatXML(xmlString);
 
-            const xmlPath = this.configManager.getFilePath('xmlInput');
+            // Use current XML path if available, otherwise use provided or config path
+            const xmlPath = customXmlPath || this.currentXmlPath || this.configManager.getFilePath('xmlInput');
             await fs.writeFile(xmlPath, formattedXml, 'utf8');
 
             console.log(`✅ XML document saved: ${xmlPath}`);
@@ -132,13 +134,16 @@ class XMLProcessor {
         }
     }
 
-    async applyInstruction(elementId, overlayType, action, instructionValue = null) {
+    async applyInstruction(elementId, overlayType, action, instructionValue = null, xmlPath = null) {
         try {
             console.log(`🎯 Applying instruction: ${overlayType}.${action} to element ${elementId}`);
+            if (xmlPath) {
+                console.log(`📄 Using XML file: ${xmlPath}`);
+            }
 
-            // Load XML document if not already loaded
-            if (!this.xmlDocument) {
-                await this.loadXMLDocument();
+            // Load XML document (force reload if xmlPath is provided)
+            if (!this.xmlDocument || xmlPath) {
+                await this.loadXMLDocument(xmlPath);
             }
 
             // Get processing rule for this instruction
@@ -152,7 +157,7 @@ class XMLProcessor {
 
             if (result.success) {
                 // Save the modified XML
-                await this.saveXMLDocument();
+                await this.saveXMLDocument(xmlPath);
 
                 // Log the change for audit trail
                 this.logInstruction(elementId, overlayType, action, instructionValue);

@@ -103,7 +103,7 @@
     <display-math id="sec1-disp1">
 <![CDATA[\mathbf{J}_{1} = \begin{bmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}]]>
 </display-math>
-    <figure id="fig-sec1" label="fig:fig-sec1" placement="[t]">
+    <figure id="fig-sec1" label="fig:fig-sec1" placement="[b]">
       <image src="../images/LSA-99999_fig1.png" width="0.82\linewidth"/>
       <caption>Section 1 asset overview</caption>
     </figure>
