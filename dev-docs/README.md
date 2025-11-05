@@ -31,6 +31,10 @@ dev-docs/
 │   ├── INSTRUCTION-PROCESSING.md     # Processing user instructions
 │   └── TEMPLATE-SYSTEM.md            # How templates work
 │
+├── features/                         # Feature Documentation
+│   ├── VERSION-CONTROL.md            # Document version management
+│   └── DYNAMIC-SCHEMA-DETECTION.md   # Automatic XML schema adaptation
+│
 ├── api/                              # API Documentation
 │   ├── REST-API.md                   # HTTP REST endpoints
 │   ├── WEBSOCKET-API.md              # WebSocket protocol
@@ -56,7 +60,7 @@ The PDF Object Overlay System transforms XML documents into PDFs with precise co
 ### 2. **Setting Up Development Environment**
 Get your development environment ready:
 - [Getting Started](./GETTING-STARTED.md) - Complete setup guide
-- Install: Node.js, LuaLaTeX, Python
+- Install: Node.js, LuaLaTeX
 - Run the server: `npm run server`
 - Run React UI: `npm run dev:react`
 
@@ -68,6 +72,8 @@ Learn about the key application components:
 - [TeX to PDF](./modules/TEX-TO-PDF.md) - LaTeX compilation (3-pass)
 - [XML Processor](./modules/XML-PROCESSOR.md) - Processing user instructions
 - [Document Converter](./modules/DOCUMENT-CONVERTER.md) - High-level orchestration
+- [Version Control](./features/VERSION-CONTROL.md) ✅ - Document version management & history
+- [Dynamic Schema Detection](./features/DYNAMIC-SCHEMA-DETECTION.md) ✅ - Automatic XML schema adaptation
 
 ### 4. **Common Development Tasks**
 Learn how to extend the application:
@@ -79,7 +85,8 @@ Learn how to extend the application:
 ### 5. **Understanding Application Workflows**
 - **XML to PDF Generation**: XML → Engine → TeX → LuaLaTeX → PDF
 - **Coordinate Extraction**: LaTeX markers → .aux file → NDJSON → JSON
-- **Instruction Processing**: User action → XML modification → Regenerate PDF
+- **Instruction Processing**: User action → XML modification → Regenerate PDF → Save Version
+- **Version Control**: Auto-save versions → Navigate history → Restore previous versions
 - **Real-time Updates**: Process events → WebSocket → Client updates
 
 ---
@@ -216,7 +223,6 @@ Process Event → Event Emitter → WebSocket Server → All Clients
 ### Document Processing
 - **LuaLaTeX** - PDF generation
 - **zref-savepos** - Coordinate marking
-- **Python** - Auxiliary scripts for coordinate processing
 
 ---
 
@@ -271,6 +277,7 @@ node scripts/validate-figure-placement.js
 | **XML Processor** | XML manipulation (instructions) | `server/modules/XMLProcessor.js` |
 | **Config Manager** | Configuration management | `server/modules/ConfigManager.js` |
 | **File Watcher** | Monitor file changes | `server/modules/FileWatcher.js` |
+| **Version Manager** | Document version control & history | `server/modules/VersionManager.js` |
 
 ---
 
@@ -295,8 +302,7 @@ See: [Engine Module Documentation](./modules/ENGINE.md)
 ### Adding Coordinate Features
 1. Add LaTeX markers in `geom-marks.tex`
 2. Update coordinate extraction in `pdf-geometry.js`
-3. Process in Python scripts if needed
-4. Update UI to display new data
+3. Update UI to display new data
 
 See: [Coordinate System](./architecture/COORDINATE-SYSTEM.md)
 
@@ -345,7 +351,7 @@ ws.onmessage = (e) => console.log('WS:', e.data);
 - Cache intermediate results where possible
 
 ### Coordinate Extraction
-- Python scripts can be optimized for large documents
+- JavaScript processing is optimized for large documents
 - Consider streaming NDJSON for huge files
 
 ### WebSocket Broadcasting

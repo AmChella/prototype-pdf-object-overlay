@@ -32,19 +32,7 @@ which lualatex
 lualatex --version
 ```
 
-#### 3. **Python 3** (>= 3.7)
-```bash
-# Check version
-python3 --version
-
-# macOS
-brew install python3
-
-# Linux
-sudo apt-get install python3 python3-pip
-```
-
-#### 4. **Git**
+#### 3. **Git**
 ```bash
 # Check version
 git --version
@@ -77,26 +65,13 @@ npm install
 cd ..
 ```
 
-### 3. Install Python Dependencies
-```bash
-# Create virtual environment (optional but recommended)
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip3 install pdfplumber  # For coordinate processing
-```
-
-### 4. Verify Installation
+### 3. Verify Installation
 ```bash
 # Check npm packages
 npm list
 
 # Check LaTeX
 lualatex --version
-
-# Check Python
-python3 --version
 ```
 
 ---
@@ -115,8 +90,7 @@ python3 --version
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "yzhang.markdown-all-in-one",
-    "James-Yu.latex-workshop",
-    "ms-python.python"
+    "James-Yu.latex-workshop"
   ]
 }
 ```
@@ -226,7 +200,7 @@ prototype-pdf-object-overlay/
 │
 ├── scripts/                    # Utility scripts
 │   ├── generate-pdf-robust.sh
-│   └── external/              # Python scripts
+│   └── external/              # External utility scripts
 │
 ├── TeX/                        # Generated TeX/PDF files
 │   └── *.pdf, *.tex, *.json
@@ -250,9 +224,12 @@ npm run test:cli
 # Start server
 npm run server
 
-# In another terminal, test API
-curl http://localhost:8081/api/templates
-# Should return list of templates
+# In another terminal, test HTTP API
+curl http://localhost:8081/api/health
+# Should return: {"status":"ok","timestamp":"...","clients":0}
+
+curl http://localhost:8081/api/dropdown-options
+# Should return dropdown options configuration
 ```
 
 ### 3. Test PDF Generation
@@ -327,15 +304,6 @@ kill -9 <PID>
 PORT=8082 npm run server
 ```
 
-### Issue 4: Python Script Fails
-**Symptom:** `ModuleNotFoundError: No module named 'pdfplumber'`
-
-**Solution:**
-```bash
-# Install Python dependencies
-pip3 install pdfplumber
-```
-
 ---
 
 ## 🌐 Environment Variables
@@ -397,14 +365,20 @@ npm run test
 
 ### 3. **Test Locally**
 ```bash
-# Test backend changes
-curl http://localhost:8081/api/test
+# Test backend HTTP API changes
+curl http://localhost:8081/api/health
+curl http://localhost:8081/api/dropdown-options
+
+# Test WebSocket connection (using wscat)
+npm install -g wscat
+wscat -c ws://localhost:8081
+# Send: {"type":"ping"}
 
 # Test frontend changes
 # Open browser to http://localhost:5173
 
 # Test CLI changes
-node src/cli.js --run-test
+node src/cli.js --input xml/document.xml --template template/document.tex.xml
 ```
 
 ### 4. **Commit Changes**

@@ -1,7 +1,16 @@
 {
   "title": "PDF Object Overlay - Developer Documentation",
-  "version": "1.0.0",
-  "totalFiles": 10,
+  "version": "2.0.0",
+  "lastUpdated": "2025-11-05",
+  "totalFiles": 12,
+  "technologies": [
+    "Node.js",
+    "Express",
+    "WebSocket",
+    "LuaLaTeX",
+    "NeDB",
+    "React"
+  ],
   "categories": [
     {
       "id": "core-guides",
@@ -11,19 +20,19 @@
         {
           "id": "dev-guide",
           "title": "📘 Application Developer Guide",
-          "description": "Main developer guide for PDF Object Overlay application",
+          "description": "Main developer guide for PDF Object Overlay application - Pure JavaScript/Node.js system",
           "file": "./README.md"
         },
         {
           "id": "getting-started",
           "title": "🚀 Development Environment Setup",
-          "description": "Setup Node.js, LuaLaTeX, and development tools",
+          "description": "Setup Node.js and LuaLaTeX (Python not required)",
           "file": "./GETTING-STARTED.md"
         },
         {
           "id": "architecture",
           "title": "🏗️ Application Architecture",
-          "description": "XML→PDF pipeline, coordinate system, and module architecture",
+          "description": "XML→PDF pipeline, coordinate system, version control, and module architecture",
           "file": "./ARCHITECTURE.md"
         },
         {
@@ -37,7 +46,7 @@
     {
       "id": "modules",
       "name": "🔧 Core Modules",
-      "description": "Deep dives into the application's core modules",
+      "description": "Deep dives into the application's core modules (100% JavaScript)",
       "docs": [
         {
           "id": "engine-module",
@@ -48,13 +57,13 @@
         {
           "id": "server-module",
           "title": "🖥️ Server Module (API & WebSocket)",
-          "description": "HTTP REST API, WebSocket server, and orchestration",
+          "description": "HTTP REST API, WebSocket server, version control, and orchestration",
           "file": "./modules/SERVER.md"
         },
         {
           "id": "pdf-geometry-module",
           "title": "📍 PDF Geometry & Coordinates",
-          "description": "Coordinate extraction system using zref-savepos",
+          "description": "Coordinate extraction system using zref-savepos (JavaScript implementation)",
           "file": "./modules/PDF-GEOMETRY.md"
         }
       ]
@@ -67,8 +76,22 @@
         {
           "id": "xml-pdf-pipeline",
           "title": "🔄 XML→PDF Pipeline Workflow",
-          "description": "Complete document generation workflow from XML to PDF",
+          "description": "Complete document generation workflow from XML to PDF with automatic versioning",
           "file": "./workflows/XML-TO-PDF-PIPELINE.md"
+        }
+      ]
+    },
+    {
+      "id": "features",
+      "name": "✨ Features",
+      "description": "In-depth documentation for key application features",
+      "docs": [
+        {
+          "id": "version-control",
+          "title": "📚 Version Control System",
+          "description": "Complete document version management with history tracking, revert/forward navigation using NeDB",
+          "file": "./features/VERSION-CONTROL.md",
+          "tags": ["new", "version-control", "database", "history"]
         }
       ]
     },
@@ -80,8 +103,9 @@
         {
           "id": "rest-api",
           "title": "🌐 REST API Reference",
-          "description": "Complete HTTP API endpoint documentation",
-          "file": "./api/REST-API.md"
+          "description": "HTTP REST API endpoints (config & health checks) and WebSocket protocol (document generation, instruction processing, version control)",
+          "file": "./api/REST-API.md",
+          "tags": ["api", "http", "websocket", "version-control"]
         }
       ]
     },
@@ -97,6 +121,52 @@
           "file": "./guides/ADDING-NEW-INSTRUCTIONS.md"
         }
       ]
+    }
+  ],
+  "changelog": [
+    {
+      "version": "2.0.0",
+      "date": "2025-11-05",
+      "changes": [
+        "Added Version Control System with NeDB database",
+        "Removed all Python dependencies - 100% JavaScript/Node.js",
+        "Updated REST API documentation (HTTP vs WebSocket clarification)",
+        "Added automatic version tracking for every instruction",
+        "Added WebSocket endpoints for version history and restoration",
+        "Updated all module documentation to reflect current implementation"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-11-03",
+      "changes": [
+        "Initial developer documentation",
+        "Core module documentation",
+        "API reference documentation",
+        "Architecture overview"
+      ]
+    }
+  ],
+  "quickLinks": [
+    {
+      "title": "🚀 Quick Start",
+      "url": "./GETTING-STARTED.md",
+      "description": "Get up and running in minutes"
+    },
+    {
+      "title": "📚 Version Control",
+      "url": "./features/VERSION-CONTROL.md",
+      "description": "NEW: Document version management"
+    },
+    {
+      "title": "🌐 WebSocket API",
+      "url": "./modules/SERVER.md#websocket-protocol",
+      "description": "Real-time API for document operations"
+    },
+    {
+      "title": "🏗️ Architecture",
+      "url": "./ARCHITECTURE.md",
+      "description": "System design and data flow"
     }
   ]
 }

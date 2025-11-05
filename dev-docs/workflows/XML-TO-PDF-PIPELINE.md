@@ -410,9 +410,9 @@ sequenceDiagram
     Server->>Server: Prepare response data
     
     par Broadcast to All Clients
-        Server->>Client1: document_ready<br/>{pdf, geometry, timestamp}
-        Server->>Client2: document_ready<br/>{pdf, geometry, timestamp}
-        Server->>Client3: document_ready<br/>{pdf, geometry, timestamp}
+        Server->>Client1: generation_complete<br/>{documentName, pdfPath, jsonPath}
+        Server->>Client2: generation_complete<br/>{documentName, pdfPath, jsonPath}
+        Server->>Client3: generation_complete<br/>{documentName, pdfPath, jsonPath}
     end
     
     Note over Client1,Client3: All clients receive<br/>update simultaneously
@@ -428,25 +428,12 @@ sequenceDiagram
 
 **Process**:
 ```javascript
-// Broadcast completion to all clients
+// Broadcast completion to all WebSocket clients
 broadcastToAllClients({
-    type: 'document_ready',
-    files: {
-        pdf: 'TeX/document-generated.pdf',
-        geometry: 'TeX/document-generated-geometry.json'
-    },
-    timestamp: new Date().toISOString()
-});
-
-// Return HTTP response
-res.json({
-    success: true,
-    message: 'Document generated successfully',
-    files: {
-        pdf: pdfPath,
-        tex: texPath,
-        geometry: geometryPath
-    }
+    type: 'generation_complete',
+    documentName: 'document',
+    pdfPath: '/path/to/ui/document-generated.pdf',
+    jsonPath: '/path/to/ui/document-generated-marked-boxes.json'
 });
 ```
 

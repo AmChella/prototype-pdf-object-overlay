@@ -90,7 +90,6 @@ graph TB
     subgraph "PROCESSING LAYER"
         TexToPDF[TeX to PDF Compiler<br/>LuaLaTeX]
         PDFGeom[PDF Geometry Extractor]
-        PyScripts[Python Scripts]
     end
     
     subgraph "DATA LAYER"
@@ -116,7 +115,6 @@ graph TB
     
     Engine --> TexToPDF
     TexToPDF --> PDFGeom
-    PDFGeom --> PyScripts
     
     Engine --> XMLFiles
     Engine --> TexFiles
@@ -141,15 +139,19 @@ graph TB
 sequenceDiagram
     participant User
     participant ReactUI
-    participant Server
+    participant WS as WebSocket
     participant DocConverter
     participant Engine
     participant LuaLaTeX
     participant PDFGeometry
     
     User->>ReactUI: Request PDF Generation
-    ReactUI->>Server: POST /api/generate-document<br/>{xmlFile, templateFile}
-    Server->>DocConverter: generateDocument()
+    ReactUI->>WS: WebSocket message<br/>{type: "generate_document", documentName: "document"}
+    WS->>DocConverter: generateDocument()
+    
+    WS-->>ReactUI: generation_started
+    WS-->>ReactUI: generation_progress: 10%
+    
     DocConverter->>Engine: transformXMLToTeX()
     
     Engine->>Engine: Load XML document
@@ -159,13 +161,25 @@ sequenceDiagram
     Engine->>Engine: Generate .tex file
     
     Engine-->>DocConverter: .tex file created
+    WS-->>ReactUI: generation_progress: 33%
+    
     DocConverter->>LuaLaTeX: compilePDF()
     
     LuaLaTeX->>LuaLaTeX: Pass 1: Initial compilation
+    LuaLaTeX-->>WS: stdout
+    WS-->>ReactUI: process_output
+    
     LuaLaTeX->>LuaLaTeX: Pass 2: Resolve references
+    LuaLaTeX-->>WS: stdout
+    WS-->>ReactUI: process_output
+    
     LuaLaTeX->>LuaLaTeX: Pass 3: Final positioning
+    LuaLaTeX-->>WS: stdout
+    WS-->>ReactUI: process_output
     
     LuaLaTeX-->>DocConverter: .pdf + .aux + .ndjson
+    WS-->>ReactUI: generation_progress: 75%
+    
     DocConverter->>PDFGeometry: extractCoordinates()
     
     PDFGeometry->>PDFGeometry: Parse .aux file
@@ -173,8 +187,9 @@ sequenceDiagram
     PDFGeometry->>PDFGeometry: Process coordinates
     PDFGeometry->>PDFGeometry: Generate .json geometry
     
-    PDFGeometry-->>Server: geometry.json created
-    Server->>ReactUI: WebSocket: document_ready
+    PDFGeometry-->>WS: geometry.json created
+    WS-->>ReactUI: generation_progress: 95%
+    WS-->>ReactUI: generation_complete<br/>{pdfPath, jsonPath}
     ReactUI->>User: Display PDF & Overlays
 ```
 
@@ -184,28 +199,33 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant ReactUI
-    participant Server
+    participant WS as WebSocket
     participant XMLProcessor
     participant ConfigManager
     participant Regeneration
     
     User->>ReactUI: Select "Move to Section Start"
-    ReactUI->>Server: POST /api/process-instruction<br/>{action: 'move_to_section_start', elementId: 'fig-1'}
-    Server->>XMLProcessor: processInstruction()
+    ReactUI->>WS: WebSocket message<br/>{type: "instruction", elementId: "fig-1", overlayType: "figure", instruction: "move_to_section_start"}
+    
+    WS-->>ReactUI: processing_started
+    WS->>XMLProcessor: applyInstruction()
     
     XMLProcessor->>ConfigManager: getProcessingRule()
     ConfigManager-->>XMLProcessor: {xpath, operation, parentTag}
     
+    WS-->>ReactUI: processing_progress: 20%
     XMLProcessor->>XMLProcessor: Find element by XPath
     XMLProcessor->>XMLProcessor: Execute moveToParentStart()
     XMLProcessor->>XMLProcessor: Save modified XML
     
-    XMLProcessor-->>Server: XML updated
-    Server->>Regeneration: Trigger PDF regeneration
+    XMLProcessor-->>WS: XML updated
+    WS-->>ReactUI: processing_progress: 50%
+    WS->>Regeneration: Trigger PDF regeneration
     
-    Note over Server,Regeneration: Follows PDF Generation flow
+    Note over WS,Regeneration: Follows PDF Generation flow
     
-    Regeneration-->>ReactUI: WebSocket: document_ready
+    Regeneration-->>WS: Regeneration complete
+    WS-->>ReactUI: processing_complete<br/>{pdfPath, jsonPath}
     ReactUI->>User: Display updated PDF
 ```
 
@@ -504,7 +524,6 @@ sequenceDiagram
 |------------|---------|---------|
 | LuaLaTeX | PDF generation | TeX Live 2023+ |
 | zref-savepos | Coordinate marking | LaTeX package |
-| Python 3 | Helper scripts | >= 3.7 |
 
 ---
 

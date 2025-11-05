@@ -18,6 +18,7 @@ The **Server** is the main application server that provides HTTP API endpoints, 
 - XML instruction processing
 - File watching and auto-regeneration
 - Client session management
+- Document version control and history management
 
 ---
 
@@ -77,148 +78,38 @@ graph TD
 
 ## 🔌 HTTP API Endpoints
 
-### GET `/api/templates`
+The server provides a minimal HTTP REST API for configuration and health checks. Document generation and instruction processing are handled via **WebSocket**.
 
-Get list of available LaTeX templates.
+### GET `/api/dropdown-options/:type`
+
+Get dropdown options for a specific overlay type.
+
+**Parameters**:
+- `type` - Overlay type (e.g., "figure", "table", "section")
 
 **Response**:
 ```json
 {
-  "templates": [
-    {
-      "name": "document.tex.xml",
-      "path": "template/document.tex.xml"
-    },
-    {
-      "name": "ENDEND10921-sample-style.tex.xml",
-      "path": "template/ENDEND10921-sample-style.tex.xml"
-    }
+  "type": "figure",
+  "options": [
+    {"value": "move_bottom", "label": "Move Bottom"},
+    {"value": "move_top", "label": "Move Top"},
+    {"value": "move_to_section_start", "label": "Move to Section Start"},
+    {"value": "move_to_section_end", "label": "Move to Section End"}
   ]
 }
 ```
 
 **Example**:
 ```bash
-curl http://localhost:8081/api/templates
-```
-
----
-
-### GET `/api/xml-files`
-
-Get list of available XML input files.
-
-**Response**:
-```json
-{
-  "xmlFiles": [
-    {
-      "name": "document.xml",
-      "path": "xml/document.xml"
-    },
-    {
-      "name": "ENDEND10921.xml",
-      "path": "xml/ENDEND10921.xml"
-    }
-  ]
-}
-```
-
----
-
-### POST `/api/generate-document`
-
-Generate PDF from XML and template.
-
-**Request Body**:
-```json
-{
-  "xmlFile": "xml/document.xml",
-  "templateFile": "template/document.tex.xml"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Document generated successfully",
-  "files": {
-    "pdf": "TeX/document-generated.pdf",
-    "tex": "TeX/document-generated.tex",
-    "geometry": "TeX/document-generated-geometry.json"
-  }
-}
-```
-
-**Error Response**:
-```json
-{
-  "success": false,
-  "error": "Failed to generate document",
-  "details": "Template file not found"
-}
-```
-
-**Example**:
-```bash
-curl -X POST http://localhost:8081/api/generate-document \
-  -H "Content-Type: application/json" \
-  -d '{
-    "xmlFile": "xml/document.xml",
-    "templateFile": "template/document.tex.xml"
-  }'
-```
-
----
-
-### POST `/api/process-instruction`
-
-Process a user instruction (e.g., move figure, change placement).
-
-**Request Body**:
-```json
-{
-  "elementType": "figure",
-  "action": "move_to_section_start",
-  "elementId": "fig-1",
-  "xmlFile": "xml/document.xml"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Instruction processed successfully",
-  "action": "move_to_section_start",
-  "elementId": "fig-1"
-}
-```
-
-**Available Actions** (from server-config.json):
-- `move_bottom` - Move element to bottom of page
-- `move_top` - Move element to top of page
-- `move_to_section_start` - Move to start of parent section
-- `move_to_section_end` - Move to end of parent section
-
-**Example**:
-```bash
-curl -X POST http://localhost:8081/api/process-instruction \
-  -H "Content-Type: application/json" \
-  -d '{
-    "elementType": "figure",
-    "action": "move_to_section_start",
-    "elementId": "fig-1",
-    "xmlFile": "xml/document.xml"
-  }'
+curl http://localhost:8081/api/dropdown-options/figure
 ```
 
 ---
 
 ### GET `/api/dropdown-options`
 
-Get available dropdown options for UI (configured in server-config.json).
+Get all dropdown options for all overlay types (configured in server-config.json).
 
 **Response**:
 ```json
@@ -228,26 +119,69 @@ Get available dropdown options for UI (configured in server-config.json).
     {"value": "move_top", "label": "Move Top"},
     {"value": "move_to_section_start", "label": "Move to Section Start"},
     {"value": "move_to_section_end", "label": "Move to Section End"}
+  ],
+  "table": [
+    {"value": "move_bottom", "label": "Move Bottom"},
+    {"value": "move_top", "label": "Move Top"}
   ]
 }
 ```
 
+**Example**:
+```bash
+curl http://localhost:8081/api/dropdown-options
+```
+
 ---
 
-### GET `/api/current-document`
+### GET `/api/health`
 
-Get information about the currently loaded document.
+Health check endpoint to verify server status.
 
 **Response**:
 ```json
 {
-  "xmlFile": "xml/document.xml",
-  "templateFile": "template/document.tex.xml",
-  "generatedFiles": {
-    "pdf": "TeX/document-generated.pdf",
-    "geometry": "TeX/document-generated-geometry.json"
+  "status": "ok",
+  "timestamp": "2025-11-05T12:00:00.000Z",
+  "clients": 3
+}
+```
+
+**Example**:
+```bash
+curl http://localhost:8081/api/health
+```
+
+---
+
+### GET `/api/config`
+
+Get server configuration (for debugging).
+
+**Response**:
+```json
+{
+  "xmlProcessingRules": {
+    "figure": {
+      "move_bottom": {
+        "xpath": "//figure[@id='{elementId}']",
+        "operation": "setAttribute",
+        "attribute": "float",
+        "value": "bottom"
+      }
+    }
+  },
+  "dropdownOptions": {
+    "figure": [
+      {"value": "move_bottom", "label": "Move Bottom"}
+    ]
   }
 }
+```
+
+**Example**:
+```bash
+curl http://localhost:8081/api/config
 ```
 
 ---
@@ -274,32 +208,224 @@ ws.onmessage = (event) => {
 
 ---
 
-### Message Types
+### Client to Server Messages
 
-#### 1. `stage_update` - Processing Stage Update
+#### 1. `generate_document` - Generate PDF
 
-Sent when the document generation stage changes.
+Request document generation.
 
 **Message**:
 ```json
 {
-  "type": "stage_update",
-  "stage": "compiling",
-  "message": "Compiling LaTeX (pass 2/3)...",
-  "timestamp": "2025-11-03T12:00:00.000Z"
+  "type": "generate_document",
+  "documentName": "document"
 }
 ```
 
-**Stages**:
-- `transforming` - XML → TeX transformation
-- `compiling` - LaTeX compilation
-- `extracting` - Coordinate extraction
-- `complete` - Generation complete
-- `error` - Error occurred
+**Supported Documents**:
+- `"document"` - Uses `xml/document.xml` and `template/document.tex.xml`
+- `"ENDEND10921"` - Uses `xml/ENDEND10921.xml` and `template/ENDEND10921-sample-style.tex.xml`
 
 ---
 
-#### 2. `process_output` - Real-time Process Output
+#### 2. `instruction` - Process Instruction
+
+Apply an instruction to modify XML.
+
+**Message**:
+```json
+{
+  "type": "instruction",
+  "elementId": "fig-1",
+  "overlayType": "figure",
+  "instruction": "move_bottom",
+  "instructionValue": null
+}
+```
+
+**Available Instructions** (from server-config.json):
+- `move_bottom` - Move element to bottom of page
+- `move_top` - Move element to top of page
+- `move_to_section_start` - Move to start of parent section
+- `move_to_section_end` - Move to end of parent section
+
+---
+
+#### 3. `ping` - Health Check
+
+Ping the server to check connection.
+
+**Message**:
+```json
+{
+  "type": "ping"
+}
+```
+
+**Response**:
+```json
+{
+  "type": "pong",
+  "timestamp": 1699027200000
+}
+```
+
+---
+
+#### 4. `getDropdownOptions` - Get Dropdown Options
+
+Request dropdown options for a specific overlay type.
+
+**Message**:
+```json
+{
+  "type": "getDropdownOptions",
+  "overlayType": "figure"
+}
+```
+
+---
+
+### Server to Client Messages
+
+#### 1. `config` - Initial Configuration
+
+Sent immediately after connection.
+
+**Message**:
+```json
+{
+  "type": "config",
+  "data": {
+    "dropdownOptions": {
+      "figure": [
+        {"value": "move_bottom", "label": "Move Bottom"}
+      ]
+    }
+  }
+}
+```
+
+---
+
+#### 2. `generation_started` - Document Generation Started
+
+**Message**:
+```json
+{
+  "type": "generation_started",
+  "documentName": "document"
+}
+```
+
+---
+
+#### 3. `generation_progress` - Generation Progress Update
+
+**Message**:
+```json
+{
+  "type": "generation_progress",
+  "progress": 33,
+  "message": "TeX conversion complete. Compiling PDF..."
+}
+```
+
+**Progress Values**:
+- `10` - Converting XML to TeX
+- `33` - TeX conversion complete, compiling PDF
+- `75` - PDF compiled, copying files
+- `95` - Files copied, finalizing
+
+---
+
+#### 4. `generation_complete` - Generation Complete
+
+**Message**:
+```json
+{
+  "type": "generation_complete",
+  "documentName": "document",
+  "pdfPath": "/path/to/ui/document-generated.pdf",
+  "jsonPath": "/path/to/ui/document-generated-marked-boxes.json"
+}
+```
+
+---
+
+#### 5. `generation_error` - Generation Error
+
+**Message**:
+```json
+{
+  "type": "generation_error",
+  "documentName": "document",
+  "error": "Template file not found: /path/to/template.tex.xml"
+}
+```
+
+---
+
+#### 6. `processing_started` - Instruction Processing Started
+
+**Message**:
+```json
+{
+  "type": "processing_started",
+  "elementId": "fig-1",
+  "overlayType": "figure",
+  "instruction": "move_bottom"
+}
+```
+
+---
+
+#### 7. `processing_progress` - Processing Progress Update
+
+**Message**:
+```json
+{
+  "type": "processing_progress",
+  "progress": 50,
+  "message": "Compiling updated PDF..."
+}
+```
+
+---
+
+#### 8. `processing_complete` - Processing Complete
+
+**Message**:
+```json
+{
+  "type": "processing_complete",
+  "elementId": "fig-1",
+  "overlayType": "figure",
+  "instruction": "move_bottom",
+  "result": {
+    "pdfPath": "/path/to/ui/document-generated.pdf",
+    "jsonPath": "/path/to/ui/document-generated-marked-boxes.json",
+    "timestamp": "2025-11-05T12:00:00.000Z"
+  }
+}
+```
+
+---
+
+#### 9. `processing_error` - Processing Error
+
+**Message**:
+```json
+{
+  "type": "processing_error",
+  "elementId": "fig-1",
+  "error": "Element not found: fig-1"
+}
+```
+
+---
+
+#### 10. `process_output` - Real-time Process Output
 
 Sent during LaTeX compilation to show live output.
 
@@ -308,8 +434,8 @@ Sent during LaTeX compilation to show live output.
 {
   "type": "process_output",
   "outputType": "stdout",
-  "message": "This is pdfTeX, Version 3.14159265...",
-  "timestamp": "2025-11-03T12:00:01.000Z"
+  "message": "This is LuaTeX, Version 1.10.0...",
+  "timestamp": "2025-11-05T12:00:01.000Z"
 }
 ```
 
@@ -319,35 +445,47 @@ Sent during LaTeX compilation to show live output.
 
 ---
 
-#### 3. `document_ready` - Document Generation Complete
+#### 11. `file_change` - File System Change
 
-Sent when PDF generation is complete.
+Sent when a watched file changes.
 
 **Message**:
 ```json
 {
-  "type": "document_ready",
-  "files": {
-    "pdf": "TeX/document-generated.pdf",
-    "geometry": "TeX/document-generated-geometry.json"
-  },
-  "timestamp": "2025-11-03T12:00:05.000Z"
+  "type": "file_change",
+  "eventType": "change",
+  "filePath": "/path/to/file.xml",
+  "timestamp": "2025-11-05T12:00:00.000Z"
 }
 ```
 
 ---
 
-#### 4. `error` - Error Notification
+#### 12. `dropdown_options` - Dropdown Options
 
-Sent when an error occurs.
+Response to `getDropdownOptions` request.
+
+**Message**:
+```json
+{
+  "type": "dropdown_options",
+  "overlayType": "figure",
+  "options": [
+    {"value": "move_bottom", "label": "Move Bottom"},
+    {"value": "move_top", "label": "Move Top"}
+  ]
+}
+```
+
+---
+
+#### 13. `error` - Generic Error
 
 **Message**:
 ```json
 {
   "type": "error",
-  "error": "Compilation failed",
-  "details": "LaTeX error on line 42",
-  "timestamp": "2025-11-03T12:00:03.000Z"
+  "message": "Failed to process message: Invalid JSON"
 }
 ```
 
@@ -360,41 +498,38 @@ Sent when an error occurs.
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Server
-    participant Validator
+    participant WS as WebSocket Server
     participant DocConverter
     participant Engine
     participant LaTeX
     participant PDFGeom
-    participant WSClients as All WebSocket Clients
     
-    Client->>Server: POST /api/generate-document<br/>{xmlFile, templateFile}
-    Server->>Validator: Validate files
+    Client->>WS: WebSocket message<br/>{type: "generate_document", documentName: "document"}
     
-    alt Files Valid
-        Validator-->>Server: ✓ Files found
-        Server->>DocConverter: generateDocument()
+    WS->>WS: Validate document name
+    
+    alt Valid Document
+        WS->>Client: generation_started
+        WS->>DocConverter: generateDocument()
         
-        Server->>WSClients: stage_update: "transforming"
+        WS->>Client: generation_progress: 10%
         DocConverter->>Engine: XML → TeX
         
-        Server->>WSClients: stage_update: "compiling"
+        WS->>Client: generation_progress: 33%
         DocConverter->>LaTeX: Compile PDF (3 passes)
         
         loop 3 Passes
-            LaTeX->>WSClients: process_output (stdout)
+            LaTeX->>WS: stdout/stderr
+            WS->>Client: process_output
         end
         
-        Server->>WSClients: stage_update: "extracting"
+        WS->>Client: generation_progress: 75%
         DocConverter->>PDFGeom: Extract coordinates
         
-        Server->>WSClients: stage_update: "complete"
-        Server->>WSClients: document_ready {pdf, geometry}
-        
-        Server-->>Client: 200 OK {success, files}
-    else Files Invalid
-        Validator-->>Server: ✗ Files not found
-        Server-->>Client: 500 Error {error, details}
+        WS->>Client: generation_progress: 95%
+        WS->>Client: generation_complete<br/>{pdfPath, jsonPath}
+    else Invalid Document
+        WS->>Client: generation_error<br/>{error: "Unknown document"}
     end
 ```
 
@@ -404,19 +539,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Client Request<br/>POST /api/process-instruction] --> B[Server receives instruction]
+    A[Client WebSocket message<br/>type: instruction] --> B[Server receives instruction]
     
     B --> C[Load server-config.json]
     C --> D[Get processing rule<br/>for action]
     
-    D --> E[XMLProcessor.processInstruction]
+    D --> E[XMLProcessor.applyInstruction]
     
     E --> F[Load XML file]
     F --> G[Find element by XPath]
     G --> H{Element found?}
     
     H -->|Yes| I[Apply operation]
-    H -->|No| J[Error: Element not found]
+    H -->|No| J[processing_error message]
     
     I --> K{Operation type}
     K -->|setAttribute| L[Modify attributes]
@@ -430,8 +565,8 @@ flowchart TD
     O --> P[Trigger document<br/>regeneration]
     P --> Q[Follow document<br/>generation flow]
     
-    Q --> R[Return success<br/>response]
-    J --> S[Return error<br/>response]
+    Q --> R[processing_complete<br/>WebSocket message]
+    J --> S[Error WebSocket<br/>message]
     
     style A fill:#e1f5e1
     style E fill:#42b883,color:#fff
@@ -481,23 +616,43 @@ res.header('Access-Control-Allow-Origin', 'https://yourdomain.com');
 
 ## 🧪 Testing the Server
 
-### Manual Testing
+### Manual Testing - HTTP API
 
 ```bash
 # Start server
 npm run server
 
-# Test template listing
-curl http://localhost:8081/api/templates
+# Test health check
+curl http://localhost:8081/api/health
 
-# Test document generation
-curl -X POST http://localhost:8081/api/generate-document \
-  -H "Content-Type: application/json" \
-  -d '{"xmlFile": "xml/document.xml", "templateFile": "template/document.tex.xml"}'
+# Test dropdown options
+curl http://localhost:8081/api/dropdown-options
 
-# Test WebSocket (using wscat)
+# Test dropdown options for specific type
+curl http://localhost:8081/api/dropdown-options/figure
+
+# Test config endpoint
+curl http://localhost:8081/api/config
+```
+
+### Manual Testing - WebSocket
+
+```bash
+# Install wscat
 npm install -g wscat
+
+# Connect to WebSocket
 wscat -c ws://localhost:8081
+
+# Once connected, send messages:
+# Generate document
+{"type":"generate_document","documentName":"document"}
+
+# Process instruction
+{"type":"instruction","elementId":"fig-1","overlayType":"figure","instruction":"move_bottom","instructionValue":null}
+
+# Ping
+{"type":"ping"}
 ```
 
 ---
@@ -507,30 +662,86 @@ wscat -c ws://localhost:8081
 ```javascript
 // test/server.test.js
 const request = require('supertest');
+const WebSocket = require('ws');
 const app = require('../server/server');
 
-describe('Server API', () => {
-    test('GET /api/templates', async () => {
+describe('HTTP API', () => {
+    test('GET /api/health', async () => {
         const response = await request(app)
-            .get('/api/templates')
+            .get('/api/health')
             .expect(200);
         
-        expect(response.body.templates).toBeDefined();
-        expect(Array.isArray(response.body.templates)).toBe(true);
+        expect(response.body.status).toBe('ok');
+        expect(response.body.clients).toBeDefined();
     });
     
-    test('POST /api/generate-document', async () => {
+    test('GET /api/dropdown-options', async () => {
         const response = await request(app)
-            .post('/api/generate-document')
-            .send({
-                xmlFile: 'xml/document.xml',
-                templateFile: 'template/document.tex.xml'
-            })
+            .get('/api/dropdown-options')
             .expect(200);
         
-        expect(response.body.success).toBe(true);
-        expect(response.body.files.pdf).toBeDefined();
+        expect(response.body).toBeDefined();
+        expect(typeof response.body).toBe('object');
     });
+    
+    test('GET /api/config', async () => {
+        const response = await request(app)
+            .get('/api/config')
+            .expect(200);
+        
+        expect(response.body.xmlProcessingRules).toBeDefined();
+        expect(response.body.dropdownOptions).toBeDefined();
+    });
+});
+
+describe('WebSocket API', () => {
+    let ws;
+    
+    beforeEach(() => {
+        ws = new WebSocket('ws://localhost:8081');
+    });
+    
+    afterEach(() => {
+        if (ws) ws.close();
+    });
+    
+    test('WebSocket connection', (done) => {
+        ws.on('open', () => {
+            done();
+        });
+    });
+    
+    test('Ping/Pong', (done) => {
+        ws.on('open', () => {
+            ws.send(JSON.stringify({ type: 'ping' }));
+        });
+        
+        ws.on('message', (data) => {
+            const msg = JSON.parse(data);
+            if (msg.type === 'pong') {
+                expect(msg.timestamp).toBeDefined();
+                done();
+            }
+        });
+    });
+    
+    test('Generate document', (done) => {
+        ws.on('open', () => {
+            ws.send(JSON.stringify({
+                type: 'generate_document',
+                documentName: 'document'
+            }));
+        });
+        
+        ws.on('message', (data) => {
+            const msg = JSON.parse(data);
+            if (msg.type === 'generation_complete') {
+                expect(msg.pdfPath).toBeDefined();
+                expect(msg.jsonPath).toBeDefined();
+                done();
+            }
+        });
+    }, 30000); // 30 second timeout for PDF generation
 });
 ```
 
@@ -612,12 +823,20 @@ this.app.use((req, res, next) => {
 
 ## 📚 Related Documentation
 
-- [Document Converter Module](./DOCUMENT-CONVERTER.md)
-- [XML Processor Module](./XML-PROCESSOR.md)
-- [WebSocket API Reference](../api/WEBSOCKET-API.md)
-- [REST API Reference](../api/REST-API.md)
+- [REST API Reference](../api/REST-API.md) - HTTP REST endpoints
+- [Architecture Overview](../ARCHITECTURE.md) - System design
+- [Getting Started](../GETTING-STARTED.md) - Development setup
 
 ---
 
-**Last Updated**: November 3, 2025
+## 💡 Key Points
+
+1. **HTTP API** - Limited to configuration, health checks, and dropdown options
+2. **WebSocket API** - Primary interface for document generation and instruction processing
+3. **Real-time Updates** - All process output is streamed via WebSocket
+4. **Multiple Clients** - Server broadcasts updates to all connected WebSocket clients
+
+---
+
+**Last Updated**: November 5, 2025
 
