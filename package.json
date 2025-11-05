@@ -10,7 +10,9 @@
     "start": "node src/cli.js",
     "test-engine": "node src/test-tex-engine.js",
     "test:cli": "node src/cli.js --run-test",
-    "tex:pdf": "node src/tex-to-pdf.js"
+    "tex:pdf": "node src/tex-to-pdf.js",
+    "docs:generate": "node dev-docs/generate-docs-config.js",
+    "docs:serve": "node dev-docs/serve-docs.js"
   },
   "keywords": [
     "pdf",
@@ -28,10 +30,10 @@
     "xmldom": "^0.6.0"
   },
   "dependencies": {
+    "@seald-io/nedb": "^4.1.2",
     "chokidar": "^3.5.3",
     "express": "^4.18.2",
     "fs-extra": "^11.1.1",
-    "nedb": "^1.8.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ws": "^8.14.2",

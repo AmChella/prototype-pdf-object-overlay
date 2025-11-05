@@ -3,6 +3,38 @@ import { useAppContext } from '../../context/AppContext';
 import './VersionHistory.css';
 
 /**
+ * Custom Confirmation Modal Component
+ */
+const ConfirmModal = ({ isOpen, onClose, onConfirm, version }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="confirm-modal-overlay" onClick={onClose}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-modal-header">
+          <h3>⚠️ Restore Version</h3>
+          <button className="confirm-modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="confirm-modal-body">
+          <p>Are you sure you want to restore to <strong>version {version}</strong>?</p>
+          <p className="confirm-modal-warning">
+            This will replace the current document with the selected version.
+          </p>
+        </div>
+        <div className="confirm-modal-footer">
+          <button className="confirm-btn-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="confirm-btn-restore" onClick={onConfirm}>
+            ↺ Restore Version
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * VersionHistory Component
  * 
  * Displays document version history and allows navigation between versions
@@ -14,16 +46,26 @@ const VersionHistory = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentDocument, setCurrentDocument] = useState('document');
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, versionNumber: null });
   
   // Listen for version-related custom events from App.jsx
   useEffect(() => {
+    console.log('🎧 Setting up version history event listeners');
+    
     const handleVersionHistory = (event) => {
       console.log('📜 Received versionHistory event:', event.detail);
+      console.log('📜 Event type:', event.detail?.type);
+      console.log('📜 Full event:', JSON.stringify(event.detail, null, 2));
+      
       // Server sends 'history' array, not 'versions'
       const versionData = event.detail.history || event.detail.versions || [];
-      console.log('📜 Version data:', versionData);
+      console.log('📜 Version data array:', versionData);
+      console.log('📜 Version count:', versionData.length);
+      
       setVersions(versionData);
       setLoading(false);
+      
+      console.log('✅ Version state updated, loading stopped');
     };
     
     const handleVersionStats = (event) => {
@@ -48,7 +90,10 @@ const VersionHistory = () => {
     window.addEventListener('versionRestored', handleVersionRestored);
     window.addEventListener('versionError', handleVersionError);
     
+    console.log('✅ Event listeners registered');
+    
     return () => {
+      console.log('🧹 Cleaning up version history event listeners');
       window.removeEventListener('versionHistory', handleVersionHistory);
       window.removeEventListener('versionStats', handleVersionStats);
       window.removeEventListener('versionRestored', handleVersionRestored);
@@ -65,18 +110,30 @@ const VersionHistory = () => {
   }, [isConnected, currentDocument, isExpanded]);
   
   const fetchVersionHistory = () => {
-    if (!isConnected) return;
+    if (!isConnected) {
+      console.warn('⚠️ Not connected, cannot fetch version history');
+      return;
+    }
     
+    console.log('📜 Requesting version history for:', currentDocument);
     setLoading(true);
-    send({
+    
+    const success = send({
       type: 'getVersionHistory',
       documentName: currentDocument,
       limit: 50
     });
+    
+    console.log('📜 Send result:', success);
   };
   
   const fetchVersionStats = () => {
-    if (!isConnected) return;
+    if (!isConnected) {
+      console.warn('⚠️ Not connected, cannot fetch version stats');
+      return;
+    }
+    
+    console.log('📊 Requesting version stats for:', currentDocument);
     
     send({
       type: 'getVersionStats',
@@ -86,19 +143,21 @@ const VersionHistory = () => {
   
   const handleRestoreVersion = (versionNumber) => {
     if (!isConnected) return;
-    
-    const confirmed = window.confirm(
-      `Restore version ${versionNumber}? This will replace the current document.`
-    );
-    
-    if (confirmed) {
-      setLoading(true);
-      send({
-        type: 'restoreVersion',
-        documentName: currentDocument,
-        versionNumber: versionNumber
-      });
-    }
+    setConfirmModal({ isOpen: true, versionNumber });
+  };
+
+  const confirmRestore = () => {
+    setLoading(true);
+    send({
+      type: 'restoreVersion',
+      documentName: currentDocument,
+      versionNumber: confirmModal.versionNumber
+    });
+    setConfirmModal({ isOpen: false, versionNumber: null });
+  };
+
+  const cancelRestore = () => {
+    setConfirmModal({ isOpen: false, versionNumber: null });
   };
   
   const formatTimestamp = (timestamp) => {
@@ -114,7 +173,10 @@ const VersionHistory = () => {
   const formatInstruction = (version) => {
     if (!version.instruction) return 'Initial version';
     
-    return `${version.instruction} → ${version.elementId || 'element'}`;
+    const elementId = version.elementId || 'element';
+    const instruction = version.instruction || 'unknown';
+    
+    return `${instruction} → ${elementId}`;
   };
   
   if (!isConnected) {
@@ -129,9 +191,16 @@ const VersionHistory = () => {
   }
   
   return (
-    <div className="version-history">
-      {/* Header */}
-      <div className="version-header" onClick={() => setIsExpanded(!isExpanded)}>
+    <>
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={cancelRestore}
+        onConfirm={confirmRestore}
+        version={confirmModal.versionNumber}
+      />
+      <div className="version-history">
+        {/* Header */}
+        <div className="version-header" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="version-title-row">
           <h3 className="version-title">
             <span className="icon">🕒</span>
@@ -222,11 +291,16 @@ const VersionHistory = () => {
                     {version.instruction && (
                       <div className="version-details">
                         <span className="version-detail-item">
-                          <strong>Action:</strong> {version.instruction}
+                          <strong>Action:</strong> {String(version.instruction)}
                         </span>
+                        {version.elementId && (
+                          <span className="version-detail-item">
+                            <strong>Element:</strong> {String(version.elementId)}
+                          </span>
+                        )}
                         {version.overlayType && (
                           <span className="version-detail-item">
-                            <strong>Type:</strong> {version.overlayType}
+                            <strong>Type:</strong> {String(version.overlayType)}
                           </span>
                         )}
                       </div>
@@ -234,7 +308,7 @@ const VersionHistory = () => {
                     
                     <div className="version-meta">
                       <span className="version-user">👤 {version.userId || 'system'}</span>
-                      <span className="version-hash">#{version.versionHash}</span>
+                      <span className="version-hash">#{version.versionHash || 'unknown'}</span>
                     </div>
                   </div>
                   
@@ -255,7 +329,8 @@ const VersionHistory = () => {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

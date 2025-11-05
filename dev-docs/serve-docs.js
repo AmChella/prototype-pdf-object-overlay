@@ -3,6 +3,8 @@
 /**
  * Simple HTTP server to serve developer documentation
  * Usage: node serve-docs.js [port]
+ * 
+ * Automatically generates docs-config.json on startup
  */
 
 const http = require('http');
@@ -12,6 +14,16 @@ const path = require('path');
 const PORT = process.argv[2] || 3000;
 // Serve from dev-docs directory
 const DOCS_DIR = __dirname;
+
+// Auto-generate docs config on startup
+console.log('🔄 Generating documentation config...');
+try {
+  const { main: generateDocsConfig } = require('./generate-docs-config.js');
+  generateDocsConfig();
+} catch (error) {
+  console.error('⚠️  Warning: Could not auto-generate docs config:', error.message);
+  console.log('   Continuing with existing config...\n');
+}
 
 // MIME types
 const mimeTypes = {

@@ -575,9 +575,9 @@ class PDFOverlayServer {
                 versionNumber: result.version,
                 timestamp: result.timestamp,
                 files: {
-                    pdfPath: result.files.pdf,
-                    jsonPath: result.files.json,
-                    xmlPath: result.files.xml
+                    pdf: result.files.pdf,
+                    json: result.files.json,
+                    xml: result.files.xml
                 }
             });
 

@@ -311,20 +311,27 @@ function AppContent() {
     
     // Version control handlers
     onVersionHistory: (data) => {
-      console.log('📜 Version history received:', data);
+      console.log('📜 Version history received in App.jsx:', data);
+      console.log('📜 Data type:', data.type);
+      console.log('📜 History array:', data.history);
+      console.log('📜 History length:', data.history?.length);
+      
       // Dispatch custom event for VersionHistory component
-      window.dispatchEvent(new CustomEvent('versionHistory', { detail: data }));
+      const event = new CustomEvent('versionHistory', { detail: data });
+      console.log('📜 Dispatching custom event:', event);
+      window.dispatchEvent(event);
+      console.log('✅ Custom event dispatched');
     },
     
     onVersionStats: (data) => {
-      console.log('📊 Version stats received:', data);
+      console.log('📊 Version stats received in App.jsx:', data);
       // Dispatch custom event for VersionHistory component
       window.dispatchEvent(new CustomEvent('versionStats', { detail: data }));
     },
     
     onVersionRestored: (data) => {
       console.log('✅ Version restored:', data);
-      toast.showSuccess(`Version ${data.version} restored successfully!`);
+      toast.showSuccess(`Version ${data.versionNumber || data.version} restored successfully!`);
       // Dispatch custom event for VersionHistory component
       window.dispatchEvent(new CustomEvent('versionRestored', { detail: data }));
       
