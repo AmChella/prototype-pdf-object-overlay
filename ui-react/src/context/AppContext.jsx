@@ -40,6 +40,7 @@ export const AppProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [ws, setWs] = useState(null);
   const [dropdownOptions, setDropdownOptions] = useState(null);
+  const [send, setSend] = useState(() => () => false); // WebSocket send function
   
   // PDF Actions
   const loadPDF = useCallback((pdf) => {
@@ -182,6 +183,7 @@ export const AppProvider = ({ children }) => {
     isConnected,
     ws,
     dropdownOptions,
+    send,
     
     // Setters (for direct state updates)
     setCurrentPdf,
@@ -194,6 +196,7 @@ export const AppProvider = ({ children }) => {
     setIsConnected,
     setWs,
     setDropdownOptions,
+    setSend,
     setProgressStages,
     setSelectedOverlayId,
     setHoveredOverlayId,

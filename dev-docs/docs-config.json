@@ -1,8 +1,8 @@
 {
   "title": "PDF Object Overlay - Developer Documentation",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "lastUpdated": "2025-11-05",
-  "totalFiles": 12,
+  "totalFiles": 22,
   "technologies": [
     "Node.js",
     "Express",
@@ -92,6 +92,13 @@
           "description": "Complete document version management with history tracking, revert/forward navigation using NeDB",
           "file": "./features/VERSION-CONTROL.md",
           "tags": ["new", "version-control", "database", "history"]
+        },
+        {
+          "id": "dynamic-schema-detection",
+          "title": "🔄 Dynamic XML Schema Detection",
+          "description": "Automatic detection and adaptation of XML element names based on document structure (figure/fig, para/p)",
+          "file": "./features/DYNAMIC-SCHEMA-DETECTION.md",
+          "tags": ["new", "schema", "xml", "automatic"]
         }
       ]
     },
@@ -119,11 +126,105 @@
           "title": "📝 How to Add New Instructions",
           "description": "Step-by-step guide to adding XML instructions (e.g., move figure)",
           "file": "./guides/ADDING-NEW-INSTRUCTIONS.md"
+        },
+        {
+          "id": "version-control-quickstart",
+          "title": "🚀 Version Control Quick Start",
+          "description": "Quick reference guide for using the version control system",
+          "file": "./guides/VERSION-CONTROL-QUICKSTART.md",
+          "tags": ["quickstart", "version-control"]
+        },
+        {
+          "id": "version-history-ui-quickstart",
+          "title": "🎨 Version History UI Quick Start",
+          "description": "User guide for navigating document versions in the React UI",
+          "file": "./guides/VERSION-HISTORY-QUICKSTART.md",
+          "tags": ["quickstart", "ui", "react", "version-control"]
+        },
+        {
+          "id": "schema-detection-testing",
+          "title": "🧪 Testing Dynamic Schema Detection",
+          "description": "Quick guide to test the dynamic XML schema detection feature",
+          "file": "./guides/SCHEMA-DETECTION-TEST-GUIDE.md",
+          "tags": ["testing", "schema", "xml"]
+        },
+        {
+          "id": "version-history-fix",
+          "title": "🔧 Version History Loading Fix",
+          "description": "Complete fix for version history loading issues with WebSocket communication",
+          "file": "./guides/VERSION-HISTORY-FIX.md",
+          "tags": ["NEW", "troubleshooting", "fix", "version-control", "websocket"]
+        },
+        {
+          "id": "version-history-troubleshooting",
+          "title": "🐛 Version History Troubleshooting",
+          "description": "Comprehensive troubleshooting guide for version history loading and display issues",
+          "file": "./guides/VERSION-HISTORY-TROUBLESHOOTING.md",
+          "tags": ["NEW", "troubleshooting", "debugging", "version-control"]
+        }
+      ]
+    },
+    {
+      "id": "ui-documentation",
+      "name": "🎨 React UI Documentation",
+      "description": "Documentation for the React UI components and features",
+      "docs": [
+        {
+          "id": "version-history-ui-full",
+          "title": "🕒 Version History UI Component",
+          "description": "Complete documentation for the Version History React component",
+          "file": "../ui-react/docs/VERSION-HISTORY-UI.md",
+          "tags": ["react", "component", "version-control", "ui"]
+        },
+        {
+          "id": "version-history-ui-visual",
+          "title": "🎨 Version History Visual Guide",
+          "description": "Visual walkthrough of the Version History component with UI states and interactions",
+          "file": "../ui-react/docs/VERSION-HISTORY-VISUAL-GUIDE.md",
+          "tags": ["react", "visual", "design", "ui"]
+        }
+      ]
+    },
+    {
+      "id": "implementation-summaries",
+      "name": "📋 Implementation Summaries",
+      "description": "Complete implementation summaries for major features",
+      "docs": [
+        {
+          "id": "version-history-implementation",
+          "title": "✅ Version History Implementation Complete",
+          "description": "Complete summary of the Version History UI implementation with all files, changes, and features",
+          "file": "./implementation/VERSION-HISTORY-IMPLEMENTATION.md",
+          "tags": ["implementation", "summary", "version-control", "complete"]
         }
       ]
     }
   ],
   "changelog": [
+    {
+      "version": "2.1.1",
+      "date": "2025-11-05",
+      "changes": [
+        "Fixed version history loading issues (message type and data structure mismatches)",
+        "Added comprehensive troubleshooting guide for version control",
+        "Fixed WebSocket communication between server and client",
+        "Updated server to send all necessary version fields",
+        "All documentation now properly organized in dev-docs directory"
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2025-11-05",
+      "changes": [
+        "Added Version History UI component for React application",
+        "Added Dynamic XML Schema Detection feature",
+        "Added comprehensive UI documentation with visual guides",
+        "Added quick start guides for version control and schema detection",
+        "Added implementation summaries section",
+        "Organized all documentation into proper dev-docs structure",
+        "Updated docs-config.json with all new documentation"
+      ]
+    },
     {
       "version": "2.0.0",
       "date": "2025-11-05",
@@ -154,9 +255,19 @@
       "description": "Get up and running in minutes"
     },
     {
+      "title": "🕒 Version History UI",
+      "url": "./guides/VERSION-HISTORY-QUICKSTART.md",
+      "description": "NEW: Navigate document versions in UI"
+    },
+    {
+      "title": "🔄 Schema Detection",
+      "url": "./features/DYNAMIC-SCHEMA-DETECTION.md",
+      "description": "NEW: Automatic XML schema adaptation"
+    },
+    {
       "title": "📚 Version Control",
       "url": "./features/VERSION-CONTROL.md",
-      "description": "NEW: Document version management"
+      "description": "Document version management system"
     },
     {
       "title": "🌐 WebSocket API",

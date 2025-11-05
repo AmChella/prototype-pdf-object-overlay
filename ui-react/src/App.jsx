@@ -25,6 +25,7 @@ function AppContent() {
     loadPDF: contextLoadPDF, 
     setIsConnected,
     setDropdownOptions,
+    setSend,
     toggleSearch,
     isSearchOpen,
     nextPage,
@@ -306,10 +307,72 @@ function AppContent() {
       console.log('🔌 Disconnected from server');
       setIsConnected(false);
       toast.showWarning('Disconnected from server');
+    },
+    
+    // Version control handlers
+    onVersionHistory: (data) => {
+      console.log('📜 Version history received:', data);
+      // Dispatch custom event for VersionHistory component
+      window.dispatchEvent(new CustomEvent('versionHistory', { detail: data }));
+    },
+    
+    onVersionStats: (data) => {
+      console.log('📊 Version stats received:', data);
+      // Dispatch custom event for VersionHistory component
+      window.dispatchEvent(new CustomEvent('versionStats', { detail: data }));
+    },
+    
+    onVersionRestored: (data) => {
+      console.log('✅ Version restored:', data);
+      toast.showSuccess(`Version ${data.version} restored successfully!`);
+      // Dispatch custom event for VersionHistory component
+      window.dispatchEvent(new CustomEvent('versionRestored', { detail: data }));
+      
+      // Reload the PDF and JSON from the restored version
+      if (data.files && data.files.pdf && data.files.json) {
+        setTimeout(async () => {
+          try {
+            const pdfRelative = convertToRelativeUrl(data.files.pdf);
+            let jsonRelative = convertToRelativeUrl(data.files.json);
+            
+            const pdfUrl = `http://localhost:8081${pdfRelative}`;
+            let jsonUrl = `http://localhost:8081${jsonRelative}`;
+            
+            jsonUrl = await findPreferredJSONPath(jsonUrl);
+            
+            console.log('📂 Loading restored version files:');
+            console.log('  PDF:', pdfUrl);
+            console.log('  JSON:', jsonUrl);
+            
+            const pdf = await loadPDF(pdfUrl);
+            contextLoadPDF(pdf);
+            
+            const overlays = await loadOverlayJSON(jsonUrl);
+            setOverlayData(overlays);
+            
+            toast.showSuccess('Restored version loaded!');
+          } catch (err) {
+            console.error('❌ Error loading restored files:', err);
+            toast.showError('Failed to load restored files: ' + err.message);
+          }
+        }, 500);
+      }
+    },
+    
+    onVersionError: (data) => {
+      console.error('❌ Version error:', data);
+      toast.showError('Version error: ' + (data.error || 'Unknown error'));
+      // Dispatch custom event for VersionHistory component
+      window.dispatchEvent(new CustomEvent('versionError', { detail: data }));
     }
   };
   
   const { isConnected, generateDocument, send } = useWebSocket('ws://localhost:8081', wsHandlers);
+  
+  // Update send function in context
+  React.useEffect(() => {
+    setSend(() => send);
+  }, [send, setSend]);
   
   // Keyboard shortcuts
   useKeyboardShortcuts({

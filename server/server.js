@@ -523,13 +523,20 @@ class PDFOverlayServer {
                 limit || 50
             );
 
+            console.log(`✅ Found ${history.length} versions`);
+
             this.sendToClient(ws, {
                 type: 'version_history',
                 documentName: documentName || this.currentDocument,
                 history: history.map(v => ({
+                    _id: v._id,
                     versionNumber: v.versionNumber,
+                    versionHash: v.versionHash,
                     timestamp: v.timestamp,
                     instruction: v.instruction,
+                    instructionValue: v.instructionValue,
+                    elementId: v.elementId,
+                    overlayType: v.overlayType,
                     isActive: v.isActive,
                     userId: v.userId,
                     description: v.description

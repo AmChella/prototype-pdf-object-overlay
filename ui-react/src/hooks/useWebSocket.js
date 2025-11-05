@@ -87,6 +87,34 @@ export const useWebSocket = (url, handlers = {}) => {
               }
               break;
               
+            case 'version_history':
+            case 'versionHistory':
+              if (handlersRef.current.onVersionHistory) {
+                handlersRef.current.onVersionHistory(data);
+              }
+              break;
+              
+            case 'version_stats':
+            case 'versionStats':
+              if (handlersRef.current.onVersionStats) {
+                handlersRef.current.onVersionStats(data);
+              }
+              break;
+              
+            case 'version_restored':
+            case 'versionRestored':
+              if (handlersRef.current.onVersionRestored) {
+                handlersRef.current.onVersionRestored(data);
+              }
+              break;
+              
+            case 'restore_error':
+            case 'versionError':
+              if (handlersRef.current.onVersionError) {
+                handlersRef.current.onVersionError(data);
+              }
+              break;
+              
             default:
               if (handlersRef.current.onMessage) {
                 handlersRef.current.onMessage(data);
@@ -166,14 +194,63 @@ export const useWebSocket = (url, handlers = {}) => {
     return false;
   }, []);
   
+  // Version Control Methods
+  const getVersionHistory = useCallback((documentName, limit = 50) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = {
+        type: 'getVersionHistory',
+        documentName,
+        limit
+      };
+      wsRef.current.send(JSON.stringify(message));
+      console.log(`📜 Requesting version history for: ${documentName}`);
+      return true;
+    }
+    console.warn('⚠️ WebSocket not connected. Cannot get version history.');
+    return false;
+  }, []);
+  
+  const restoreVersion = useCallback((documentName, versionNumber) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = {
+        type: 'restoreVersion',
+        documentName,
+        versionNumber
+      };
+      wsRef.current.send(JSON.stringify(message));
+      console.log(`🔄 Restoring version ${versionNumber} for: ${documentName}`);
+      return true;
+    }
+    console.warn('⚠️ WebSocket not connected. Cannot restore version.');
+    return false;
+  }, []);
+  
+  const getVersionStats = useCallback((documentName) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = {
+        type: 'getVersionStats',
+        documentName
+      };
+      wsRef.current.send(JSON.stringify(message));
+      console.log(`📊 Requesting version stats for: ${documentName}`);
+      return true;
+    }
+    console.warn('⚠️ WebSocket not connected. Cannot get version stats.');
+    return false;
+  }, []);
+  
   return {
     isConnected,
     error,
     config,
     send,
     generateDocument,
+    getVersionHistory,
+    restoreVersion,
+    getVersionStats,
     reconnect: connect,
     disconnect,
+    ws: wsRef.current,
   };
 };
 

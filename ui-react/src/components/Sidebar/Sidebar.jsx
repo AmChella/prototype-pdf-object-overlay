@@ -3,6 +3,7 @@ import { useAppContext } from '../../context/AppContext';
 import FileUploader from '../FileUploader/FileUploader';
 import JSONUploader from '../JSONUploader/JSONUploader';
 import DocumentSelector from '../DocumentSelector/DocumentSelector';
+import VersionHistory from '../VersionHistory/VersionHistory';
 import './Sidebar.css';
 
 const Sidebar = ({ onGenerateDocument }) => {
@@ -55,6 +56,13 @@ const Sidebar = ({ onGenerateDocument }) => {
           <div className="sidebar-section">
             <h3 className="sidebar-title">Generate Document</h3>
             <DocumentSelector onGenerate={onGenerateDocument} />
+          </div>
+        )}
+        
+        {/* Version History Section */}
+        {isConnected && (
+          <div className="sidebar-section">
+            <VersionHistory />
           </div>
         )}
         
