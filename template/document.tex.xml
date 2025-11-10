@@ -16,6 +16,7 @@
 \usepackage{parskip}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{longtable}
 \IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
 % Optional: afterpage package improves float coordinate accuracy
 \IfFileExists{afterpage.sty}{\usepackage{afterpage}}{}
@@ -26,10 +27,11 @@
 % Fallback macro: use #1 if not empty, otherwise #2
 \newcommand{\fallback}[2]{\if\relax\detokenize{#1}\relax #2 \else #1\fi}
 % Row/cell helpers for table rows without needing index logic
-\newcommand{\rowstart}{\global\let\isfirst\relax}
-\newcommand{\ampchar}{\&amp;}
-\newcommand{\maybeamp}{\ifx\isfirst\relax \global\let\isfirst\undefined \let\sep\relax \else \let\sep\ampchar \fi \sep}
-\newcommand{\cell}[1]{\maybeamp #1}
+% Define a macro to insert & between table cells
+\makeatletter
+\newcommand{\rowstart}{\gdef\@cellsep{}}
+\newcommand{\cell}[1]{\@cellsep #1\gdef\@cellsep{AMPERSAND}}
+\makeatother
 
 % Safe image inclusion - only includes if path is not empty
 \makeatletter
@@ -145,6 +147,31 @@
 </template>
 
     <!-- Tables -->
+    <!-- Long table for multi-page tables - temporarily switches to single column -->
+    <template data-xml-selector="table[type='long']" xml:space="preserve">
+\onecolumn
+\hypertarget{[[@id | raw]]}{}\geommarkinline{[[@id | raw]]}{TABLE-start}%
+\begin{longtable}{[[@cols | raw]]}
+\caption{[[caption:.]]}
+\label{[[@label | raw]]}\\
+\toprule
+<apply-template data-xml-selector="thead"/>
+\midrule
+\endfirsthead
+\toprule
+<apply-template data-xml-selector="thead"/>
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+<apply-template data-xml-selector="tbody"/>
+\end{longtable}%
+\hypertarget{[[@id | raw]]-end}{}\geommarkinline{[[@id | raw]]}{TABLE-end}%
+\twocolumn
+</template>
+
     <template data-xml-selector="table[span='double']" xml:space="preserve">
 \begin{table*}[htbp]
 \centering

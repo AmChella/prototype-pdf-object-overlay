@@ -38,10 +38,14 @@ async function main() {
 
     try {
         const startTime = performance.now();
-        const { output, report, performance: perfData } = await transform(xmlString, templateString);
+        let { output, report, performance: perfData } = await transform(xmlString, templateString);
         const endTime = performance.now();
         
         const duration = (endTime - startTime).toFixed(2);
+
+        // Fix: XMLSerializer escapes & to &amp;, but LaTeX needs literal & for table columns
+        // Replace AMPERSAND placeholder with actual & for table cell separation
+        output = output.replace(/AMPERSAND/g, '&');
 
         if (outputFilePath) {
             fs.writeFileSync(outputFilePath, output);

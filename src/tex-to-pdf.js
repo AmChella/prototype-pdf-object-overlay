@@ -113,8 +113,8 @@ function sanitizeArgs(rawArgs) {
         geometryGrouping: null, // 'strict' or null
         markedBoxes: false,
         convertNdjson: false,
-        syncAux: false,
-        syncFromAux: false
+        syncAux: true,  // Enable by default for accurate coordinate extraction
+        syncFromAux: true  // Enable by default for accurate coordinate extraction
     };
 
     for (let i = 0; i < rawArgs.length; i += 1) {
@@ -802,7 +802,7 @@ async function main() {
                         const { parseAuxFile, generateNdjson, generateMarkedBoxes } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
 
                         const pageDimensions = { width: '597.50787pt', height: '845.04684pt' };
-                        const columnSettings = { cwsp: 15456563, twsp: 31699558, colsep: 786432, twocolumn: 1 };
+                        const columnSettings = { cwsp: 15456563, twsp: 31699558, colsep: 786432 };
 
                         const positions = parseAuxFile(auxPath);
 
@@ -887,7 +887,7 @@ async function main() {
     }
 
     /**
-     * Group start/end records by ID and page (to handle figures appearing on multiple pages)
+     * Group start/end records by ID only (to pair markers that might span pages)
      */
     function groupRecordsById(records) {
         const grouped = {};
@@ -905,14 +905,98 @@ async function main() {
 
             seenRecords.add(dedupKey);
 
-            // Group by both ID and page to handle same figure on different pages
-            const key = `${record.id}-page${record.page}`;
+            // Group by ID ONLY (not by page) to pair start/end markers
+            // Multi-page spanning will be handled later
+            const key = record.id;
             if (!grouped[key]) {
                 grouped[key] = [];
             }
             grouped[key].push(record);
         }
         return grouped;
+    }
+
+    /**
+     * Split multi-page elements into segments (one per page)
+     * Returns array of { startRecord, endRecord, page } objects
+     */
+    function splitMultiPageElement(records) {
+        if (records.length !== 2) {
+            return null;
+        }
+
+        // Find start and end records
+        let startRecord = null;
+        let endRecord = null;
+
+        for (const record of records) {
+            if (record.role && record.role.endsWith('-start')) {
+                startRecord = record;
+            } else if (record.role && record.role.endsWith('-end')) {
+                endRecord = record;
+            }
+        }
+
+        if (!startRecord || !endRecord) {
+            return null;
+        }
+
+        const startPage = startRecord.page;
+        const endPage = endRecord.page;
+
+        // If on same page, no splitting needed
+        if (startPage === endPage) {
+            return [{ startRecord, endRecord, page: startPage }];
+        }
+
+        // Multi-page element - split into segments
+        console.log(`📄 Splitting multi-page element ${startRecord.id} (pages ${startPage}-${endPage})`);
+
+        const segments = [];
+        const pageHeightPt = parseFloat(startRecord.ph.replace('pt', ''));
+
+        for (let page = startPage; page <= endPage; page++) {
+            let segmentStart, segmentEnd;
+
+            if (page === startPage) {
+                // First page: from start marker to bottom of page
+                segmentStart = { ...startRecord };
+                segmentEnd = {
+                    ...startRecord,
+                    ysp: '0',  // Bottom of page in TeX coordinates (top-left origin)
+                    role: 'P-end'  // Synthetic end marker
+                };
+            } else if (page === endPage) {
+                // Last page: from top of page to end marker
+                segmentStart = {
+                    ...endRecord,
+                    ysp: String(Math.round(pageHeightPt * 65536)),  // Top of page in TeX coordinates
+                    role: 'P-start'  // Synthetic start marker
+                };
+                segmentEnd = { ...endRecord };
+            } else {
+                // Middle page: full height
+                segmentStart = {
+                    ...startRecord,
+                    page: page,
+                    ysp: String(Math.round(pageHeightPt * 65536)),  // Top of page
+                    role: 'P-start'
+                };
+                segmentEnd = {
+                    ...startRecord,
+                    page: page,
+                    ysp: '0',  // Bottom of page
+                    role: 'P-end'
+                };
+            }
+
+            segmentStart.page = page;
+            segmentEnd.page = page;
+
+            segments.push({ startRecord: segmentStart, endRecord: segmentEnd, page });
+        }
+
+        return segments;
     }
 
     /**
@@ -1006,19 +1090,39 @@ async function main() {
         const records = parseNdjson(inputFile);
         console.log(`Parsed ${records.length} records from ${path.basename(inputFile)}`);
 
-        // Group records by ID and page
+        // Group records by ID (not by page, to pair start/end markers)
         const groupedRecords = groupRecordsById(records);
-        console.log(`Found ${Object.keys(groupedRecords).length} unique ID-page combinations`);
+        console.log(`Found ${Object.keys(groupedRecords).length} unique elements`);
 
         // Convert to marked boxes format
         const markedBoxes = [];
+        let multiPageCount = 0;
+        let singlePageCount = 0;
 
         for (const [itemId, itemRecords] of Object.entries(groupedRecords)) {
-            const bbox = calculateBoundingBox(itemRecords);
-            if (bbox) {
-                markedBoxes.push(bbox);
+            // Split multi-page elements into segments
+            const segments = splitMultiPageElement(itemRecords);
+            
+            if (!segments) {
+                console.warn(`Skipping ${itemId} due to splitting error`);
+                continue;
+            }
+
+            if (segments.length > 1) {
+                multiPageCount++;
+                console.log(`  📄 ${itemId}: ${segments.length} page segments`);
             } else {
-                console.warn(`Skipping ${itemId} due to calculation error`);
+                singlePageCount++;
+            }
+
+            // Calculate bounding box for each segment
+            for (const segment of segments) {
+                const bbox = calculateBoundingBox([segment.startRecord, segment.endRecord]);
+                if (bbox) {
+                    markedBoxes.push(bbox);
+                } else {
+                    console.warn(`  ⚠️  Failed to calculate bbox for ${itemId} on page ${segment.page}`);
+                }
             }
         }
 
@@ -1032,7 +1136,7 @@ async function main() {
         fs.writeFileSync(outputFile, JSON.stringify(markedBoxes, null, 2));
 
         console.log(`Converted to ${path.basename(outputFile)}`);
-        console.log(`Generated ${markedBoxes.length} marked boxes`);
+        console.log(`Generated ${markedBoxes.length} marked boxes (${singlePageCount} single-page, ${multiPageCount} multi-page)`);
 
         return outputFile;
     }

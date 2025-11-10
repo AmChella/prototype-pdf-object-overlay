@@ -106,7 +106,9 @@ class DocumentConverter {
             // Fix HTML entities
             processedOutput = processedOutput.replace(/&lt;/g, '<');
             processedOutput = processedOutput.replace(/&gt;/g, '>');
-            processedOutput = processedOutput.replace(/&amp;/g, '\\&');
+            // Fix: Replace AMPERSAND placeholder with actual & for table cell separation
+            // DO NOT escape ampersands - they're needed for table column separators
+            processedOutput = processedOutput.replace(/AMPERSAND/g, '&');
             
             // Fix inline math with newlines (pattern: $\n<formula>\n$ )
             processedOutput = processedOutput.replace(/\$\n([^\n]+)\n\$ /g, '$$$1$$ ');

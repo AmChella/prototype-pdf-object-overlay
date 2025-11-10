@@ -287,10 +287,21 @@ function calculateBoundingBox(positions, pageDimensions) {
     let wPt = Math.abs(x2Pt - x1Pt);
     const hPt = Math.abs(y2PtPdf - y1PtPdf);
 
-    // Only use default width if coordinates are identical (shouldn't happen with proper markers)
+    // Handle zero width cases
     if (wPt === 0) {
-        console.warn(`Warning: Zero width for ${startRecord.id}, using default column width`);
-        wPt = spToPt(startRecord.cwsp || 15456563);
+        const isTable = startRecord.role && startRecord.role.includes('TABLE');
+        const textWidthPt = spToPt(startRecord.twsp || 31699558);
+        const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
+        
+        // For longtables in single-column mode (textwidth ≈ full page width)
+        // Use textwidth as the width since markers are at the same X position
+        if (isTable && textWidthPt > columnWidthPt * 1.5) {
+            console.warn(`Warning: Zero width for ${startRecord.id} (longtable), using textwidth`);
+            wPt = textWidthPt;
+        } else {
+            console.warn(`Warning: Zero width for ${startRecord.id}, using default column width`);
+            wPt = columnWidthPt;
+        }
     }
 
     // Convert to other units
@@ -805,21 +816,68 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
             // Check if float spans multiple pages
             const pages = [...new Set(elementPositions.map(p => p.page))].sort((a, b) => a - b);
             if (pages.length > 1) {
-                // Multi-page float: create one segment per page
-                const segmentMap = new Map();
-                for (const pos of elementPositions) {
-                    const key = `p${pos.page}`;
-                    if (!segmentMap.has(key)) {
-                        segmentMap.set(key, {
-                            page: pos.page,
-                            column: pos.col || 0,
-                            positions: []
-                        });
-                    }
-                    segmentMap.get(key).positions.push(pos);
+                // Multi-page float: create one segment for EACH page in the range
+                const firstPage = pages[0];
+                const lastPage = pages[pages.length - 1];
+                const allPages = [];
+                for (let p = firstPage; p <= lastPage; p++) {
+                    allPages.push(p);
                 }
                 
-                segments = Array.from(segmentMap.values()).map((seg, idx, arr) => ({
+                // Get page height and text area boundaries for synthetic markers
+                const pageHeightPt = parseFloat(pageDimensions.height.replace('pt', ''));
+                // Use standard LaTeX 1in margins (72pt)
+                const topMarginPt = 72.27;  // Top margin
+                const bottomMarginPt = 72.27;  // Bottom margin
+                const textAreaTopSp = String(Math.round((pageHeightPt - topMarginPt) * 65536));  // Top of text area
+                const textAreaBottomSp = String(Math.round(bottomMarginPt * 65536));  // Bottom of text area
+                
+                // Create segments for all pages in range
+                const segmentArray = [];
+                for (const page of allPages) {
+                    // Find actual markers for this page
+                    const pagePositions = elementPositions.filter(p => p.page === page);
+                    const hasStart = pagePositions.some(p => p.role && p.role.endsWith('-start'));
+                    const hasEnd = pagePositions.some(p => p.role && p.role.endsWith('-end'));
+                    
+                    // Get a reference position for creating synthetic markers
+                    const refPos = pagePositions.length > 0 ? pagePositions[0] : {
+                        ...elementPositions[0],
+                        page: page
+                    };
+                    
+                    const positions = [...pagePositions];
+                    
+                    // Add synthetic start marker at top of TEXT AREA if missing
+                    if (!hasStart) {
+                        positions.unshift({
+                            ...refPos,
+                            page: page,
+                            ysp: textAreaTopSp,  // Top of text area (not page)
+                            role: refPos.role?.includes('TABLE') ? 'TABLE-start' : 'FIG-start',
+                            synthetic: true
+                        });
+                    }
+                    
+                    // Add synthetic end marker at bottom of TEXT AREA if missing
+                    if (!hasEnd) {
+                        positions.push({
+                            ...refPos,
+                            page: page,
+                            ysp: textAreaBottomSp,  // Bottom of text area (not page)
+                            role: refPos.role?.includes('TABLE') ? 'TABLE-end' : 'FIG-end',
+                            synthetic: true
+                        });
+                    }
+                    
+                    segmentArray.push({
+                        page: page,
+                        column: refPos.col || 0,
+                        positions: positions
+                    });
+                }
+                
+                segments = segmentArray.map((seg, idx, arr) => ({
                     positions: seg.positions,
                     page: seg.page,
                     column: seg.column,
@@ -828,7 +886,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
                 }));
                 
                 splitElementCount++;
-                console.log(`   ✂️  Split float "${id}" into ${segments.length} page segments (pages: ${segments.map(s => s.page).join(',')})`);
+                console.log(`   ✂️  Split float "${id}" into ${segments.length} page segments (pages: ${allPages.join(',')})`);
             } else {
                 // Single-page float: treat as single unit regardless of columns
                 segments = [{
