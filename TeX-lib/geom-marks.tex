@@ -25,16 +25,10 @@
   \zref@addprop{savepos}{page}%
 }{}
 
-\newcommand*\geom@colindex{%
-  \if@twocolumn
-    \if@firstcolumn 0\else 1\fi
-  \else
-    0%
-  \fi
-}
-\newcommand*\geom@twocol{%
-  \if@twocolumn 1\else 0\fi
-}
+% Note: Column index calculation in \geomemit:
+% - Floats (TABLE, FIG): Always col=0 (atomic units, both start/end same value)
+% - Paragraphs: Calculated from X position (more reliable than \if@firstcolumn)
+% - Multi-column layout is auto-detected by JavaScript: textwidth > columnwidth * 1.5
 \makeatother
 
 % Open a per-job NDJSON file for TeX positions
@@ -60,12 +54,40 @@
     \edef\gcw{\number\dimexpr\columnwidth\relax}%% column width (sp)
     \edef\gtw{\number\dimexpr\textwidth\relax}%% text width (sp)
     \edef\gsep{\number\dimexpr\columnsep\relax}%% column separation (sp)
-    \edef\gcol{\geom@colindex}%% column index (0-based)
-    \edef\gtwo{\geom@twocol}%% two-column flag
+    % Calculate column index
+    % For floats (TABLE, FIG), always use col=0 since they're atomic units
+    % Both start and end markers should have the same column value
+    \def\gcol{0}%% Default to column 0
+    % Check if role contains TABLE or FIG (case-insensitive check)
+    \def\geom@isfloat{0}%%
+    \def\geom@checkrole##1TABLE##2\@nil{%
+      \ifx\relax##2\relax\else\def\geom@isfloat{1}\fi
+    }%%
+    \expandafter\geom@checkrole\grole TABLE\@nil
+    \def\geom@checkrole##1FIG##2\@nil{%
+      \ifx\relax##2\relax\else\def\geom@isfloat{1}\fi
+    }%%
+    \expandafter\geom@checkrole\grole FIG\@nil
+    % For non-floats (paragraphs): calculate from X position
+    \if\geom@isfloat0
+      % Calculate boundary: columnWidth + columnSep/2
+      \@tempdima=\columnwidth\relax
+      \advance\@tempdima by 0.5\columnsep\relax
+      \@tempdimb=\gx sp\relax
+      \if@twocolumn
+        \ifdim\@tempdimb>\@tempdima
+          \def\gcol{1}%% Right column
+        \else
+          \def\gcol{0}%% Left column
+        \fi
+      \fi
+    \fi
+    % Note: For floats, col is always 0 (atomic units, not split)
+    % Note: twocolumn flag removed - multi-column is auto-detected from measurements (twsp > cwsp * 1.5)
     % Write NDJSON (no line wrapping) with source info for debugging
-    \immediate\write\geomout{ {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep,"twocolumn":\gtwo} }%%
+    \immediate\write\geomout{ {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep} }%%
     % Also echo to log for debugging (may wrap)
-    \message{GEOM: {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep,"twocolumn":\gtwo}}%% NDJSON duplicate
+    \message{GEOM: {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep}}%% NDJSON duplicate
   \endgroup
 }
 \makeatother

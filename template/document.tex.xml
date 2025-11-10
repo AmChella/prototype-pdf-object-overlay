@@ -148,7 +148,7 @@
     <template data-xml-selector="table[span='double']" xml:space="preserve">
 \begin{table*}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}%
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\textwidth}}{[[@cols | raw]]}
@@ -157,15 +157,16 @@
 \midrule
 <apply-template data-xml-selector="tbody"/>
 \bottomrule
-\end{tabularx}
-\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}
+\end{tabularx}%
+\par\nointerlineskip% Process vertical spacing, prevent extra space
+\makebox[\fallback{[[@width | raw]]}{\textwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}}%
 \end{table*}
 </template>
 
     <template data-xml-selector="table" xml:space="preserve">
 \begin{table}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}%
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\columnwidth}}{[[@cols | raw]]}
@@ -174,8 +175,9 @@
 \midrule
 <apply-template data-xml-selector="tbody"/>
 \bottomrule
-\end{tabularx}
-\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}
+\end{tabularx}%
+\par\nointerlineskip% Process vertical spacing, prevent extra space
+\makebox[\fallback{[[@width | raw]]}{\columnwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}}%
 \end{table}
 </template>
 

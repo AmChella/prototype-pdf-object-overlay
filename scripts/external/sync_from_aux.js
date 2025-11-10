@@ -90,13 +90,15 @@ function getPageDimensions(auxFilePath) {
 
 /**
  * Get column settings from existing NDJSON if available
+ * 
+ * Note: We only need cwsp, twsp, and colsep to calculate everything.
+ * Multi-column layout is auto-detected: twsp > cwsp * 1.5
  */
 function getColumnSettings(ndjsonPath) {
     const defaults = {
         cwsp: 15456563,  // column width in sp
-        twsp: 31699558,  // text width in sp
-        colsep: 786432,  // column separation in sp
-        twocolumn: 1     // two-column flag
+        twsp: 31699558,  // text width in sp (for 2-col, this is ~2x cwsp + colsep)
+        colsep: 786432   // column separation in sp
     };
 
     if (!fs.existsSync(ndjsonPath)) {
@@ -112,8 +114,7 @@ function getColumnSettings(ndjsonPath) {
             return {
                 cwsp: firstRecord.cwsp || defaults.cwsp,
                 twsp: firstRecord.twsp || defaults.twsp,
-                colsep: firstRecord.colsep || defaults.colsep,
-                twocolumn: firstRecord.twocolumn || defaults.twocolumn
+                colsep: firstRecord.colsep || defaults.colsep
             };
         }
     } catch (err) {
@@ -125,14 +126,42 @@ function getColumnSettings(ndjsonPath) {
 
 /**
  * Convert positions from aux to NDJSON format
+ * 
+ * Note: The 'col' field is calculated for reference/debugging only.
+ * Bounding box calculations use pure coordinates (xsp, ysp) and do NOT
+ * depend on the col field. This makes the system work with any layout:
+ * 2-col, 3-col, asymmetric (30/70), etc.
  */
 function generateNdjson(positions, pageDimensions, columnSettings, outputPath) {
     console.log(`Generating NDJSON: ${outputPath}`);
 
     const lines = positions.map(pos => {
-        // Determine column based on x position (simplified heuristic)
+        // Calculate which column this position is in (for reference only)
         const xPt = parseInt(pos.xsp, 10) / 65536.0;
-        const col = xPt > 300 ? 1 : 0; // Rough estimate: x > 300pt means right column
+        const cwPt = spToPt(columnSettings.cwsp);
+        const twPt = spToPt(columnSettings.twsp);
+        const colsepPt = spToPt(columnSettings.colsep);
+        
+        // Auto-detect multi-column layout: if textwidth > columnwidth * 1.5, it's multi-column
+        // This is more robust than relying on a twocolumn flag
+        const isMultiColumn = twPt > (cwPt * 1.5);
+        
+        // Calculate column index
+        // For floats (TABLE, FIG): always col=0 (atomic units, not split by column)
+        // For non-floats (paragraphs): calculate from X position
+        let col = 0;
+        const isFloat = /TABLE|FIG/i.test(pos.role);
+        
+        if (!isFloat && isMultiColumn) {
+            // Calculate column boundaries
+            // Column 0: left edge to (columnWidth + columnSep/2)
+            // Column 1+: beyond the boundary
+            const columnBoundary = cwPt + (colsepPt / 2);
+            col = xPt > columnBoundary ? 1 : 0;
+        }
+        
+        // NOTE: This 'col' field is for reference/debugging only.
+        // Bounding boxes are calculated using actual xsp/ysp coordinates.
 
         return JSON.stringify({
             id: pos.id,
@@ -146,8 +175,8 @@ function generateNdjson(positions, pageDimensions, columnSettings, outputPath) {
             cwsp: columnSettings.cwsp,
             twsp: columnSettings.twsp,
             col: col,
-            colsep: columnSettings.colsep,
-            twocolumn: columnSettings.twocolumn
+            colsep: columnSettings.colsep
+            // Note: twocolumn flag removed - detected from measurements
         });
     });
 
@@ -251,16 +280,17 @@ function calculateBoundingBox(positions, pageDimensions) {
     const y1PtPdf = pageHeightPt - y1Pt;
     const y2PtPdf = pageHeightPt - y2Pt;
 
-    // Calculate bounding box (min/max coordinates)
+    // Calculate bounding box using PURE COORDINATES (no column assumptions)
+    // This approach works for any layout: 2-col, 3-col, asymmetric, etc.
     const xPt = Math.min(x1Pt, x2Pt);
     const yPt = Math.min(y1PtPdf, y2PtPdf);
     let wPt = Math.abs(x2Pt - x1Pt);
     const hPt = Math.abs(y2PtPdf - y1PtPdf);
 
-    // If width is 0, use column width from the record
+    // Only use default width if coordinates are identical (shouldn't happen with proper markers)
     if (wPt === 0) {
-        // Default to single column width
-        wPt = spToPt(15456563); // column width
+        console.warn(`Warning: Zero width for ${startRecord.id}, using default column width`);
+        wPt = spToPt(startRecord.cwsp || 15456563);
     }
 
     // Convert to other units
@@ -295,18 +325,35 @@ function calculateBoundingBox(positions, pageDimensions) {
 /**
  * Detect if element spans columns or pages
  * Returns: { spansColumns: boolean, spansPages: boolean, pages: [], columns: {} }
+ * 
+ * Note: This function is primarily used for paragraph text flow analysis.
+ * Floats (tables/figures) should NOT use this for splitting - they're atomic units.
  */
 function detectSpanning(positions, columnSettings) {
     // Check for multi-page spanning
     const pages = [...new Set(positions.map(r => r.page))].sort((a, b) => a - b);
     const spansPages = pages.length > 1;
     
-    // Detect column for each position based on x coordinate
+    // Detect column for each position based on actual column settings
+    const cwPt = spToPt(columnSettings.cwsp);
+    const twPt = spToPt(columnSettings.twsp);
+    const colsepPt = spToPt(columnSettings.colsep);
+    
+    // Auto-detect multi-column: textwidth > columnwidth * 1.5
+    const isMultiColumn = twPt > (cwPt * 1.5);
+    const columnBoundary = cwPt + (colsepPt / 2);
+    
     const positionsWithCol = positions.map(pos => {
         const xPt = spToPt(pos.xsp);
-        // Simplified heuristic: x > 300pt typically means right column
-        // Can be improved with actual column width calculation
-        const col = xPt > 300 ? 1 : 0;
+        const isFloat = /TABLE|FIG/i.test(pos.role);
+        
+        // For floats (TABLE, FIG): always col=0 (atomic units)
+        // For non-floats: calculate from X position
+        let col = 0;
+        if (!isFloat && isMultiColumn && xPt > columnBoundary) {
+            col = 1;
+        }
+        
         return { ...pos, col };
     });
     
@@ -748,22 +795,66 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     let figureAvoidanceCount = 0;
 
     for (const [id, elementPositions] of Object.entries(groupedById)) {
-        // Skip if this is a figure itself
-        const isFigure = elementPositions.some(p => p.role && p.role.startsWith('FIG'));
+        // Check if this is a float (figure or table)
+        const isFloat = elementPositions.some(p => p.role && (p.role.startsWith('FIG') || p.role.startsWith('TABLE')));
         
-        // Split into segments if element spans columns or pages
-        const segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings);
-        
-        if (segments.length > 1) {
-            splitElementCount++;
-            console.log(`   ✂️  Split "${id}" into ${segments.length} segments (pages: ${segments.map(s => s.page).join(',')}, cols: ${segments.map(s => s.column).join(',')})`);
+        // For floats (tables and figures): only split if truly spanning multiple pages
+        // Do NOT split floats across columns - they're single units in each column
+        let segments;
+        if (isFloat) {
+            // Check if float spans multiple pages
+            const pages = [...new Set(elementPositions.map(p => p.page))].sort((a, b) => a - b);
+            if (pages.length > 1) {
+                // Multi-page float: create one segment per page
+                const segmentMap = new Map();
+                for (const pos of elementPositions) {
+                    const key = `p${pos.page}`;
+                    if (!segmentMap.has(key)) {
+                        segmentMap.set(key, {
+                            page: pos.page,
+                            column: pos.col || 0,
+                            positions: []
+                        });
+                    }
+                    segmentMap.get(key).positions.push(pos);
+                }
+                
+                segments = Array.from(segmentMap.values()).map((seg, idx, arr) => ({
+                    positions: seg.positions,
+                    page: seg.page,
+                    column: seg.column,
+                    segmentIndex: idx,
+                    totalSegments: arr.length
+                }));
+                
+                splitElementCount++;
+                console.log(`   ✂️  Split float "${id}" into ${segments.length} page segments (pages: ${segments.map(s => s.page).join(',')})`);
+            } else {
+                // Single-page float: treat as single unit regardless of columns
+                segments = [{
+                    positions: elementPositions,
+                    page: elementPositions[0].page,
+                    column: elementPositions[0].col || 0,
+                    segmentIndex: 0,
+                    totalSegments: 1
+                }];
+                singleElementCount++;
+            }
         } else {
-            singleElementCount++;
+            // For non-floats (paragraphs): use normal splitting logic for columns and pages
+            segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings);
+            
+            if (segments.length > 1) {
+                splitElementCount++;
+                console.log(`   ✂️  Split "${id}" into ${segments.length} segments (pages: ${segments.map(s => s.page).join(',')}, cols: ${segments.map(s => s.column).join(',')})`);
+            } else {
+                singleElementCount++;
+            }
         }
         
-        // Process each segment and check for figure overlaps (only for paragraphs, not figures)
+        // Process each segment and check for figure overlaps (only for non-floats)
         let finalSegments = [];
-        if (!isFigure) {
+        if (!isFloat) {
             for (const segment of segments) {
                 // Check if this segment overlaps with any figure
                 const overlappingFigure = findOverlappingFigure(segment, figureBounds);

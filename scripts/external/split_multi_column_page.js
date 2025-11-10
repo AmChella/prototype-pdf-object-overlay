@@ -58,11 +58,26 @@ function detectSpanning(positions, columnSettings) {
         return xDiff > leftColumnThreshold * 0.5; // Significant x shift indicates column change
     });
     
-    // Determine column for each record
+    // Determine column for each record based on actual column settings
+    const cwPt = spToPt(columnSettings.cwsp);
+    const twPt = spToPt(columnSettings.twsp);
+    const colsepPt = spToPt(columnSettings.colsep);
+    
+    // Auto-detect multi-column: textwidth > columnwidth * 1.5
+    const isMultiColumn = twPt > (cwPt * 1.5);
+    const columnBoundary = cwPt + (colsepPt / 2);
+    
     const recordsWithCol = records.map(rec => {
         const xPt = spToPt(rec.xsp);
-        // Simplified: if x > halfway point, it's right column
-        const col = xPt > 300 ? 1 : 0;
+        const isFloat = /TABLE|FIG/i.test(rec.role);
+        
+        // For floats (TABLE, FIG): always col=0 (atomic units)
+        // For non-floats: calculate from X position
+        let col = 0;
+        if (!isFloat && isMultiColumn && xPt > columnBoundary) {
+            col = 1;
+        }
+        
         return { ...rec, col };
     });
     
@@ -281,14 +296,42 @@ function generateMarkedBoxesWithSplitting(positions, pageDimensions, columnSetti
     let singleCount = 0;
     
     for (const [id, positions] of Object.entries(grouped)) {
-        // Split into segments if needed
-        const segments = splitIntoSegments(positions, pageDimensions, columnSettings);
+        // Check if this is a float (figure or table)
+        const isFloat = positions.some(p => p.role && (p.role.startsWith('FIG') || p.role.startsWith('TABLE')));
         
-        if (segments.length > 1) {
-            splitCount++;
-            console.log(`   ✂️  Split ${id} into ${segments.length} segments`);
+        // For floats: only split if truly spanning multiple pages, NOT across columns
+        let segments;
+        if (isFloat) {
+            // Check if float spans multiple pages
+            const pages = [...new Set(positions.map(p => p.page))].sort((a, b) => a - b);
+            if (pages.length > 1) {
+                // Multi-page float: split by page only
+                console.log(`   ✂️  Float "${id}" spans ${pages.length} pages - splitting by page`);
+                // Group by page only (ignore columns)
+                const pageGroups = {};
+                for (const pos of positions) {
+                    if (!pageGroups[pos.page]) {
+                        pageGroups[pos.page] = [];
+                    }
+                    pageGroups[pos.page].push(pos);
+                }
+                segments = Object.values(pageGroups);
+                splitCount++;
+            } else {
+                // Single-page float: treat as single unit
+                segments = [positions];
+                singleCount++;
+            }
         } else {
-            singleCount++;
+            // For non-floats: use normal column/page splitting
+            segments = splitIntoSegments(positions, pageDimensions, columnSettings);
+            
+            if (segments.length > 1) {
+                splitCount++;
+                console.log(`   ✂️  Split ${id} into ${segments.length} segments`);
+            } else {
+                singleCount++;
+            }
         }
         
         // Calculate bounding box for each segment

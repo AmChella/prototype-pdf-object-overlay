@@ -954,21 +954,17 @@ async function main() {
         const y1PtPdf = pageHeightPt - y1Pt;
         const y2PtPdf = pageHeightPt - y2Pt;
 
-        // Calculate bounding box (min/max coordinates)
+        // Calculate bounding box using PURE COORDINATES (no column assumptions)
+        // This approach works for any layout: 2-col, 3-col, asymmetric (30/70), etc.
         const xPt = Math.min(x1Pt, x2Pt);
         const yPt = Math.min(y1PtPdf, y2PtPdf);
         let wPt = Math.abs(x2Pt - x1Pt);
         const hPt = Math.abs(y2PtPdf - y1PtPdf);
 
-        // If width is 0, use a default width based on content type
+        // Only use default width if coordinates are identical (shouldn't happen with proper markers)
         if (wPt === 0) {
-            // For same-column content, use column width
-            if (startRecord.col === endRecord.col) {
-                wPt = spToPt(startRecord.cwsp); // column width
-            } else {
-                // For multi-column content, calculate from column positions
-                wPt = x2Pt > x1Pt ? x2Pt - x1Pt : spToPt(startRecord.twsp);
-            }
+            console.warn(`Warning: Zero width detected for element, using default column width`);
+            wPt = spToPt(startRecord.cwsp || 15456563);
         }
 
         // Convert to other units

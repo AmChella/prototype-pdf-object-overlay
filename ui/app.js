@@ -1566,6 +1566,7 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
     }
 
     console.log(`Item ${item.id}: Final PDF rect [${x1}, ${y1}, ${x2}, ${y2}] (page height: ${pageHeight})`);
+    console.log(`Item ${item.id}: Input dimensions - width: ${coords.width}, height: ${coords.height}`);
 
     // Skip items with zero or negative dimensions
     if (x2 <= x1 || y2 <= y1) {
@@ -1575,8 +1576,11 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
 
     // Convert from PDF coordinate system to viewport coordinates
     // PDF.js convertToViewportRectangle handles the scaling and coordinate transformation
+    console.log(`Item ${item.id}: 🔍 Input to convertToViewportRectangle: [${x1.toFixed(2)}, ${y1.toFixed(2)}, ${x2.toFixed(2)}, ${y2.toFixed(2)}]`);
+    console.log(`Item ${item.id}: 🔍 Viewport scale=${viewport.scale}, height=${viewport.height}`);
+    
     const vb = viewport.convertToViewportRectangle([x1, y1, x2, y2]);
-    console.log(`Item ${item.id}: Viewport coords`, vb);
+    console.log(`Item ${item.id}: 🔍 convertToViewportRectangle output:`, vb);
 
     // vb returns [x1, y1, x2, y2] in viewport coordinates
     // Calculate position and dimensions

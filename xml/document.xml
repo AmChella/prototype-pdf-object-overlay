@@ -1356,4 +1356,212 @@
       <caption>Section 12 asset overview</caption>
     </figure>
   </section>
+  <section id="sec13">
+    <title>Table Examples and Data Presentation</title>
+    <note id="sec13-note">
+      Tables demonstrate various layout options for presenting structured data in both single and double column formats.
+    </note>
+    <para id="sec13-p1">
+      <run>This section showcases three different table layouts that are commonly used in technical documentation. </run>
+      <inline-math>
+<![CDATA[\alpha_{13} + \beta_{14} = \gamma_{15}]]>
+</inline-math>
+      <run> Each table type serves specific presentation needs and content density requirements.</run>
+    </para>
+
+    <!-- Full Page Table (Double Column with Full Text Width) -->
+    <table id="table-fullpage" label="tab:fullpage" span="double" width="\textwidth" cols="l X X X X">
+      <caption>Full Page Table - Performance Metrics Across Multiple Build Configurations</caption>
+      <thead>
+        <tr>
+          <th>Configuration</th>
+          <th>Build Time (s)</th>
+          <th>Memory (MB)</th>
+          <th>Cache Hit Rate</th>
+          <th>Success Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Baseline</td>
+          <td>45.3</td>
+          <td>512</td>
+          <td>85\%</td>
+          <td>99.2\%</td>
+        </tr>
+        <tr>
+          <td>Optimized</td>
+          <td>23.7</td>
+          <td>384</td>
+          <td>92\%</td>
+          <td>99.8\%</td>
+        </tr>
+        <tr>
+          <td>Incremental</td>
+          <td>8.4</td>
+          <td>256</td>
+          <td>98\%</td>
+          <td>99.9\%</td>
+        </tr>
+        <tr>
+          <td>Parallel</td>
+          <td>12.1</td>
+          <td>768</td>
+          <td>88\%</td>
+          <td>99.5\%</td>
+        </tr>
+        <tr>
+          <td>Distributed</td>
+          <td>6.2</td>
+          <td>1024</td>
+          <td>95\%</td>
+          <td>99.7\%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <para id="sec13-p2">
+      <run>The full page table spans the entire text width, making it ideal for datasets with multiple columns. </run>
+      <inline-math>
+<![CDATA[\det(M_{13}) = 1]]>
+</inline-math>
+      <run> This layout maximizes horizontal space utilization for comprehensive data presentation.</run>
+    </para>
+
+    <!-- Single Column Table -->
+    <table id="table-single" label="tab:single" cols="l c c">
+      <caption>Single Column Table - Document Statistics</caption>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Percentage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Paragraphs</td>
+          <td>156</td>
+          <td>35\%</td>
+        </tr>
+        <tr>
+          <td>Equations</td>
+          <td>89</td>
+          <td>20\%</td>
+        </tr>
+        <tr>
+          <td>Figures</td>
+          <td>42</td>
+          <td>9\%</td>
+        </tr>
+        <tr>
+          <td>Tables</td>
+          <td>18</td>
+          <td>4\%</td>
+        </tr>
+        <tr>
+          <td>References</td>
+          <td>143</td>
+          <td>32\%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <para id="sec13-p3">
+      <run>Single column tables fit within one column of a multi-column layout, perfect for compact data. </run>
+      <inline-math>
+<![CDATA[\nabla f_{13}(x) = 0]]>
+</inline-math>
+      <run> This format maintains readability while conserving vertical space in the document.</run>
+    </para>
+
+    <!-- Double Column Table -->
+    <table id="table-double" label="tab:double" span="double" cols="l l X c c">
+      <caption>Double Column Table - System Component Dependencies and Versions</caption>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Version</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>TeX Engine</td>
+          <td>2023.1</td>
+          <td>Core typesetting engine with Lua callbacks</td>
+          <td>Active</td>
+          <td>High</td>
+        </tr>
+        <tr>
+          <td>XML Parser</td>
+          <td>4.2.0</td>
+          <td>Document structure parser and validator</td>
+          <td>Active</td>
+          <td>High</td>
+        </tr>
+        <tr>
+          <td>Geometry Lib</td>
+          <td>1.8.3</td>
+          <td>Coordinate extraction and mapping utilities</td>
+          <td>Active</td>
+          <td>Medium</td>
+        </tr>
+        <tr>
+          <td>Cache Manager</td>
+          <td>2.1.4</td>
+          <td>Incremental build optimization layer</td>
+          <td>Active</td>
+          <td>High</td>
+        </tr>
+        <tr>
+          <td>Asset Pipeline</td>
+          <td>3.0.2</td>
+          <td>Image and figure processing workflow</td>
+          <td>Beta</td>
+          <td>Medium</td>
+        </tr>
+        <tr>
+          <td>Quality Checker</td>
+          <td>1.5.1</td>
+          <td>Automated validation and testing suite</td>
+          <td>Active</td>
+          <td>Low</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <para id="sec13-p4">
+      <run>Double column tables span both columns in a two-column layout, providing maximum width. </run>
+      <inline-math>
+<![CDATA[\left\|A_{13}\right\|_{2} = \sqrt{\lambda_{\max}}]]>
+</inline-math>
+      <run> This format is essential for wide datasets that cannot fit comfortably in a single column.</run>
+    </para>
+
+    <para id="sec13-p5">
+      <run>Table selection depends on content complexity and space constraints. </run>
+      <inline-math>
+<![CDATA[e^{i\pi} + 1 = 0]]>
+</inline-math>
+      <run> The XML structure supports flexible table definitions with customizable column specifications and spanning options.</run>
+    </para>
+
+    <list type="itemize">
+      <item>
+        Full page tables maximize horizontal space for comprehensive datasets.
+      </item>
+      <item>
+        Single column tables maintain compact layouts for simpler data.
+      </item>
+      <item>
+        Double column tables bridge both columns in multi-column documents.
+      </item>
+      <item>
+        Column specifications use LaTeX tabularx syntax for flexible widths.
+      </item>
+    </list>
+  </section>
 </document>

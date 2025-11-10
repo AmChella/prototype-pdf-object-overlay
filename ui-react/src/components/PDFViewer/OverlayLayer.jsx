@@ -69,7 +69,12 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
     }
     
     // Convert from PDF coordinate system to viewport coordinates
+    console.log(`  🔍 Input to convertToViewportRectangle: [${x1.toFixed(2)}, ${y1.toFixed(2)}, ${x2.toFixed(2)}, ${y2.toFixed(2)}]`);
+    console.log(`  🔍 Overlay dimensions: width=${overlay.width.toFixed(2)}, height=${overlay.height.toFixed(2)}`);
+    console.log(`  🔍 Viewport scale=${viewport.scale}, height=${viewport.height}, pageHeight=${(viewport.height / viewport.scale).toFixed(2)}`);
+    
     const vb = viewport.convertToViewportRectangle([x1, y1, x2, y2]);
+    console.log(`  🔍 convertToViewportRectangle output: [${vb[0].toFixed(2)}, ${vb[1].toFixed(2)}, ${vb[2].toFixed(2)}, ${vb[3].toFixed(2)}]`);
     
     // Calculate position and dimensions
     const left = Math.min(vb[0], vb[2]);
@@ -77,7 +82,7 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
     const width = Math.abs(vb[2] - vb[0]);
     const height = Math.abs(vb[3] - vb[1]);
     
-    console.log(`  ✅ Viewport coords: left=${left.toFixed(1)}, top=${top.toFixed(1)}, ${width.toFixed(1)}x${height.toFixed(1)}`);
+    console.log(`  ✅ Final viewport coords: left=${left.toFixed(1)}, top=${top.toFixed(1)}, ${width.toFixed(1)}x${height.toFixed(1)}`);
     
     // Skip items that are too small to be visible
     if (width < 1 || height < 1) {
