@@ -85,8 +85,8 @@ const Sidebar = ({ onGenerateDocument }) => {
                 value={coordinateOrigin}
                 onChange={(e) => setCoordinateOrigin(e.target.value)}
               >
+                <option value="top-left">Top-Left (Default)</option>
                 <option value="bottom-left">Bottom-Left (PDF Standard)</option>
-                <option value="top-left">Top-Left</option>
               </select>
             </div>
           </div>
@@ -95,12 +95,16 @@ const Sidebar = ({ onGenerateDocument }) => {
         {/* Feature Flags Section */}
         <div className="sidebar-section">
           <h3 className="sidebar-title">Feature Flags</h3>
+          <p className="option-help" style={{ marginBottom: '10px', fontStyle: 'italic', color: '#888' }}>
+            🔧 Managed by server configuration
+          </p>
           <div className="option-list">
-            <label className="option-item" title="Enable instruction queue before sending to server">
+            <label className="option-item" title="Managed in server/config/server-config.json">
               <input
                 type="checkbox"
                 checked={enableInstructionStack}
-                onChange={toggleInstructionStack}
+                disabled
+                style={{ cursor: 'not-allowed', opacity: 0.7 }}
               />
               <span>Instruction Stack (Batch Mode)</span>
             </label>
@@ -110,11 +114,12 @@ const Sidebar = ({ onGenerateDocument }) => {
                 : '⚠️ Instructions will be sent immediately'}
             </p>
             
-            <label className="option-item" title="Enable version history tracking and restore">
+            <label className="option-item" title="Managed in server/config/server-config.json">
               <input
                 type="checkbox"
                 checked={enableVersioning}
-                onChange={toggleVersioning}
+                disabled
+                style={{ cursor: 'not-allowed', opacity: 0.7 }}
               />
               <span>Version History</span>
             </label>
@@ -122,6 +127,9 @@ const Sidebar = ({ onGenerateDocument }) => {
               {enableVersioning 
                 ? '✅ Document versions will be tracked' 
                 : '⚠️ Version history is disabled'}
+            </p>
+            <p className="option-help" style={{ marginTop: '10px', fontSize: '0.85em', color: '#666' }}>
+              💡 Edit <code style={{ background: '#f5f5f5', padding: '2px 4px', borderRadius: '3px' }}>server/config/server-config.json</code> to change
             </p>
           </div>
         </div>

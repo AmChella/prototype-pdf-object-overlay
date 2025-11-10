@@ -1,4 +1,8 @@
 {
+  "featureFlags": {
+    "enableInstructionStack": true,
+    "enableVersioning": true
+  },
   "dropdownOptions": {
     "figure": [
       {"value": "move_bottom", "label": "Move Bottom"},

@@ -146,6 +146,17 @@ class PDFOverlayServer {
         this.app.get('/api/config', (req, res) => {
             res.json(this.configManager.getConfig());
         });
+
+        // Get feature flags
+        this.app.get('/api/feature-flags', (req, res) => {
+            try {
+                const featureFlags = this.configManager.getFeatureFlags();
+                res.json(featureFlags);
+            } catch (error) {
+                console.error('Error getting feature flags:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
     }
 
     setupWebSocketHandlers() {
@@ -157,7 +168,8 @@ class PDFOverlayServer {
             this.sendToClient(ws, {
                 type: 'config',
                 data: {
-                    dropdownOptions: this.configManager.getAllDropdownOptions()
+                    dropdownOptions: this.configManager.getAllDropdownOptions(),
+                    featureFlags: this.configManager.getFeatureFlags()
                 }
             });
 

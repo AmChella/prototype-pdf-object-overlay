@@ -42,6 +42,23 @@ class ConfigManager {
         return this.config.dropdownOptions;
     }
 
+    getFeatureFlags() {
+        if (!this.config) {
+            throw new Error('Configuration not loaded. Call loadConfig() first.');
+        }
+        
+        return this.config.featureFlags || {};
+    }
+
+    getFeatureFlag(flagName) {
+        if (!this.config) {
+            throw new Error('Configuration not loaded. Call loadConfig() first.');
+        }
+        
+        const flags = this.config.featureFlags || {};
+        return flags[flagName];
+    }
+
     getXMLInstructionTemplate(overlayType, action) {
         if (!this.config) {
             throw new Error('Configuration not loaded. Call loadConfig() first.');
@@ -109,6 +126,7 @@ class ConfigManager {
         }
 
         const requiredSections = [
+            'featureFlags',
             'dropdownOptions',
             'xmlInstructionTemplates',
             'xmlProcessingRules',

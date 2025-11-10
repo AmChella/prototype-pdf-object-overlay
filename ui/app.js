@@ -565,10 +565,10 @@ function initializeApp() {
   console.log('🚀 Initializing PDF Overlay System...');
   console.log('📋 Document readyState:', document.readyState);
   
-  // Set PDF Standard (bottom-left) as default coordinate origin
+  // Set top-left as default coordinate origin (matches JSON generation)
   const coordOrigin = document.getElementById('coordinateOrigin');
   if (coordOrigin) {
-    coordOrigin.value = 'bottom-left';
+    coordOrigin.value = 'top-left';
   }
 
   // Show welcome message if no PDF is loaded

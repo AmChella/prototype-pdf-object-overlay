@@ -34,7 +34,7 @@ export const AppProvider = ({ children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [progressStages, setProgressStages] = useState([]);
-  const [coordinateOrigin, setCoordinateOrigin] = useState('bottom-left'); // 'top-left' or 'bottom-left'
+  const [coordinateOrigin, setCoordinateOrigin] = useState('top-left'); // 'top-left' or 'bottom-left'
   
   // WebSocket State
   const [isConnected, setIsConnected] = useState(false);
@@ -45,20 +45,10 @@ export const AppProvider = ({ children }) => {
   // Instruction Stack State
   const [instructionStack, setInstructionStack] = useState([]);
   
-  // Feature Flags
-  const [enableInstructionStack, setEnableInstructionStack] = useState(() => {
-    // Check localStorage for saved preference
-    const saved = localStorage.getItem('enableInstructionStack');
-    // Default to true if not set, or use saved value
-    return saved !== null ? saved === 'true' : true;
-  });
-  
-  const [enableVersioning, setEnableVersioning] = useState(() => {
-    // Check localStorage for saved preference
-    const saved = localStorage.getItem('enableVersioning');
-    // Default to true if not set, or use saved value
-    return saved !== null ? saved === 'true' : true;
-  });
+  // Feature Flags - These will be loaded from the server config
+  // Default values will be overridden when server config is received
+  const [enableInstructionStack, setEnableInstructionStack] = useState(true);
+  const [enableVersioning, setEnableVersioning] = useState(true);
   
   // PDF Actions
   const loadPDF = useCallback((pdf) => {
@@ -180,29 +170,17 @@ export const AppProvider = ({ children }) => {
   }, []);
   
   // Feature Flag Actions
+  // Note: Feature flags are managed by the server and cannot be toggled from UI
+  // These functions are kept for backward compatibility but log warnings
   const toggleInstructionStack = useCallback(() => {
-    setEnableInstructionStack(prev => {
-      const newValue = !prev;
-      localStorage.setItem('enableInstructionStack', newValue.toString());
-      console.log(`🎛️ Instruction stack feature ${newValue ? 'enabled' : 'disabled'}`);
-      
-      // Clear stack when disabling
-      if (!newValue) {
-        setInstructionStack([]);
-      }
-      
-      return newValue;
-    });
-  }, []);
+    console.warn('⚠️ Feature flags are now managed by the server. Edit server/config/server-config.json to change.');
+    console.log('💡 Current instruction stack status:', enableInstructionStack ? 'enabled' : 'disabled');
+  }, [enableInstructionStack]);
   
   const toggleVersioning = useCallback(() => {
-    setEnableVersioning(prev => {
-      const newValue = !prev;
-      localStorage.setItem('enableVersioning', newValue.toString());
-      console.log(`🎛️ Versioning feature ${newValue ? 'enabled' : 'disabled'}`);
-      return newValue;
-    });
-  }, []);
+    console.warn('⚠️ Feature flags are now managed by the server. Edit server/config/server-config.json to change.');
+    console.log('💡 Current versioning status:', enableVersioning ? 'enabled' : 'disabled');
+  }, [enableVersioning]);
   
   // Instruction Stack Actions
   const addInstruction = useCallback((instruction) => {
@@ -318,6 +296,8 @@ export const AppProvider = ({ children }) => {
     setHoveredOverlayId,
     setOverlaysVisible,
     setIsSearchOpen,
+    setEnableInstructionStack,
+    setEnableVersioning,
     
     // Actions
     loadPDF,

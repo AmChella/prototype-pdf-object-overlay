@@ -38,7 +38,9 @@ function AppContent() {
     toggleOverlays,
     selectedOverlayId,
     overlayData,
-    setOverlayData
+    setOverlayData,
+    setEnableInstructionStack,
+    setEnableVersioning
   } = useAppContext();
   const { loadPDF } = usePDF();
   const toast = useToast();
@@ -58,9 +60,29 @@ function AppContent() {
   const wsHandlers = {
     onConfig: (data) => {
       console.log('⚙️ Config received from server:', data);
-      if (data.data && data.data.dropdownOptions) {
-        setDropdownOptions(data.data.dropdownOptions);
-        console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
+      if (data.data) {
+        // Load dropdown options
+        if (data.data.dropdownOptions) {
+          setDropdownOptions(data.data.dropdownOptions);
+          console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
+        }
+        
+        // Load feature flags
+        if (data.data.featureFlags) {
+          const { enableInstructionStack, enableVersioning } = data.data.featureFlags;
+          
+          if (enableInstructionStack !== undefined) {
+            setEnableInstructionStack(enableInstructionStack);
+            console.log('✅ Feature flag - Instruction Stack:', enableInstructionStack);
+          }
+          
+          if (enableVersioning !== undefined) {
+            setEnableVersioning(enableVersioning);
+            console.log('✅ Feature flag - Versioning:', enableVersioning);
+          }
+          
+          console.log('✅ Feature flags loaded from server:', data.data.featureFlags);
+        }
       }
     },
     
