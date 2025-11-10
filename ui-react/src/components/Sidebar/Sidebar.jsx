@@ -3,7 +3,6 @@ import { useAppContext } from '../../context/AppContext';
 import FileUploader from '../FileUploader/FileUploader';
 import JSONUploader from '../JSONUploader/JSONUploader';
 import DocumentSelector from '../DocumentSelector/DocumentSelector';
-import VersionHistory from '../VersionHistory/VersionHistory';
 import './Sidebar.css';
 
 const Sidebar = ({ onGenerateDocument }) => {
@@ -14,8 +13,12 @@ const Sidebar = ({ onGenerateDocument }) => {
     totalPages,
     overlaysVisible,
     coordinateOrigin,
+    enableInstructionStack,
+    enableVersioning,
     toggleOverlays,
     setCoordinateOrigin,
+    toggleInstructionStack,
+    toggleVersioning,
     isConnected
   } = useAppContext();
   
@@ -59,13 +62,6 @@ const Sidebar = ({ onGenerateDocument }) => {
           </div>
         )}
         
-        {/* Version History Section */}
-        {isConnected && (
-          <div className="sidebar-section">
-            <VersionHistory />
-          </div>
-        )}
-        
         {/* Display Options Section */}
         <div className="sidebar-section">
           <h3 className="sidebar-title">Display Options</h3>
@@ -93,6 +89,40 @@ const Sidebar = ({ onGenerateDocument }) => {
                 <option value="top-left">Top-Left</option>
               </select>
             </div>
+          </div>
+        </div>
+        
+        {/* Feature Flags Section */}
+        <div className="sidebar-section">
+          <h3 className="sidebar-title">Feature Flags</h3>
+          <div className="option-list">
+            <label className="option-item" title="Enable instruction queue before sending to server">
+              <input
+                type="checkbox"
+                checked={enableInstructionStack}
+                onChange={toggleInstructionStack}
+              />
+              <span>Instruction Stack (Batch Mode)</span>
+            </label>
+            <p className="option-help">
+              {enableInstructionStack 
+                ? '✅ Instructions will be queued and sent in batch' 
+                : '⚠️ Instructions will be sent immediately'}
+            </p>
+            
+            <label className="option-item" title="Enable version history tracking and restore">
+              <input
+                type="checkbox"
+                checked={enableVersioning}
+                onChange={toggleVersioning}
+              />
+              <span>Version History</span>
+            </label>
+            <p className="option-help">
+              {enableVersioning 
+                ? '✅ Document versions will be tracked' 
+                : '⚠️ Version history is disabled'}
+            </p>
           </div>
         </div>
         

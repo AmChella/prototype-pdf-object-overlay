@@ -42,6 +42,24 @@ export const AppProvider = ({ children }) => {
   const [dropdownOptions, setDropdownOptions] = useState(null);
   const [send, setSend] = useState(() => () => false); // WebSocket send function
   
+  // Instruction Stack State
+  const [instructionStack, setInstructionStack] = useState([]);
+  
+  // Feature Flags
+  const [enableInstructionStack, setEnableInstructionStack] = useState(() => {
+    // Check localStorage for saved preference
+    const saved = localStorage.getItem('enableInstructionStack');
+    // Default to true if not set, or use saved value
+    return saved !== null ? saved === 'true' : true;
+  });
+  
+  const [enableVersioning, setEnableVersioning] = useState(() => {
+    // Check localStorage for saved preference
+    const saved = localStorage.getItem('enableVersioning');
+    // Default to true if not set, or use saved value
+    return saved !== null ? saved === 'true' : true;
+  });
+  
   // PDF Actions
   const loadPDF = useCallback((pdf) => {
     setCurrentPdf(pdf);
@@ -161,6 +179,101 @@ export const AppProvider = ({ children }) => {
     setIsProgressOpen(false);
   }, []);
   
+  // Feature Flag Actions
+  const toggleInstructionStack = useCallback(() => {
+    setEnableInstructionStack(prev => {
+      const newValue = !prev;
+      localStorage.setItem('enableInstructionStack', newValue.toString());
+      console.log(`🎛️ Instruction stack feature ${newValue ? 'enabled' : 'disabled'}`);
+      
+      // Clear stack when disabling
+      if (!newValue) {
+        setInstructionStack([]);
+      }
+      
+      return newValue;
+    });
+  }, []);
+  
+  const toggleVersioning = useCallback(() => {
+    setEnableVersioning(prev => {
+      const newValue = !prev;
+      localStorage.setItem('enableVersioning', newValue.toString());
+      console.log(`🎛️ Versioning feature ${newValue ? 'enabled' : 'disabled'}`);
+      return newValue;
+    });
+  }, []);
+  
+  // Instruction Stack Actions
+  const addInstruction = useCallback((instruction) => {
+    // Only add if feature is enabled
+    if (!enableInstructionStack) {
+      console.warn('⚠️ Instruction stack feature is disabled');
+      return null;
+    }
+    
+    const newInstruction = {
+      ...instruction,
+      id: Date.now(), // Unique ID
+      timestamp: new Date().toISOString()
+    };
+    setInstructionStack(prev => [...prev, newInstruction]);
+    console.log('📝 Added instruction to stack:', newInstruction);
+    return newInstruction;
+  }, [enableInstructionStack]);
+  
+  const removeInstruction = useCallback((instructionId) => {
+    setInstructionStack(prev => prev.filter(i => i.id !== instructionId));
+    console.log('🗑️ Removed instruction:', instructionId);
+  }, []);
+  
+  const clearInstructionStack = useCallback(() => {
+    setInstructionStack([]);
+    console.log('🧹 Cleared instruction stack');
+  }, []);
+  
+  const sendBatchInstructions = useCallback(async () => {
+    if (!enableInstructionStack) {
+      console.warn('⚠️ Instruction stack feature is disabled');
+      return false;
+    }
+    
+    if (instructionStack.length === 0) {
+      console.warn('⚠️ No instructions to send');
+      return false;
+    }
+    
+    if (!send || typeof send !== 'function') {
+      console.error('❌ WebSocket send function not available');
+      return false;
+    }
+    
+    console.log(`🚀 Sending ${instructionStack.length} batch instructions`);
+    console.log('📦 Instruction stack:', instructionStack);
+    
+    const message = {
+      type: 'batch_instructions',
+      instructions: instructionStack.map(i => ({
+        elementId: i.elementId,
+        overlayType: i.overlayType,
+        instruction: i.instruction,
+        instructionValue: i.instructionValue
+      })),
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📤 Sending message:', JSON.stringify(message, null, 2));
+    
+    const success = send(message);
+    
+    if (success) {
+      // Clear stack after sending
+      clearInstructionStack();
+    }
+    
+    return success;
+  }, [enableInstructionStack, instructionStack, send, clearInstructionStack]);
+  
   const value = {
     // State
     currentPdf,
@@ -184,6 +297,9 @@ export const AppProvider = ({ children }) => {
     ws,
     dropdownOptions,
     send,
+    instructionStack,
+    enableInstructionStack,
+    enableVersioning,
     
     // Setters (for direct state updates)
     setCurrentPdf,
@@ -221,6 +337,12 @@ export const AppProvider = ({ children }) => {
     closeModal,
     showProgress,
     hideProgress,
+    addInstruction,
+    removeInstruction,
+    clearInstructionStack,
+    sendBatchInstructions,
+    toggleInstructionStack,
+    toggleVersioning,
   };
   
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

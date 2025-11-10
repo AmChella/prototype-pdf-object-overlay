@@ -5,7 +5,11 @@ import './ActionModal.css';
 
 const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
   const [selectedAction, setSelectedAction] = useState('');
-  const { dropdownOptions: serverDropdownOptions } = useAppContext();
+  const { 
+    dropdownOptions: serverDropdownOptions, 
+    addInstruction,
+    enableInstructionStack 
+  } = useAppContext();
   const toast = useToast();
   
   useEffect(() => {
@@ -103,17 +107,39 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
       return;
     }
     
-    if (onSubmit) {
-      const baseElementId = getBaseElementId(overlay.id);
+    // Get the action label for display
+    const actionOption = actionOptions.find(opt => opt.value === selectedAction);
+    const actionLabel = actionOption ? actionOption.label : selectedAction;
+    
+    const baseElementId = getBaseElementId(overlay.id);
+    
+    const instruction = {
+      elementId: baseElementId,
+      overlayType: overlayType,
+      instruction: selectedAction,
+      instructionValue: undefined, // Can be extended in the future for actions that need values
+      instructionLabel: actionLabel,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Check if instruction stack feature is enabled
+    if (enableInstructionStack) {
+      // Add to stack - will be sent when "Update Document" is clicked
+      const added = addInstruction(instruction);
       
-      onSubmit({
-        elementId: baseElementId, // Use base ID without segment suffix
-        overlayType: overlayType,
-        instruction: selectedAction,
-        timestamp: new Date().toISOString()
-      });
-      
-      console.log(`📤 Sending instruction for element: ${baseElementId} (original: ${overlay.id})`);
+      if (added) {
+        toast.showSuccess(`✅ Instruction added to queue`, {
+          duration: 2000
+        });
+        console.log(`📝 Added instruction to stack for element: ${baseElementId} (original: ${overlay.id})`);
+      }
+    } else {
+      // Feature disabled - send immediately (legacy behavior)
+      if (onSubmit) {
+        onSubmit(instruction);
+        toast.showInfo(`📤 Sending instruction...`);
+        console.log(`📤 Sending instruction immediately for element: ${baseElementId} (original: ${overlay.id})`);
+      }
     }
     
     onClose();
@@ -193,9 +219,9 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
             className="btn-primary" 
             onClick={handleSubmit}
             disabled={!selectedAction}
-            title={!selectedAction ? 'Please select an action first' : 'Send instruction to server'}
+            title={!selectedAction ? 'Please select an action first' : (enableInstructionStack ? 'Add instruction to queue' : 'Send instruction to server')}
           >
-            {selectedAction ? 'Send Instruction' : 'Select Action First'}
+            {selectedAction ? (enableInstructionStack ? 'Add to Queue' : 'Send Instruction') : 'Select Action First'}
           </button>
         </div>
       </div>

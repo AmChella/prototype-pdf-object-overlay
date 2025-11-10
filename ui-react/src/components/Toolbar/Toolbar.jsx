@@ -1,6 +1,8 @@
 import React from 'react';
 import { useAppContext } from '../../context/AppContext';
 import SearchBar from '../SearchBar/SearchBar';
+import InstructionStack from '../InstructionStack/InstructionStack';
+import VersionHistory from '../VersionHistory/VersionHistory';
 import './Toolbar.css';
 
 const Toolbar = () => {
@@ -175,6 +177,14 @@ const Toolbar = () => {
         >
           <span>👁️</span>
         </button>
+        
+        <div className="toolbar-separator"></div>
+        
+        {/* Instruction Stack - Collapsible */}
+        <InstructionStack />
+        
+        {/* Version History - Collapsible */}
+        {isConnected && <VersionHistory />}
         
         <div className="toolbar-separator"></div>
         

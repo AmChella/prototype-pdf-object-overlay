@@ -612,6 +612,9 @@ function initializeApp() {
   
   // Setup toolbar controls
   setupToolbarControls();
+  
+  // Setup instruction stack
+  setupInstructionStack();
 }
 
 // Check if DOM is already loaded (script at end of body)
@@ -1778,6 +1781,7 @@ let currentClickedId = null;
 let currentOverlayType = null;
 let ws = null;
 let dropdownOptions = {};
+let instructionStack = []; // Stack of pending instructions
 
 // WebSocket connection
 function initWebSocket() {
@@ -2425,37 +2429,33 @@ sendBtn.addEventListener("click", async () => {
         return;
     }
 
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert("WebSocket connection not available. Please check server connection.");
-        return;
-    }
+    // Get the selected option text for display
+    const selectedOption = actionSelect.options[actionSelect.selectedIndex];
+    const actionLabel = selectedOption ? selectedOption.textContent : selectedAction;
 
-    // Send instruction via WebSocket
-    const message = {
-        type: 'instruction',
+    // Add instruction to stack instead of sending immediately
+    const instruction = {
+        id: Date.now(), // Unique ID for this instruction
         elementId: currentClickedId,
         overlayType: currentOverlayType,
         instruction: selectedAction,
+        instructionLabel: actionLabel,
         timestamp: new Date().toISOString()
     };
 
-    console.log('📤 Sending instruction:', message);
+    instructionStack.push(instruction);
+    console.log('📝 Added instruction to stack:', instruction);
 
-    try {
-        ws.send(JSON.stringify(message));
+    // Update instruction stack UI
+    updateInstructionStackUI();
 
-        // Close modal
-        modal.style.display = "none";
-        currentClickedId = null;
-        currentOverlayType = null;
+    // Close modal
+    modal.style.display = "none";
+    currentClickedId = null;
+    currentOverlayType = null;
 
-        // Show processing notification
-        showProcessingNotification(`Sending ${currentOverlayType} instruction...`);
-
-    } catch (error) {
-        console.error('❌ Failed to send instruction:', error);
-        alert("Failed to send instruction: " + error.message);
-    }
+    // Show notification
+    showProcessingNotification(`✅ Instruction added to queue (${instructionStack.length} total)`, 'success');
 });
 
 // Simple Progress Modal Management
@@ -2865,3 +2865,143 @@ function toggleOverlaySelector() {
     selector.classList.toggle('collapsed');
   }
 }
+
+// ===== Instruction Stack Management =====
+
+function updateInstructionStackUI() {
+    const stackPanel = document.getElementById('instructionStack');
+    const stackList = document.getElementById('instructionStackList');
+    const stackCount = document.getElementById('instructionStackCount');
+    const updateAllBtn = document.getElementById('updateAllBtn');
+
+    // Always show the panel
+    stackPanel.style.display = 'flex';
+    
+    // Update count (always show, even if 0)
+    stackCount.textContent = instructionStack.length || 0;
+
+    if (instructionStack.length > 0) {
+        stackList.innerHTML = '';
+
+        // Add each instruction to the list
+        instructionStack.forEach((instruction, index) => {
+            const item = document.createElement('div');
+            item.className = 'instruction-stack-item';
+            item.dataset.instructionId = instruction.id;
+
+            item.innerHTML = `
+                <div class="instruction-stack-item-header">
+                    <span class="instruction-stack-item-number">#${index + 1}</span>
+                    <button class="instruction-stack-item-remove" data-instruction-id="${instruction.id}">✕</button>
+                </div>
+                <div class="instruction-stack-item-element">
+                    ${instruction.elementId}
+                    <span class="instruction-stack-item-type">${instruction.overlayType}</span>
+                </div>
+                <div class="instruction-stack-item-action">
+                    ${instruction.instructionLabel || instruction.instruction}
+                </div>
+            `;
+
+            stackList.appendChild(item);
+        });
+
+        // Enable update button
+        updateAllBtn.disabled = false;
+
+        // Add event listeners to remove buttons
+        const removeButtons = stackList.querySelectorAll('.instruction-stack-item-remove');
+        removeButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const instructionId = parseInt(e.target.dataset.instructionId);
+                removeInstructionFromStack(instructionId);
+            });
+        });
+
+    } else {
+        stackList.innerHTML = '<div class="instruction-stack-empty">No instructions queued</div>';
+        updateAllBtn.disabled = true;
+    }
+}
+
+function removeInstructionFromStack(instructionId) {
+    const index = instructionStack.findIndex(i => i.id === instructionId);
+    if (index !== -1) {
+        const removed = instructionStack.splice(index, 1)[0];
+        console.log('🗑️ Removed instruction from stack:', removed);
+        updateInstructionStackUI();
+        showProcessingNotification(`Instruction removed (${instructionStack.length} remaining)`, 'info');
+    }
+}
+
+function clearInstructionStack() {
+    instructionStack = [];
+    updateInstructionStackUI();
+    // Panel stays visible with count = 0
+    showProcessingNotification('All instructions cleared', 'info');
+}
+
+async function sendAllInstructions() {
+    if (instructionStack.length === 0) {
+        alert('No instructions to send');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('WebSocket connection not available. Please check server connection.');
+        return;
+    }
+
+    console.log(`🚀 Sending ${instructionStack.length} instructions to server...`);
+
+    // Send batch instruction message
+    const message = {
+        type: 'batch_instructions',
+        instructions: instructionStack.map(i => ({
+            elementId: i.elementId,
+            overlayType: i.overlayType,
+            instruction: i.instruction
+        })),
+        timestamp: new Date().toISOString()
+    };
+
+    console.log('📤 Sending batch instructions:', message);
+
+    try {
+        ws.send(JSON.stringify(message));
+
+        // Clear the stack after sending
+        instructionStack = [];
+        updateInstructionStackUI();
+        // Panel stays visible with count = 0
+
+        // Show processing notification
+        showProcessingNotification(`Processing ${message.instructions.length} instructions...`, 'info');
+
+    } catch (error) {
+        console.error('❌ Failed to send instructions:', error);
+        alert('Failed to send instructions: ' + error.message);
+    }
+}
+
+// Setup instruction stack event listeners
+function setupInstructionStack() {
+    const updateAllBtn = document.getElementById('updateAllBtn');
+    const clearStackBtn = document.getElementById('clearStackBtn');
+
+    if (updateAllBtn) {
+        updateAllBtn.addEventListener('click', sendAllInstructions);
+    }
+
+    if (clearStackBtn) {
+        clearStackBtn.addEventListener('click', () => {
+            if (confirm(`Clear all ${instructionStack.length} instructions?`)) {
+                clearInstructionStack();
+            }
+        });
+    }
+    
+    // Initialize the UI to show count = 0 on page load
+    updateInstructionStackUI();
+}
+

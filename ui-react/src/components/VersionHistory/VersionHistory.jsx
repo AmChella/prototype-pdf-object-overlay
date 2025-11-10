@@ -40,7 +40,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, version }) => {
  * Displays document version history and allows navigation between versions
  */
 const VersionHistory = () => {
-  const { isConnected, send } = useAppContext();
+  const { isConnected, send, enableVersioning } = useAppContext();
   const [versions, setVersions] = useState([]);
   const [stats, setStats] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -110,6 +110,11 @@ const VersionHistory = () => {
   }, [isConnected, currentDocument, isExpanded]);
   
   const fetchVersionHistory = () => {
+    if (!enableVersioning) {
+      console.warn('⚠️ Versioning is disabled');
+      return;
+    }
+    
     if (!isConnected) {
       console.warn('⚠️ Not connected, cannot fetch version history');
       return;
@@ -128,6 +133,11 @@ const VersionHistory = () => {
   };
   
   const fetchVersionStats = () => {
+    if (!enableVersioning) {
+      console.warn('⚠️ Versioning is disabled');
+      return;
+    }
+    
     if (!isConnected) {
       console.warn('⚠️ Not connected, cannot fetch version stats');
       return;
@@ -142,11 +152,16 @@ const VersionHistory = () => {
   };
   
   const handleRestoreVersion = (versionNumber) => {
-    if (!isConnected) return;
+    if (!enableVersioning || !isConnected) return;
     setConfirmModal({ isOpen: true, versionNumber });
   };
 
   const confirmRestore = () => {
+    if (!enableVersioning) {
+      console.warn('⚠️ Versioning is disabled');
+      return;
+    }
+    
     setLoading(true);
     send({
       type: 'restoreVersion',
@@ -179,16 +194,18 @@ const VersionHistory = () => {
     return `${instruction} → ${elementId}`;
   };
   
-  if (!isConnected) {
-    return (
-      <div className="version-history">
-        <div className="version-header">
-          <h3 className="version-title">Version History</h3>
-          <span className="version-status disconnected">Disconnected</span>
-        </div>
-      </div>
-    );
+  // Don't render if versioning is disabled
+  if (!enableVersioning) {
+    return null;
   }
+  
+  const toggleExpanded = () => {
+    if (isConnected) {
+      setIsExpanded(!isExpanded);
+    }
+  };
+  
+  const versionCount = stats?.totalVersions || versions.length || 0;
   
   return (
     <>
@@ -199,39 +216,32 @@ const VersionHistory = () => {
         version={confirmModal.versionNumber}
       />
       <div className="version-history">
-        {/* Header */}
-        <div className="version-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="version-title-row">
-          <h3 className="version-title">
-            <span className="icon">🕒</span>
-            Version History
-          </h3>
-          <button className="expand-btn" aria-label="Toggle version history">
-            {isExpanded ? '▼' : '▶'}
-          </button>
-        </div>
-        
-        {/* Stats Summary */}
-        {stats && (
-          <div className="version-stats-summary">
-            <span className="stat-item">
-              <strong>{stats.totalVersions || 0}</strong> versions
-            </span>
-            {stats.activeVersion && (
-              <span className="stat-item active">
-                v{stats.activeVersion} active
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {/* Expanded Version List */}
-      {isExpanded && (
+        {/* Compact Toggle Button */}
+        <button 
+          className="version-history-toggle" 
+          onClick={toggleExpanded}
+          title={isConnected ? (isExpanded ? 'Collapse' : 'Expand') : 'Disconnected'}
+          disabled={!isConnected}
+        >
+          <span className="version-history-label">🕒</span>
+          <span className="version-history-count">{versionCount}</span>
+          {isConnected && <span className="version-history-arrow">{isExpanded ? '▼' : '▶'}</span>}
+        </button>
+
+        {/* Dropdown Panel */}
+        {isExpanded && isConnected && (
+          <div className="version-history-dropdown">
+            <div className="version-header">
+              <span className="version-title">{versionCount} VERSIONS</span>
+              {stats?.activeVersion && (
+                <span className="version-active">v{stats.activeVersion}</span>
+              )}
+            </div>
+            
+            {/* Version Content */}
         <div className="version-content">
           {/* Document Selector */}
           <div className="version-document-selector">
-            <label htmlFor="version-doc-select">Document:</label>
             <select
               id="version-doc-select"
               value={currentDocument}
@@ -245,6 +255,7 @@ const VersionHistory = () => {
               onClick={fetchVersionHistory}
               className="refresh-btn"
               disabled={loading}
+              title="Refresh"
             >
               🔄
             </button>
@@ -273,62 +284,42 @@ const VersionHistory = () => {
                   key={version._id || version.versionNumber}
                   className={`version-item ${version.isActive ? 'active' : ''}`}
                 >
-                  <div className="version-item-header">
-                    <span className="version-number">
-                      v{version.versionNumber}
-                      {version.isActive && <span className="active-badge">●</span>}
-                    </span>
-                    <span className="version-time">
-                      {formatTimestamp(version.timestamp)}
-                    </span>
-                  </div>
-                  
-                  <div className="version-item-body">
-                    <div className="version-description">
-                      {version.description || formatInstruction(version)}
+                  <div className="version-item-content">
+                    <div className="version-item-left">
+                      <span className="version-number">
+                        v{version.versionNumber}
+                        {version.isActive && <span className="active-badge">●</span>}
+                      </span>
+                      <span className="version-time">{formatTimestamp(version.timestamp)}</span>
                     </div>
                     
-                    {version.instruction && (
-                      <div className="version-details">
-                        <span className="version-detail-item">
-                          <strong>Action:</strong> {String(version.instruction)}
-                        </span>
-                        {version.elementId && (
-                          <span className="version-detail-item">
-                            <strong>Element:</strong> {String(version.elementId)}
-                          </span>
-                        )}
-                        {version.overlayType && (
-                          <span className="version-detail-item">
-                            <strong>Type:</strong> {String(version.overlayType)}
-                          </span>
-                        )}
+                    <div className="version-item-center">
+                      <div className="version-description">
+                        {version.description || formatInstruction(version)}
                       </div>
-                    )}
-                    
-                    <div className="version-meta">
-                      <span className="version-user">👤 {version.userId || 'system'}</span>
-                      <span className="version-hash">#{version.versionHash || 'unknown'}</span>
+                      {version.elementId && (
+                        <div className="version-element">{version.elementId}</div>
+                      )}
                     </div>
-                  </div>
-                  
-                  {!version.isActive && (
-                    <div className="version-item-actions">
+                    
+                    {!version.isActive && (
                       <button
                         onClick={() => handleRestoreVersion(version.versionNumber)}
                         className="restore-btn"
                         disabled={loading}
+                        title="Restore"
                       >
-                        ↺ Restore
+                        ↺
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
+          </div>
+        )}
       </div>
     </>
   );

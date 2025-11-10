@@ -67,24 +67,47 @@ function AppContent() {
     onProcessingStarted: (data) => {
       console.log('🎯 Processing started:', data);
       
-      toast.showInfo(`Processing ${data.overlayType} instruction...`);
+      // Check if this is a batch operation
+      const isBatch = data.batchSize > 0;
       
-      // Show progress modal
-      setProgress({
-        isOpen: true,
-        title: `Processing ${data.instruction} on ${data.elementId}...`,
-        progress: 0,
-        status: 'Applying instruction to XML...',
-        stages: [
-          { label: 'Applying Instruction', status: 'active' },
-          { label: 'Regenerating PDF', status: 'pending' },
-          { label: 'Loading Results', status: 'pending' }
-        ]
-      });
+      if (isBatch) {
+        toast.showInfo(`Processing ${data.batchSize} instructions...`);
+        
+        // Show progress modal for batch
+        setProgress({
+          isOpen: true,
+          title: `Processing ${data.batchSize} Instructions...`,
+          progress: 0,
+          status: 'Applying instructions to XML...',
+          stages: [
+            { label: `Applying ${data.batchSize} Instructions`, status: 'active' },
+            { label: 'Regenerating PDF', status: 'pending' },
+            { label: 'Loading Results', status: 'pending' }
+          ]
+        });
+      } else {
+        toast.showInfo(`Processing ${data.overlayType} instruction...`);
+        
+        // Show progress modal for single instruction
+        setProgress({
+          isOpen: true,
+          title: `Processing ${data.instruction} on ${data.elementId}...`,
+          progress: 0,
+          status: 'Applying instruction to XML...',
+          stages: [
+            { label: 'Applying Instruction', status: 'active' },
+            { label: 'Regenerating PDF', status: 'pending' },
+            { label: 'Loading Results', status: 'pending' }
+          ]
+        });
+      }
     },
     
     onProcessingComplete: async (data) => {
       console.log('✅ Processing complete:', data);
+      
+      // Check if this was a batch operation
+      const isBatch = data.batchSize > 0;
       
       setProgress(prev => ({
         ...prev,
@@ -93,7 +116,11 @@ function AppContent() {
         stages: prev.stages.map(s => ({ ...s, status: 'completed' }))
       }));
       
-      toast.showSuccess('Document updated successfully!');
+      if (isBatch) {
+        toast.showSuccess(`All ${data.batchSize} instructions processed successfully!`);
+      } else {
+        toast.showSuccess('Document updated successfully!');
+      }
       
       // Load the updated PDF and JSON
       if (data.result && data.result.pdfPath && data.result.jsonPath) {

@@ -2,7 +2,9 @@
   "dropdownOptions": {
     "figure": [
       {"value": "move_bottom", "label": "Move Bottom"},
-      {"value": "move_top", "label": "Move Top"}
+      {"value": "move_top", "label": "Move Top"},
+      {"value": "move_to_section_start", "label": "Move to Section Start (Left Column)"},
+      {"value": "move_to_section_end", "label": "Move to Section End (Right Column)"}
     ],
     "paragraph": [
       {"value": "para_tight", "label": "Para Tight"},
@@ -16,7 +18,9 @@
   "xmlInstructionTemplates": {
     "figure": {
       "move_bottom": "<instruction type=\"figure\" action=\"move_bottom\" target=\"{elementId}\" />",
-      "move_top": "<instruction type=\"figure\" action=\"move_top\" target=\"{elementId}\" />"
+      "move_top": "<instruction type=\"figure\" action=\"move_top\" target=\"{elementId}\" />",
+      "move_to_section_start": "<instruction type=\"figure\" action=\"move_to_section_start\" target=\"{elementId}\" />",
+      "move_to_section_end": "<instruction type=\"figure\" action=\"move_to_section_end\" target=\"{elementId}\" />"
     },
     "paragraph": {
       "para_tight": "<instruction type=\"paragraph\" action=\"para_tight\" target=\"{elementId}\" spacing=\"tight\" />",
@@ -40,6 +44,17 @@
         "operation": "setAttribute",
         "attribute": "placement",
         "value": "[t]"
+      },
+      "move_to_section_start": {
+        "xpath": "//figure[@id='{elementId}']",
+        "operation": "moveToParentStart",
+        "parentTag": "section",
+        "afterTags": ["title", "note"]
+      },
+      "move_to_section_end": {
+        "xpath": "//figure[@id='{elementId}']",
+        "operation": "moveToParentEnd",
+        "parentTag": "section"
       }
     },
     "paragraph": {
@@ -75,6 +90,7 @@
     "figure": {
       "placement_t": "\\begin{figure}[t]",
       "placement_b": "\\begin{figure}[b]",
+      "placement_h": "\\begin{figure}[!h]",
       "default": "\\begin{figure}[htbp]"
     },
     "paragraph": {

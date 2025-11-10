@@ -198,6 +198,10 @@ class PDFOverlayServer {
                 await this.processInstruction(ws, data);
                 break;
 
+            case 'batch_instructions':
+                await this.processBatchInstructions(ws, data);
+                break;
+
             case 'ping':
                 this.sendToClient(ws, { type: 'pong', timestamp: Date.now() });
                 break;
@@ -483,6 +487,182 @@ class PDFOverlayServer {
                 type: 'processing_error',
                 elementId: data.elementId,
                 error: error.message
+            });
+        }
+    }
+
+    async processBatchInstructions(ws, data) {
+        try {
+            console.log('📦 Received batch instructions data:', JSON.stringify(data, null, 2));
+            
+            const { instructions } = data;
+            
+            // Validate instructions array
+            if (!instructions || !Array.isArray(instructions)) {
+                console.error('❌ Invalid instructions:', instructions);
+                throw new Error('Instructions array is required');
+            }
+            
+            if (instructions.length === 0) {
+                throw new Error('Instructions array is empty');
+            }
+            
+            const instructionCount = instructions.length;
+
+            // Validate each instruction has required fields
+            for (let i = 0; i < instructions.length; i++) {
+                const inst = instructions[i];
+                if (!inst.elementId) {
+                    throw new Error(`Instruction ${i + 1} is missing elementId`);
+                }
+                if (!inst.overlayType) {
+                    throw new Error(`Instruction ${i + 1} is missing overlayType`);
+                }
+                if (!inst.instruction) {
+                    throw new Error(`Instruction ${i + 1} is missing instruction`);
+                }
+            }
+
+            console.log(`🚀 Processing ${instructionCount} batch instructions`);
+
+            // Send processing started notification
+            this.sendToClient(ws, {
+                type: 'processing_started',
+                batchSize: instructionCount
+            });
+
+            // Determine correct XML and template paths based on current document
+            let xmlPath, templatePath, outputName;
+            if (this.currentDocument === 'ENDEND10921') {
+                xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
+                templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
+                outputName = 'ENDEND10921-generated';
+            } else if (this.currentDocument === 'document') {
+                xmlPath = path.join(this.projectRoot, 'xml/document.xml');
+                templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
+                outputName = 'document-generated';
+            } else {
+                console.warn('⚠️  No current document set, using config defaults');
+                xmlPath = this.configManager.getFilePath('xmlInput');
+                templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
+                outputName = 'document-generated';
+            }
+
+            console.log(`📋 Using document: ${this.currentDocument || 'default'}`);
+            console.log(`📄 XML path: ${xmlPath}`);
+
+            // Apply all instructions sequentially to XML
+            for (let i = 0; i < instructions.length; i++) {
+                const instruction = instructions[i];
+                const progress = Math.round((i / instructionCount) * 30); // 0-30% for XML processing
+
+                console.log(`📝 Applying instruction ${i + 1}/${instructionCount}: ${instruction.instruction} to ${instruction.elementId}`);
+
+                this.sendToClient(ws, {
+                    type: 'processing_progress',
+                    progress: progress,
+                    message: `Applying instruction ${i + 1}/${instructionCount}: ${instruction.instruction} to ${instruction.elementId}`
+                });
+
+                const result = await this.xmlProcessor.applyInstruction(
+                    instruction.elementId,
+                    instruction.overlayType,
+                    instruction.instruction,
+                    instruction.instructionValue,
+                    xmlPath
+                );
+
+                if (!result.success) {
+                    throw new Error(`Failed to apply instruction ${i + 1}: ${result.error}`);
+                }
+            }
+
+            console.log('✅ All instructions applied to XML');
+
+            // Convert XML to TeX
+            console.log('🔄 Converting XML to TeX...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 40,
+                message: 'Converting modified XML to TeX...'
+            });
+
+            const texResult = await this.documentConverter.xmlToTex(xmlPath, templatePath, outputName);
+
+            if (!texResult.success) {
+                throw new Error(texResult.error);
+            }
+
+            // Convert TeX to PDF and generate JSON
+            console.log('📄 Converting TeX to PDF and generating coordinates...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 60,
+                message: 'Compiling updated PDF...'
+            });
+
+            const pdfResult = await this.documentConverter.texToPdf(texResult.texPath, outputName);
+
+            if (!pdfResult.success) {
+                throw new Error(pdfResult.error);
+            }
+
+            // Copy files to UI directory
+            console.log('📁 Copying files to UI directory...');
+            this.sendToClient(ws, {
+                type: 'processing_progress',
+                progress: 90,
+                message: 'Copying updated files...'
+            });
+
+            const uiDir = path.join(this.projectRoot, 'ui');
+            await fs.promises.copyFile(pdfResult.pdfPath, path.join(uiDir, path.basename(pdfResult.pdfPath)));
+            await fs.promises.copyFile(pdfResult.jsonPath, path.join(uiDir, path.basename(pdfResult.jsonPath)));
+
+            // Save version after successful batch processing
+            try {
+                await this.versionManager.saveVersion({
+                    documentName: this.currentDocument || 'document',
+                    instruction: 'batch_update',
+                    instructionValue: `${instructionCount} instructions`,
+                    elementId: 'multiple',
+                    overlayType: 'batch',
+                    xmlPath: xmlPath,
+                    texPath: texResult.texPath,
+                    pdfPath: pdfResult.pdfPath,
+                    jsonPath: pdfResult.jsonPath,
+                    templatePath: templatePath,
+                    userId: data.userId || 'system',
+                    description: `Applied ${instructionCount} batch instructions`
+                });
+
+                console.log('💾 Version saved successfully');
+            } catch (versionError) {
+                console.error('⚠️  Failed to save version:', versionError);
+            }
+
+            // Notify client of successful completion
+            this.broadcastToAllClients({
+                type: 'processing_complete',
+                batchSize: instructionCount,
+                result: {
+                    pdfPath: path.join(uiDir, path.basename(pdfResult.pdfPath)),
+                    jsonPath: path.join(uiDir, path.basename(pdfResult.jsonPath)),
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log(`✅ Batch processing completed successfully (${instructionCount} instructions)`);
+
+        } catch (error) {
+            console.error('❌ Error processing batch instructions:', error);
+            console.error('❌ Error stack:', error.stack);
+
+            this.sendToClient(ws, {
+                type: 'processing_error',
+                batchSize: data.instructions?.length || 0,
+                error: error.message,
+                details: error.stack
             });
         }
     }
