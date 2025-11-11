@@ -181,7 +181,7 @@ function generateNdjson(positions, pageDimensions, columnSettings, outputPath) {
                 type = 'unknown';
             }
         }
-        
+
         return JSON.stringify({
             id: pos.id,
             role: pos.role,
@@ -263,8 +263,9 @@ function groupPositionsByIdOnly(positions) {
  * @param {Array} positions - Array of position records
  * @param {Object} pageDimensions - Page dimensions
  * @param {Object} segmentInfo - Optional segment information {totalSegments, segmentIndex}
+ * @param {Map} pageColumnMode - Map of page -> boolean (true if two-column mode)
  */
-function calculateBoundingBox(positions, pageDimensions, segmentInfo = null) {
+function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pageColumnMode = null) {
     // Find start and end records
     let startRecord = null;
     let endRecord = null;
@@ -330,13 +331,21 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null) {
             // Longtables in single-column mode: use textwidth
             console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, longtable), using textwidth`);
             wPt = textWidthPt;
-        } else if (isParagraph && isMultiColumn && Math.abs(x1Pt - x2Pt) < 1 && sameColumn && !isMultiSegment) {
-            // Paragraphs with same X position AND same column in multi-column layout:
-            // This indicates single-column content (like abstract) in a two-column document
-            // But NOT for segments of a multi-segment paragraph
-            // Use textwidth to span the full width
-            console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, single-column para in two-column doc), using textwidth`);
-            wPt = textWidthPt;
+        } else if (isParagraph && isMultiColumn && Math.abs(x1Pt - x2Pt) < 1 && !isMultiSegment) {
+            // Paragraphs with same X position in multi-column layout
+            // Check if the page is truly in two-column mode
+            const page = startRecord.page;
+            const pageIsTwoColumn = pageColumnMode ? pageColumnMode.get(page) : true; // Default to two-column if unknown
+            
+            if (!pageIsTwoColumn) {
+                // Page is in single-column mode (e.g., abstract) - use textwidth
+                console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, single-column page), using textwidth`);
+                wPt = textWidthPt;
+            } else {
+                // Page is in two-column mode - use columnwidth
+                console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, col=${startRecord.col}, two-column page), using column width`);
+                wPt = columnWidthPt;
+            }
         } else {
             // Default case: use column width
             // This includes segments of multi-segment paragraphs
@@ -443,7 +452,7 @@ function detectSpanning(positions, columnSettings) {
  * Split positions into segments based on page AND column boundaries
  * Uses the 'col' field from NDJSON to properly split across columns
  */
-function splitIntoSegments(positions, pageDimensions, columnSettings) {
+function splitIntoSegments(positions, pageDimensions, columnSettings, col0StartPt, col1StartPt) {
     // Group positions by (page, column) to identify all segments
     const segmentMap = new Map();
     
@@ -525,20 +534,18 @@ function splitIntoSegments(positions, pageDimensions, columnSettings) {
         
         // Calculate column boundaries for synthetic markers
         const cwPt = spToPt(refPos.cwsp || 15456563); // column width
-        const colsepPt = spToPt(refPos.colsep || 786432); // column separation
-        const leftMarginPt = 56.91; // Standard LaTeX margin
         
+        // Use detected column starts instead of hardcoded values
         // Calculate X positions based on column
         let syntheticStartXSp, syntheticEndXSp;
         if (segment.column === 0) {
-            // Left column: start at left margin, end at right edge of column
-            syntheticStartXSp = String(Math.round(leftMarginPt * 65536));
-            syntheticEndXSp = String(Math.round((leftMarginPt + cwPt) * 65536));
+            // Left column: use detected start position
+            syntheticStartXSp = String(Math.round(col0StartPt * 65536));
+            syntheticEndXSp = String(Math.round((col0StartPt + cwPt) * 65536));
         } else {
-            // Right column: start at left edge, end at right edge
-            const rightColStartPt = leftMarginPt + cwPt + colsepPt;
-            syntheticStartXSp = String(Math.round(rightColStartPt * 65536));
-            syntheticEndXSp = String(Math.round((rightColStartPt + cwPt) * 65536));
+            // Right column: use detected start position
+            syntheticStartXSp = String(Math.round(col1StartPt * 65536));
+            syntheticEndXSp = String(Math.round((col1StartPt + cwPt) * 65536));
         }
         
         if (!startPos) {
@@ -582,14 +589,14 @@ function splitIntoSegments(positions, pageDimensions, columnSettings) {
 /**
  * Calculate bounding box for a segment
  */
-function calculateBoundingBoxForSegment(segment, pageDimensions, baseId) {
+function calculateBoundingBoxForSegment(segment, pageDimensions, baseId, pageColumnMode) {
     // Pass segment info to calculateBoundingBox for proper width calculation
     const segmentInfo = segment.totalSegments > 1 ? {
         totalSegments: segment.totalSegments,
         segmentIndex: segment.segmentIndex
     } : null;
     
-    const bbox = calculateBoundingBox(segment.positions, pageDimensions, segmentInfo);
+    const bbox = calculateBoundingBox(segment.positions, pageDimensions, segmentInfo, pageColumnMode);
     
     if (!bbox) return null;
     
@@ -634,10 +641,21 @@ function readPositionsFromNdjson(ndjsonPath) {
 }
 
 /**
+ * Determine actual column based on X position  
+ */
+function getActualColumn(xsp, col0StartPt, col1StartPt) {
+    const xPt = parseInt(xsp) / 65536;
+    // If closer to col1 start, it's in col1, otherwise col0
+    const distToCol0 = Math.abs(xPt - col0StartPt);
+    const distToCol1 = Math.abs(xPt - col1StartPt);
+    return distToCol1 < distToCol0 ? 1 : 0;
+}
+
+/**
  * Extract figure bounding boxes from positions
  * Handles figures that span multiple pages/columns by creating separate bounds for each segment
  */
-function extractFigureBounds(positions) {
+function extractFigureBounds(positions, col0StartPt = 72.27, col1StartPt = 303.75) {
     const figures = {};
     
     for (const pos of positions) {
@@ -707,10 +725,14 @@ function extractFigureBounds(positions) {
                         continue;
                     }
                     
+                    // Determine actual column from X position, not col field (figures have col=0)
+                    const actualCol = (segStart || segEnd) ? 
+                        getActualColumn((segStart || segEnd).xsp, col0StartPt, col1StartPt) : segment.col;
+                    
                     figureBounds.push({
                         id: figId,
                         page: segment.page,
-                        col: segment.col,
+                        col: actualCol,
                         yTopSp: yTopSp,
                         yBottomSp: yBottomSp,
                         yTopPt: yTopSp / 65536,
@@ -726,10 +748,13 @@ function extractFigureBounds(positions) {
                 const y1Sp = parseInt(startPos.ysp);
                 const y2Sp = parseInt(endPos.ysp);
                 
+                // Determine actual column from X position
+                const actualCol = getActualColumn(startPos.xsp, col0StartPt, col1StartPt);
+                
                 figureBounds.push({
                     id: figId,
                     page: startPos.page,
-                    col: startPos.col,
+                    col: actualCol,
                     yTopSp: Math.max(y1Sp, y2Sp), // Top (larger Y in TeX coords)
                     yBottomSp: Math.min(y1Sp, y2Sp), // Bottom (smaller Y)
                     yTopPt: Math.max(y1Sp, y2Sp) / 65536,
@@ -851,6 +876,29 @@ function splitSegmentAroundFigure(segment, figure, pageDimensions, columnSetting
 }
 
 /**
+ * Analyze which pages are in single-column vs two-column mode
+ */
+function analyzePageColumnMode(positions) {
+    const pageColumnInfo = new Map();
+    
+    for (const pos of positions) {
+        if (!pageColumnInfo.has(pos.page)) {
+            pageColumnInfo.set(pos.page, new Set());
+        }
+        pageColumnInfo.get(pos.page).add(pos.col);
+    }
+    
+    const result = new Map();
+    for (const [page, cols] of pageColumnInfo.entries()) {
+        // Page is two-column if it has content in both col=0 AND col=1
+        const isTwoColumn = cols.has(0) && cols.has(1);
+        result.set(page, isTwoColumn);
+    }
+    
+    return result;
+}
+
+/**
  * Generate marked-boxes.json from positions with multi-column/page splitting and figure avoidance
  */
 function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettings) {
@@ -863,8 +911,22 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     // Use NDJSON positions if available (they have col field)
     const positionsToUse = ndjsonPositions || positions;
     
-    // Extract figure bounds for overlap detection
-    const figureBounds = extractFigureBounds(positionsToUse);
+    // Detect actual column start positions from the data (for non-float elements)
+    const col0Positions = positionsToUse.filter(p => p.col === 0 && p.type === 'para' && p.role && p.role.endsWith('-start'));
+    const col1Positions = positionsToUse.filter(p => p.col === 1 && p.type === 'para' && p.role && p.role.endsWith('-start'));
+    
+    const col0StartPt = col0Positions.length > 0 ? spToPt(parseInt(col0Positions[0].xsp)) : 72.27;
+    const col1StartPt = col1Positions.length > 0 ? spToPt(parseInt(col1Positions[0].xsp)) : 303.75;
+    
+    console.log(`   📐 Detected column starts: col0=${col0StartPt.toFixed(2)}pt, col1=${col1StartPt.toFixed(2)}pt`);
+    
+    // Analyze page column modes (single-column vs two-column)
+    const pageColumnMode = analyzePageColumnMode(positionsToUse);
+    console.log(`   📄 Page analysis:`, Array.from(pageColumnMode.entries()).slice(0, 5).map(([page, isTwoCol]) => 
+        `P${page}=${isTwoCol ? '2col' : '1col'}`).join(', '));
+    
+    // Extract figure bounds for overlap detection (pass column starts)
+    const figureBounds = extractFigureBounds(positionsToUse, col0StartPt, col1StartPt);
     console.log(`   📐 Found ${figureBounds.length} figure bounds for overlap detection`);
     
     const groupedById = groupPositionsByIdOnly(positionsToUse);
@@ -884,12 +946,35 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
             // Check if float spans multiple pages
             const pages = [...new Set(elementPositions.map(p => p.page))].sort((a, b) => a - b);
             if (pages.length > 1) {
-                // Multi-page float: create one segment for EACH page in the range
-                const firstPage = pages[0];
-                const lastPage = pages[pages.length - 1];
-                const allPages = [];
-                for (let p = firstPage; p <= lastPage; p++) {
-                    allPages.push(p);
+                // Check if pages are consecutive
+                let isConsecutive = true;
+                for (let i = 1; i < pages.length; i++) {
+                    if (pages[i] !== pages[i-1] + 1) {
+                        isConsecutive = false;
+                        break;
+                    }
+                }
+                
+                // Multi-page float: create one segment for EACH page
+                // For TABLES (longtables): Always fill gaps - they truly span pages
+                //   LaTeX only emits markers at start/end, not on intermediate pages
+                // For FIGURES: Only fill gaps if consecutive - non-consecutive means separate placements
+                const isTable = elementPositions.some(p => p.type === 'table');
+                const shouldFillGaps = isTable || isConsecutive;
+                
+                const allPages = shouldFillGaps ? (() => {
+                    // Fill in the range for tables or consecutive pages
+                    const firstPage = pages[0];
+                    const lastPage = pages[pages.length - 1];
+                    const result = [];
+                    for (let p = firstPage; p <= lastPage; p++) {
+                        result.push(p);
+                    }
+                    return result;
+                })() : pages; // Use only actual pages for non-consecutive figures
+                
+                if (!isConsecutive && !isTable) {
+                    console.log(`ℹ️  ${id}: Non-consecutive pages [${pages.join(', ')}] detected - treating as separate figure placements (not filling gaps)`);
                 }
                 
                 // Get page height and text area boundaries for synthetic markers
@@ -968,13 +1053,13 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
             }
         } else {
             // For non-floats (paragraphs): use normal splitting logic for columns and pages
-            segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings);
-            
-            if (segments.length > 1) {
-                splitElementCount++;
-                console.log(`   ✂️  Split "${id}" into ${segments.length} segments (pages: ${segments.map(s => s.page).join(',')}, cols: ${segments.map(s => s.column).join(',')})`);
-            } else {
-                singleElementCount++;
+            segments = splitIntoSegments(elementPositions, pageDimensions, columnSettings, col0StartPt, col1StartPt);
+        
+        if (segments.length > 1) {
+            splitElementCount++;
+            console.log(`   ✂️  Split "${id}" into ${segments.length} segments (pages: ${segments.map(s => s.page).join(',')}, cols: ${segments.map(s => s.column).join(',')})`);
+        } else {
+            singleElementCount++;
             }
         }
         
@@ -1005,7 +1090,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
         // Calculate bounding box for each final segment
         let segIdx = 0;
         for (const segment of finalSegments) {
-            const bbox = calculateBoundingBoxForSegment(segment, pageDimensions, id);
+            const bbox = calculateBoundingBoxForSegment(segment, pageDimensions, id, pageColumnMode);
             if (bbox) {
                 // Add sub-segment indicator if needed
                 if (segment.subSegmentType) {
@@ -1097,22 +1182,22 @@ Examples:
         console.log('LaTeX-generated NDJSON not found, parsing aux file as fallback...');
         positions = parseAuxFile(auxFile);
 
-        if (positions.length === 0) {
-            console.error('Error: No position data found in aux file');
-            console.error('Make sure the LaTeX document uses the geom-marks.tex package');
-            process.exit(1);
-        }
+    if (positions.length === 0) {
+        console.error('Error: No position data found in aux file');
+        console.error('Make sure the LaTeX document uses the geom-marks.tex package');
+        process.exit(1);
+    }
 
-        // Get page dimensions
-        const pageDimensions = getPageDimensions(auxFile);
-        console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
+    // Get page dimensions
+    const pageDimensions = getPageDimensions(auxFile);
+    console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
 
-        // Get column settings from existing NDJSON if available
-        const columnSettings = getColumnSettings(ndjsonPath);
+    // Get column settings from existing NDJSON if available
+    const columnSettings = getColumnSettings(ndjsonPath);
 
         // Generate NDJSON from aux file (without type field)
-        console.log('\n=== Syncing from aux file with multi-column/page support ===');
-        generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+    console.log('\n=== Syncing from aux file with multi-column/page support ===');
+    generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
         
         // Re-read the generated NDJSON to get proper positions
         positions = readPositionsFromNdjson(ndjsonPath) || positions;
