@@ -177,9 +177,20 @@
     <!-- Null template for section titles (handled in section template) -->
     <null-template data-xml-selector="sec > title"/>
 
-    <!-- Paragraph template -->
+    <!-- Paragraph templates with spacing control -->
+    <template data-xml-selector='p[spacing="tight"]' xml:space="preserve">
+{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\par}
+</template>
+
+    <template data-xml-selector='p[spacing="loose"]' xml:space="preserve">
+{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\par}
+</template>
+
+    <!-- Default paragraph template (no spacing attribute or normal spacing) -->
     <template data-xml-selector="p" xml:space="preserve">
-\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}[[...]]\geommarkinline{[[@id | raw]]}{P-end}
+\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
 
 </template>
 
@@ -358,12 +369,12 @@
     <template data-xml-selector="fig" xml:space="preserve">
 \begin{figure}[[@placement]]
 \centering
-\geommarkfloat{[[@id | raw]]}{FIG-start}
+\geommarkfloat{[[@id | raw]]}{FIG-start}{figure}
 <apply-template data-xml-selector="image"/>
 <apply-template data-xml-selector="graphic"/>
 \caption{[[label:.]]\space <apply-template data-xml-selector="caption"/>}
 \label{[[@id | raw]]}
-\geommarkfloat{[[@id | raw]]}{FIG-end}
+\geommarkfloat{[[@id | raw]]}{FIG-end}{figure}
 \end{figure}
 </template>
 

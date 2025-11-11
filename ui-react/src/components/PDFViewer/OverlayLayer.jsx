@@ -96,9 +96,15 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
   // Get color based on overlay type
   const getOverlayColor = (type) => {
     const colors = {
+      // LaTeX types (from NDJSON type field)
+      'para': 'rgba(59, 130, 246, 0.3)',      // Blue - Paragraphs
+      'table': 'rgba(245, 158, 11, 0.3)',     // Orange - Tables
+      'figure': 'rgba(16, 185, 129, 0.3)',    // Green - Figures
+      'section': 'rgba(139, 92, 246, 0.3)',   // Purple - Sections
+      // Legacy types (from ID detection fallback)
       'text': 'rgba(59, 130, 246, 0.3)',      // Blue
       'image': 'rgba(16, 185, 129, 0.3)',     // Green
-      'table': 'rgba(245, 158, 11, 0.3)',     // Orange
+      'paragraph': 'rgba(59, 130, 246, 0.3)', // Blue
       'header': 'rgba(139, 92, 246, 0.3)',    // Purple
       'footer': 'rgba(236, 72, 153, 0.3)',    // Pink
       'default': 'rgba(239, 68, 68, 0.3)'     // Red
@@ -123,8 +129,13 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
   // Get icon for overlay type
   const getTypeIcon = (type) => {
     const icons = {
-      'figure': '🖼',
+      // LaTeX types (from NDJSON type field)
+      'para': '📝',
       'table': '📊',
+      'figure': '🖼',
+      'section': '📑',
+      'title': '📋',
+      // Legacy types (from ID detection fallback)
       'paragraph': '📝',
       'unknown': '📄'
     };
@@ -134,8 +145,13 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
   // Get label for overlay type
   const getTypeLabel = (type) => {
     const labels = {
-      'figure': 'Figure',
+      // LaTeX types (from NDJSON type field)
+      'para': 'Para',
       'table': 'Table',
+      'figure': 'Figure',
+      'section': 'Section',
+      'title': 'Title',
+      // Legacy types (from ID detection fallback)
       'paragraph': 'Para',
       'unknown': 'Elem'
     };
@@ -158,19 +174,22 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
         
         const isSelected = overlay.id === selectedOverlayId;
         const isHovered = overlay.id === hoveredOverlayId;
-        const overlayType = detectOverlayType(overlay.id);
+        
+        // Use type field from LaTeX (via NDJSON), fallback to ID detection
+        const overlayType = overlay.type || detectOverlayType(overlay.id);
         
         return (
           <div
             key={overlay.id || index}
             data-elem-id={overlay.id}
+            data-type={overlayType}
             className={`overlay-box overlay-type-${overlayType} ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}`}
             style={{
               left: Math.round(coords.left) + 'px',
               top: Math.round(coords.top) + 'px',
               width: Math.round(coords.width) + 'px',
               height: Math.round(coords.height) + 'px',
-              backgroundColor: getOverlayColor(overlay.type),
+              backgroundColor: getOverlayColor(overlayType),
               borderColor: isSelected ? '#6366f1' : isHovered ? '#ffc107' : 'rgba(255, 255, 255, 0.5)'
             }}
             onClick={() => setSelectedOverlayId(overlay.id)}

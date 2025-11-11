@@ -147,10 +147,11 @@ function generateNdjson(positions, pageDimensions, columnSettings, outputPath) {
         const isMultiColumn = twPt > (cwPt * 1.5);
         
         // Calculate column index
-        // For floats (TABLE, FIG): always col=0 (atomic units, not split by column)
+        // For floats (table, figure): always col=0 (atomic units, not split by column)
         // For non-floats (paragraphs): calculate from X position
         let col = 0;
-        const isFloat = /TABLE|FIG/i.test(pos.role);
+        // Use type field if available (from NDJSON), otherwise parse role (fallback for AUX)
+        const isFloat = pos.type ? (pos.type === 'table' || pos.type === 'figure') : /TABLE|FIG/i.test(pos.role);
         
         if (!isFloat && isMultiColumn) {
             // Calculate column boundaries
@@ -163,9 +164,28 @@ function generateNdjson(positions, pageDimensions, columnSettings, outputPath) {
         // NOTE: This 'col' field is for reference/debugging only.
         // Bounding boxes are calculated using actual xsp/ysp coordinates.
 
+        // Infer type from role as fallback (for AUX-derived positions)
+        // LaTeX-generated NDJSON already has proper type field
+        let type = pos.type; // Use type if already available
+        if (!type) {
+            // Fallback: infer from role
+            if (/TABLE/i.test(pos.role)) {
+                type = 'table';
+            } else if (/FIG/i.test(pos.role)) {
+                type = 'figure';
+            } else if (/P-/i.test(pos.role)) {
+                type = 'para';
+            } else if (/SEC|TITLE/i.test(pos.role)) {
+                type = 'section';
+            } else {
+                type = 'unknown';
+            }
+        }
+        
         return JSON.stringify({
             id: pos.id,
             role: pos.role,
+            type: type,
             xsp: pos.xsp,
             ysp: pos.ysp,
             pw: pageDimensions.width,
@@ -240,8 +260,11 @@ function groupPositionsByIdOnly(positions) {
 
 /**
  * Calculate bounding box from start/end positions
+ * @param {Array} positions - Array of position records
+ * @param {Object} pageDimensions - Page dimensions
+ * @param {Object} segmentInfo - Optional segment information {totalSegments, segmentIndex}
  */
-function calculateBoundingBox(positions, pageDimensions) {
+function calculateBoundingBox(positions, pageDimensions, segmentInfo = null) {
     // Find start and end records
     let startRecord = null;
     let endRecord = null;
@@ -287,19 +310,37 @@ function calculateBoundingBox(positions, pageDimensions) {
     let wPt = Math.abs(x2Pt - x1Pt);
     const hPt = Math.abs(y2PtPdf - y1PtPdf);
 
-    // Handle zero width cases
-    if (wPt === 0) {
-        const isTable = startRecord.role && startRecord.role.includes('TABLE');
+    // Handle zero or very small width cases
+    // This happens when start and end markers are at the same (or very close) X position
+    // Common in: 1) longtables, 2) abstracts/single-column content in two-column documents
+    if (wPt === 0 || wPt < 10) {
+        const isTable = (startRecord.type === 'table');
+        const isParagraph = (startRecord.type === 'para');
         const textWidthPt = spToPt(startRecord.twsp || 31699558);
         const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
+        const isMultiColumn = textWidthPt > columnWidthPt * 1.5;
         
-        // For longtables in single-column mode (textwidth ≈ full page width)
-        // Use textwidth as the width since markers are at the same X position
-        if (isTable && textWidthPt > columnWidthPt * 1.5) {
-            console.warn(`Warning: Zero width for ${startRecord.id} (longtable), using textwidth`);
+        // Check if both markers are in the same column
+        const sameColumn = (startRecord.col === endRecord.col);
+        
+        // Check if this is a single-element paragraph (not part of a split)
+        const isMultiSegment = segmentInfo && segmentInfo.totalSegments > 1;
+        
+        if (isTable && isMultiColumn) {
+            // Longtables in single-column mode: use textwidth
+            console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, longtable), using textwidth`);
+            wPt = textWidthPt;
+        } else if (isParagraph && isMultiColumn && Math.abs(x1Pt - x2Pt) < 1 && sameColumn && !isMultiSegment) {
+            // Paragraphs with same X position AND same column in multi-column layout:
+            // This indicates single-column content (like abstract) in a two-column document
+            // But NOT for segments of a multi-segment paragraph
+            // Use textwidth to span the full width
+            console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}, single-column para in two-column doc), using textwidth`);
             wPt = textWidthPt;
         } else {
-            console.warn(`Warning: Zero width for ${startRecord.id}, using default column width`);
+            // Default case: use column width
+            // This includes segments of multi-segment paragraphs
+            console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}), using default column width`);
             wPt = columnWidthPt;
         }
     }
@@ -317,6 +358,7 @@ function calculateBoundingBox(positions, pageDimensions) {
 
     return {
         id: startRecord.id,
+        type: startRecord.type || 'unknown',
         page: startRecord.page,
         x_pt: Math.round(xPt * 100) / 100,
         y_pt: Math.round(yPt * 100) / 100,
@@ -356,9 +398,9 @@ function detectSpanning(positions, columnSettings) {
     
     const positionsWithCol = positions.map(pos => {
         const xPt = spToPt(pos.xsp);
-        const isFloat = /TABLE|FIG/i.test(pos.role);
+        const isFloat = (pos.type === 'table' || pos.type === 'figure');
         
-        // For floats (TABLE, FIG): always col=0 (atomic units)
+        // For floats (table, figure): always col=0 (atomic units)
         // For non-floats: calculate from X position
         let col = 0;
         if (!isFloat && isMultiColumn && xPt > columnBoundary) {
@@ -481,25 +523,45 @@ function splitIntoSegments(positions, pageDimensions, columnSettings) {
         // Need to create synthetic markers
         const refPos = startPos || endPos || segment.positions[0];
         
+        // Calculate column boundaries for synthetic markers
+        const cwPt = spToPt(refPos.cwsp || 15456563); // column width
+        const colsepPt = spToPt(refPos.colsep || 786432); // column separation
+        const leftMarginPt = 56.91; // Standard LaTeX margin
+        
+        // Calculate X positions based on column
+        let syntheticStartXSp, syntheticEndXSp;
+        if (segment.column === 0) {
+            // Left column: start at left margin, end at right edge of column
+            syntheticStartXSp = String(Math.round(leftMarginPt * 65536));
+            syntheticEndXSp = String(Math.round((leftMarginPt + cwPt) * 65536));
+        } else {
+            // Right column: start at left edge, end at right edge
+            const rightColStartPt = leftMarginPt + cwPt + colsepPt;
+            syntheticStartXSp = String(Math.round(rightColStartPt * 65536));
+            syntheticEndXSp = String(Math.round((rightColStartPt + cwPt) * 65536));
+        }
+        
         if (!startPos) {
-            // Create synthetic start at top of text body (not page top)
+            // Create synthetic start at top-left of text body for this column
             startPos = {
                 ...refPos,
                 page: segment.page,
                 col: segment.column,
                 role: refPos.role ? refPos.role.replace('-end', '-start') : 'P-start',
+                xsp: syntheticStartXSp, // Left edge of column
                 ysp: String(textBodyTopSp), // Top of text body (excluding header)
                 synthetic: true
             };
         }
         
         if (!endPos) {
-            // Create synthetic end at bottom of text body (not page bottom)
+            // Create synthetic end at bottom-right of text body for this column
             endPos = {
                 ...refPos,
                 page: segment.page,
                 col: segment.column,
                 role: refPos.role ? refPos.role.replace('-start', '-end') : 'P-end',
+                xsp: syntheticEndXSp, // Right edge of column
                 ysp: String(textBodyBottomSp), // Bottom of text body (excluding footer)
                 synthetic: true
             };
@@ -521,7 +583,13 @@ function splitIntoSegments(positions, pageDimensions, columnSettings) {
  * Calculate bounding box for a segment
  */
 function calculateBoundingBoxForSegment(segment, pageDimensions, baseId) {
-    const bbox = calculateBoundingBox(segment.positions, pageDimensions);
+    // Pass segment info to calculateBoundingBox for proper width calculation
+    const segmentInfo = segment.totalSegments > 1 ? {
+        totalSegments: segment.totalSegments,
+        segmentIndex: segment.segmentIndex
+    } : null;
+    
+    const bbox = calculateBoundingBox(segment.positions, pageDimensions, segmentInfo);
     
     if (!bbox) return null;
     
@@ -573,8 +641,8 @@ function extractFigureBounds(positions) {
     const figures = {};
     
     for (const pos of positions) {
-        // Check if this is a figure marker
-        if (!pos.role || !pos.role.startsWith('FIG')) continue;
+        // Check if this is a figure marker (using type field)
+        if (pos.type !== 'figure') continue;
         
         const figId = pos.id;
         if (!figures[figId]) {
@@ -806,8 +874,8 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     let figureAvoidanceCount = 0;
 
     for (const [id, elementPositions] of Object.entries(groupedById)) {
-        // Check if this is a float (figure or table)
-        const isFloat = elementPositions.some(p => p.role && (p.role.startsWith('FIG') || p.role.startsWith('TABLE')));
+        // Check if this is a float (figure or table) using type field
+        const isFloat = elementPositions.some(p => p.type === 'table' || p.type === 'figure');
         
         // For floats (tables and figures): only split if truly spanning multiple pages
         // Do NOT split floats across columns - they're single units in each column
@@ -854,7 +922,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
                             ...refPos,
                             page: page,
                             ysp: textAreaTopSp,  // Top of text area (not page)
-                            role: refPos.role?.includes('TABLE') ? 'TABLE-start' : 'FIG-start',
+                            role: refPos.type === 'table' ? 'TABLE-start' : 'FIG-start',
                             synthetic: true
                         });
                     }
@@ -865,7 +933,7 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
                             ...refPos,
                             page: page,
                             ysp: textAreaBottomSp,  // Bottom of text area (not page)
-                            role: refPos.role?.includes('TABLE') ? 'TABLE-end' : 'FIG-end',
+                            role: refPos.type === 'table' ? 'TABLE-end' : 'FIG-end',
                             synthetic: true
                         });
                     }
@@ -1017,29 +1085,50 @@ Examples:
         process.exit(1);
     }
 
-    // Parse aux file
-    const positions = parseAuxFile(auxFile);
+    // Define output paths
+    const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+    const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
 
-    if (positions.length === 0) {
-        console.error('Error: No position data found in aux file');
-        console.error('Make sure the LaTeX document uses the geom-marks.tex package');
-        process.exit(1);
+    // Try to read LaTeX-generated NDJSON first (which has type field)
+    let positions = readPositionsFromNdjson(ndjsonPath);
+    
+    if (!positions || positions.length === 0) {
+        // Fallback: Parse aux file if NDJSON doesn't exist
+        console.log('LaTeX-generated NDJSON not found, parsing aux file as fallback...');
+        positions = parseAuxFile(auxFile);
+
+        if (positions.length === 0) {
+            console.error('Error: No position data found in aux file');
+            console.error('Make sure the LaTeX document uses the geom-marks.tex package');
+            process.exit(1);
+        }
+
+        // Get page dimensions
+        const pageDimensions = getPageDimensions(auxFile);
+        console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
+
+        // Get column settings from existing NDJSON if available
+        const columnSettings = getColumnSettings(ndjsonPath);
+
+        // Generate NDJSON from aux file (without type field)
+        console.log('\n=== Syncing from aux file with multi-column/page support ===');
+        generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+        
+        // Re-read the generated NDJSON to get proper positions
+        positions = readPositionsFromNdjson(ndjsonPath) || positions;
+    } else {
+        console.log(`\n=== Using LaTeX-generated NDJSON with type information ===`);
+        console.log(`Found ${positions.length} position records in ${ndjsonPath}`);
     }
 
     // Get page dimensions
     const pageDimensions = getPageDimensions(auxFile);
     console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
 
-    // Define output paths
-    const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
-    const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
-
-    // Get column settings from existing NDJSON if available
+    // Get column settings from NDJSON
     const columnSettings = getColumnSettings(ndjsonPath);
 
-    // Generate files
-    console.log('\n=== Syncing from aux file with multi-column/page support ===');
-    generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+    // Generate marked-boxes.json from positions (with type field)
     generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
 
     console.log('\n✅ Successfully synchronized coordinates from aux file');

@@ -103,9 +103,11 @@ class DocumentConverter {
             // Post-process: Fix HTML entities and inline math formatting
             let processedOutput = output;
             
-            // Fix HTML entities
+            // Fix HTML entities (XMLSerializer escapes these)
             processedOutput = processedOutput.replace(/&lt;/g, '<');
             processedOutput = processedOutput.replace(/&gt;/g, '>');
+            processedOutput = processedOutput.replace(/&quot;/g, '"');
+            processedOutput = processedOutput.replace(/&apos;/g, "'");
             // Fix: Replace AMPERSAND placeholder with actual & for table cell separation
             // DO NOT escape ampersands - they're needed for table column separators
             processedOutput = processedOutput.replace(/AMPERSAND/g, '&');

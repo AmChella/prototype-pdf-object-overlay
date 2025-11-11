@@ -70,8 +70,20 @@
 \end{quote}
 </template>
 
+    <!-- Paragraph templates with spacing control -->
+    <template data-xml-selector='para[spacing="tight"]' xml:space="preserve">
+{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\par}
+</template>
+
+    <template data-xml-selector='para[spacing="loose"]' xml:space="preserve">
+{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\par}
+</template>
+
+    <!-- Default paragraph template (no spacing attribute or normal spacing) -->
     <template data-xml-selector="para" xml:space="preserve">
-\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}[[...]]\geommarkinline{[[@id | raw]]}{P-end}
+\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
 \par
 </template>
 
@@ -106,13 +118,13 @@
     <template data-xml-selector="figure[width-span='2']" xml:space="preserve">
 \begin{figure*}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}{figure}
 % Conditional image handling - only process if image element exists
 <apply-template data-xml-selector="image"/>
 <apply-template data-xml-selector="tikz"/>
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
-\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}{figure}
 \end{figure*}
 </template>
 
@@ -120,13 +132,13 @@
     <template data-xml-selector="figure" xml:space="preserve">
 \begin{figure}[[@placement]]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{FIG-start}{figure}
 % Conditional image handling - only process if image element exists
 <apply-template data-xml-selector="image"/>
 <apply-template data-xml-selector="tikz"/>
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
-\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{FIG-end}{figure}
 \end{figure}
 </template>
 
@@ -150,7 +162,7 @@
     <!-- Long table for multi-page tables - temporarily switches to single column -->
     <template data-xml-selector="table[type='long']" xml:space="preserve">
 \onecolumn
-\hypertarget{[[@id | raw]]}{}\geommarkinline{[[@id | raw]]}{TABLE-start}%
+\hypertarget{[[@id | raw]]}{}\geommarkinline{[[@id | raw]]}{TABLE-start}{table}%
 \begin{longtable}{[[@cols | raw]]}
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}\\
@@ -168,14 +180,14 @@
 \endlastfoot
 <apply-template data-xml-selector="tbody"/>
 \end{longtable}%
-\hypertarget{[[@id | raw]]-end}{}\geommarkinline{[[@id | raw]]}{TABLE-end}%
+\hypertarget{[[@id | raw]]-end}{}\geommarkinline{[[@id | raw]]}{TABLE-end}{table}%
 \twocolumn
 </template>
 
     <template data-xml-selector="table[span='double']" xml:space="preserve">
 \begin{table*}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}%
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}%
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\textwidth}}{[[@cols | raw]]}
@@ -186,14 +198,14 @@
 \bottomrule
 \end{tabularx}%
 \par\nointerlineskip% Process vertical spacing, prevent extra space
-\makebox[\fallback{[[@width | raw]]}{\textwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}}%
+\makebox[\fallback{[[@width | raw]]}{\textwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}}%
 \end{table*}
 </template>
 
     <template data-xml-selector="table" xml:space="preserve">
 \begin{table}[htbp]
 \centering
-\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}%
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}%
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}
 \begin{tabularx}{\fallback{[[@width | raw]]}{\columnwidth}}{[[@cols | raw]]}
@@ -204,7 +216,7 @@
 \bottomrule
 \end{tabularx}%
 \par\nointerlineskip% Process vertical spacing, prevent extra space
-\makebox[\fallback{[[@width | raw]]}{\columnwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}}%
+\makebox[\fallback{[[@width | raw]]}{\columnwidth}][r]{\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}}%
 \end{table}
 </template>
 

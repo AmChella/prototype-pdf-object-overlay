@@ -26,9 +26,12 @@
 }{}
 
 % Note: Column index calculation in \geomemit:
-% - Floats (TABLE, FIG): Always col=0 (atomic units, both start/end same value)
-% - Paragraphs: Calculated from X position (more reliable than \if@firstcolumn)
+% - Floats (type=table, type=figure): Always col=0 (atomic units, both start/end same value)
+% - Non-floats (type=para, etc.): Calculated from X position (more reliable than \if@firstcolumn)
 % - Multi-column layout is auto-detected by JavaScript: textwidth > columnwidth * 1.5
+% 
+% Element types: para, table, figure, section, title, etc.
+% These types are explicitly marked in LaTeX and used by JavaScript for processing
 \makeatother
 
 % Open a per-job NDJSON file for TeX positions
@@ -38,10 +41,11 @@
 
 % Helper to emit a JSON line to both log and NDJSON file for the Node builder
 \makeatletter
-\def\geomemit#1#2{%% #1=id, #2=role
+\def\geomemit#1#2#3{%% #1=id, #2=role, #3=type (para, table, figure, section, etc.)
   \begingroup
     \edef\gid{#1}%%
     \edef\grole{#2}%%
+    \edef\gtype{#3}%%
     \edef\gx{\zposx{gm:#1:#2}}%% scaled points
     \edef\gy{\zposy{gm:#1:#2}}%% scaled points
     % Use zref@extractdefault to get ACTUAL page number from zref label
@@ -55,20 +59,20 @@
     \edef\gtw{\number\dimexpr\textwidth\relax}%% text width (sp)
     \edef\gsep{\number\dimexpr\columnsep\relax}%% column separation (sp)
     % Calculate column index
-    % For floats (TABLE, FIG), always use col=0 since they're atomic units
+    % For floats (table, figure), always use col=0 since they're atomic units
     % Both start and end markers should have the same column value
     \def\gcol{0}%% Default to column 0
-    % Check if role contains TABLE or FIG (case-insensitive check)
+    % Check if type is table or figure
     \def\geom@isfloat{0}%%
-    \def\geom@checkrole##1TABLE##2\@nil{%
+    \def\geom@checktype##1table##2\@nil{%
       \ifx\relax##2\relax\else\def\geom@isfloat{1}\fi
     }%%
-    \expandafter\geom@checkrole\grole TABLE\@nil
-    \def\geom@checkrole##1FIG##2\@nil{%
+    \expandafter\geom@checktype\gtype table\@nil
+    \def\geom@checktype##1figure##2\@nil{%
       \ifx\relax##2\relax\else\def\geom@isfloat{1}\fi
     }%%
-    \expandafter\geom@checkrole\grole FIG\@nil
-    % For non-floats (paragraphs): calculate from X position
+    \expandafter\geom@checktype\gtype figure\@nil
+    % For non-floats (paragraphs, sections, etc.): calculate from X position
     \if\geom@isfloat0
       % Calculate boundary: columnWidth + columnSep/2
       \@tempdima=\columnwidth\relax
@@ -85,38 +89,41 @@
     % Note: For floats, col is always 0 (atomic units, not split)
     % Note: twocolumn flag removed - multi-column is auto-detected from measurements (twsp > cwsp * 1.5)
     % Write NDJSON (no line wrapping) with source info for debugging
-    \immediate\write\geomout{ {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep} }%%
+    \immediate\write\geomout{ {"id":"\gid","role":"\grole","type":"\gtype","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep} }%%
     % Also echo to log for debugging (may wrap)
-    \message{GEOM: {"id":"\gid","role":"\grole","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep}}%% NDJSON duplicate
+    \message{GEOM: {"id":"\gid","role":"\grole","type":"\gtype","xsp":"\gx","ysp":"\gy","pw":"\gpw","ph":"\gph","page":\gpage,"page_source":"\gpagesource","cwsp":\gcw,"twsp":\gtw,"col":\gcol,"colsep":\gsep}}%% NDJSON duplicate
   \endgroup
 }
 \makeatother
 
 % Inline mark attaches to the current line; safe in both paragraph and vertical mode
-\def\geommarkinline#1#2{%
+% #1=id, #2=role, #3=type
+\def\geommarkinline#1#2#3{%
   \ifvmode
     % In vertical mode, use \vspace{0pt} to not disrupt layout
-    \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}%
+    \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}%
   \else
     % In horizontal mode, use \vadjust
-    \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}}%
+    \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}}%
   \fi
 }
 
 % Immediate mark for floats (figures, tables) - improved version
 % This version uses \label mechanism to get more accurate page numbers
-\def\geommarknow#1#2{%
+% #1=id, #2=role, #3=type
+\def\geommarknow#1#2#3{%
   \zsavepos{gm:#1:#2}%
   \label{geom:#1:#2}% Create a label for cross-referencing
-  \geomemit{#1}{#2}%
+  \geomemit{#1}{#2}{#3}%
 }
 
 % Advanced float mark that attempts to get the actual float page number
 % This should be used within float environments for maximum accuracy
-\def\geommarkfloat#1#2{%
+% #1=id, #2=role, #3=type
+\def\geommarkfloat#1#2#3{%
   \zsavepos{gm:#1:#2}%
   \label{geom:#1:#2}%
   % For now, emit immediately to avoid macro expansion issues
   % TODO: Re-enable afterpage when label extraction is fixed
-  \geomemit{#1}{#2}%
+  \geomemit{#1}{#2}{#3}%
 }

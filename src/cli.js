@@ -46,6 +46,13 @@ async function main() {
         // Fix: XMLSerializer escapes & to &amp;, but LaTeX needs literal & for table columns
         // Replace AMPERSAND placeholder with actual & for table cell separation
         output = output.replace(/AMPERSAND/g, '&');
+        
+        // Fix: XMLSerializer also escapes other HTML entities that should be literal in LaTeX
+        output = output.replace(/&lt;/g, '<');
+        output = output.replace(/&gt;/g, '>');
+        output = output.replace(/&quot;/g, '"');
+        output = output.replace(/&apos;/g, "'");
+        // Note: &amp; should stay as-is since it's needed for literal & in LaTeX text
 
         if (outputFilePath) {
             fs.writeFileSync(outputFilePath, output);

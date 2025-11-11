@@ -1603,6 +1603,13 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
     el.dataset.elemId = item.id;
     el.dataset.id = item.id;
     el.dataset.unit = selectedUnit.toUpperCase();
+    
+    // Add type-based class for styling (type field from LaTeX via NDJSON)
+    if (item.type) {
+      el.dataset.type = item.type;
+      el.classList.add(`overlay-${item.type}`);
+    }
+    
     el.style.left = Math.round(left) + "px";
     el.style.top = Math.round(top) + "px";
     el.style.width = Math.round(width) + "px";
@@ -1610,7 +1617,8 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
 
     // Create informative title with coordinates in different units
     const displayCoords = getDisplayCoordinates(item, selectedUnit);
-    el.title = `${item.id} - ${displayCoords}`;
+    const typeLabel = item.type ? ` [${item.type}]` : '';
+    el.title = `${item.id}${typeLabel} - ${displayCoords}`;
 
     el.addEventListener("click", onOverlayClick);
     overlayLayer.appendChild(el);
