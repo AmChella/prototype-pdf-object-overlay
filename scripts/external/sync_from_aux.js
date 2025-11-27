@@ -69,23 +69,34 @@ function parseAuxFile(auxFilePath) {
 /**
  * Get page dimensions from aux file or use defaults
  */
-function getPageDimensions(auxFilePath) {
+function getPageDimensions(auxFilePath, ndjsonPath = null) {
     // Default A4 dimensions with 1in margins
     const defaults = {
         width: '597.50787pt',
         height: '845.04684pt'
     };
 
-    try {
-        const content = fs.readFileSync(auxFilePath, 'utf8');
-
-        // Try to extract from other sources if available
-        // For now, return defaults - could be enhanced to read from PDF or log file
-        return defaults;
-    } catch (err) {
-        console.warn('Could not extract page dimensions, using defaults');
-        return defaults;
+    // Try to read from NDJSON file first (most accurate)
+    if (ndjsonPath && fs.existsSync(ndjsonPath)) {
+        try {
+            const content = fs.readFileSync(ndjsonPath, 'utf8');
+            const lines = content.trim().split('\n');
+            if (lines.length > 0) {
+                const firstRecord = JSON.parse(lines[0]);
+                if (firstRecord.pw && firstRecord.ph) {
+                    return {
+                        width: firstRecord.pw,
+                        height: firstRecord.ph
+                    };
+                }
+            }
+        } catch (err) {
+            console.warn('Could not read page dimensions from NDJSON, using defaults');
+        }
     }
+
+    // Fallback to defaults
+    return defaults;
 }
 
 /**
@@ -449,14 +460,118 @@ function detectSpanning(positions, columnSettings) {
 }
 
 /**
+ * Infer missing column segments based on geometry
+ * If a paragraph starts in left column on page N and ends in left column on page N+1,
+ * it likely flows through the right column on page N
+ */
+function inferColumnFlow(positions, pageDimensions, columnSettings, col1StartPt) {
+    if (positions.length < 2) return positions;
+    
+    const startPos = positions.find(p => p.role && p.role.endsWith('-start'));
+    const endPos = positions.find(p => p.role && p.role.endsWith('-end'));
+    
+    if (!startPos || !endPos) return positions;
+    
+    // Only infer for paragraphs (not floats)
+    if (startPos.type === 'table' || startPos.type === 'figure') return positions;
+    
+    // Check if it's multi-page and both in left column
+    if (startPos.page < endPos.page && startPos.col === 0 && endPos.col === 0) {
+        const pageHeightPt = parseFloat(pageDimensions.height.replace('pt', ''));
+        const startYPt = spToPt(parseInt(startPos.ysp));
+        
+        // Calculate available space in left column on first page
+        const bottomMarginPt = 72.27;
+        const availableHeightInLeftCol = pageHeightPt - startYPt - bottomMarginPt;
+        
+        // If paragraph is large (spans pages), infer it flows through right column
+        // Heuristic: if start is not near bottom (more than 150pt available)
+        if (availableHeightInLeftCol > 150) {
+            console.log(`   💡 Inferring column flow for ${startPos.id}: LEFT (p${startPos.page})→RIGHT (p${startPos.page})→LEFT (p${endPos.page})`);
+            
+            // Create synthetic positions for right column segment on first page
+            const pageHeightSp = Math.round(pageHeightPt * 65536);
+            const bottomMarginSp = Math.round(bottomMarginPt * 65536);
+            const topMarginSp = Math.round(72.27 * 65536);
+            const col1StartSp = Math.round(col1StartPt * 65536);
+            
+            // Synthetic end for left column (bottom of page)
+            const syntheticLeftEnd = {
+                ...startPos,
+                page: startPos.page,
+                col: 0,
+                ysp: String(bottomMarginSp),
+                role: startPos.role.replace('-start', '-end'),
+                synthetic: true
+            };
+            
+            // Synthetic start for right column (top of page)
+            const syntheticRightStart = {
+                ...startPos,
+                page: startPos.page,
+                col: 1,
+                xsp: String(col1StartSp),
+                ysp: String(pageHeightSp - topMarginSp),
+                role: startPos.role.replace('-end', '-start'),
+                synthetic: true
+            };
+            
+            // Synthetic end for right column (bottom of page)
+            const syntheticRightEnd = {
+                ...startPos,
+                page: startPos.page,
+                col: 1,
+                xsp: String(col1StartSp),
+                ysp: String(bottomMarginSp),
+                role: startPos.role.replace('-start', '-end'),
+                synthetic: true
+            };
+            
+            // Synthetic start for left column on next page (top of page)
+            const syntheticNextPageStart = {
+                ...endPos,
+                page: endPos.page,
+                col: 0,
+                ysp: String(pageHeightSp - topMarginSp),
+                role: endPos.role.replace('-end', '-start'),
+                synthetic: true
+            };
+            
+            // Return positions with inferred segments
+            const newPositions = [
+                ...positions,
+                syntheticLeftEnd,
+                syntheticRightStart,
+                syntheticRightEnd,
+                syntheticNextPageStart
+            ];
+            
+            return newPositions.sort((a, b) => {
+                if (a.page !== b.page) return a.page - b.page;
+                if (a.col !== b.col) return a.col - b.col;
+                // Ensure start comes before end
+                const aIsStart = a.role && a.role.endsWith('-start') ? 0 : 1;
+                const bIsStart = b.role && b.role.endsWith('-start') ? 0 : 1;
+                return aIsStart - bIsStart;
+            });
+        }
+    }
+    
+    return positions;
+}
+
+/**
  * Split positions into segments based on page AND column boundaries
  * Uses the 'col' field from NDJSON to properly split across columns
  */
 function splitIntoSegments(positions, pageDimensions, columnSettings, col0StartPt, col1StartPt) {
+    // First, infer any missing column segments based on geometry
+    const inferredPositions = inferColumnFlow(positions, pageDimensions, columnSettings, col1StartPt);
+    
     // Group positions by (page, column) to identify all segments
     const segmentMap = new Map();
     
-    for (const pos of positions) {
+    for (const pos of inferredPositions) {
         const key = `p${pos.page}c${pos.col}`;
         if (!segmentMap.has(key)) {
             segmentMap.set(key, {
@@ -915,8 +1030,33 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     const col0Positions = positionsToUse.filter(p => p.col === 0 && p.type === 'para' && p.role && p.role.endsWith('-start'));
     const col1Positions = positionsToUse.filter(p => p.col === 1 && p.type === 'para' && p.role && p.role.endsWith('-start'));
     
-    const col0StartPt = col0Positions.length > 0 ? spToPt(parseInt(col0Positions[0].xsp)) : 72.27;
-    const col1StartPt = col1Positions.length > 0 ? spToPt(parseInt(col1Positions[0].xsp)) : 303.75;
+    // Find most common X position for each column (ignoring centered/abstract content)
+    const getMostCommonPosition = (positions, defaultPt) => {
+        if (positions.length === 0) return defaultPt;
+        
+        // Get all X positions and count occurrences
+        const xPositions = positions.map(p => spToPt(parseInt(p.xsp)));
+        const xCounts = {};
+        xPositions.forEach(xpt => {
+            const rounded = Math.round(xpt * 10) / 10; // Round to 0.1pt
+            xCounts[rounded] = (xCounts[rounded] || 0) + 1;
+        });
+        
+        // Find the most common position
+        let maxCount = 0;
+        let mostCommonX = defaultPt;
+        for (const [xpt, count] of Object.entries(xCounts)) {
+            if (count > maxCount) {
+                maxCount = count;
+                mostCommonX = parseFloat(xpt);
+            }
+        }
+        
+        return mostCommonX;
+    };
+    
+    const col0StartPt = getMostCommonPosition(col0Positions, 72.27);
+    const col1StartPt = getMostCommonPosition(col1Positions, 303.75);
     
     console.log(`   📐 Detected column starts: col0=${col0StartPt.toFixed(2)}pt, col1=${col1StartPt.toFixed(2)}pt`);
     
@@ -1188,8 +1328,8 @@ Examples:
         process.exit(1);
     }
 
-    // Get page dimensions
-    const pageDimensions = getPageDimensions(auxFile);
+    // Get page dimensions (try from NDJSON first, then aux)
+    const pageDimensions = getPageDimensions(auxFile, ndjsonPath);
     console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
 
     // Get column settings from existing NDJSON if available
@@ -1206,8 +1346,8 @@ Examples:
         console.log(`Found ${positions.length} position records in ${ndjsonPath}`);
     }
 
-    // Get page dimensions
-    const pageDimensions = getPageDimensions(auxFile);
+    // Get page dimensions from NDJSON (most accurate - after NDJSON is available)
+    const pageDimensions = getPageDimensions(auxFile, ndjsonPath);
     console.log(`Using page dimensions: ${pageDimensions.width} × ${pageDimensions.height}`);
 
     // Get column settings from NDJSON
@@ -1228,6 +1368,9 @@ if (require.main === module) {
 module.exports = {
     parseAuxFile,
     generateNdjson,
-    generateMarkedBoxes
+    generateMarkedBoxes,
+    readPositionsFromNdjson,
+    getPageDimensions,
+    getColumnSettings
 };
 

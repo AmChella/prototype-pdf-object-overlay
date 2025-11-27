@@ -63,8 +63,8 @@ function AppContent() {
       if (data.data) {
         // Load dropdown options
         if (data.data.dropdownOptions) {
-          setDropdownOptions(data.data.dropdownOptions);
-          console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
+        setDropdownOptions(data.data.dropdownOptions);
+        console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
         }
         
         // Load feature flags
@@ -108,20 +108,20 @@ function AppContent() {
           ]
         });
       } else {
-        toast.showInfo(`Processing ${data.overlayType} instruction...`);
-        
+      toast.showInfo(`Processing ${data.overlayType} instruction...`);
+      
         // Show progress modal for single instruction
-        setProgress({
-          isOpen: true,
-          title: `Processing ${data.instruction} on ${data.elementId}...`,
-          progress: 0,
-          status: 'Applying instruction to XML...',
-          stages: [
-            { label: 'Applying Instruction', status: 'active' },
-            { label: 'Regenerating PDF', status: 'pending' },
-            { label: 'Loading Results', status: 'pending' }
-          ]
-        });
+      setProgress({
+        isOpen: true,
+        title: `Processing ${data.instruction} on ${data.elementId}...`,
+        progress: 0,
+        status: 'Applying instruction to XML...',
+        stages: [
+          { label: 'Applying Instruction', status: 'active' },
+          { label: 'Regenerating PDF', status: 'pending' },
+          { label: 'Loading Results', status: 'pending' }
+        ]
+      });
       }
     },
     
@@ -141,7 +141,7 @@ function AppContent() {
       if (isBatch) {
         toast.showSuccess(`All ${data.batchSize} instructions processed successfully!`);
       } else {
-        toast.showSuccess('Document updated successfully!');
+      toast.showSuccess('Document updated successfully!');
       }
       
       // Load the updated PDF and JSON

@@ -7,6 +7,7 @@ const DocumentSelector = ({ onGenerate }) => {
   const [availableDocuments, setAvailableDocuments] = useState([
     { id: 'document', name: 'Default Document', description: 'Standard document template' },
     { id: 'ENDEND10921', name: 'ENDEND10921', description: 'Custom document template' },
+    { id: 'EGG_100411', name: 'EGG_100411', description: 'Ecological Genetics and Genomics template' },
   ]);
   const [selectedDoc, setSelectedDoc] = useState('document');
   const [generating, setGenerating] = useState(false);

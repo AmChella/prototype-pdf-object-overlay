@@ -325,12 +325,12 @@ function generateMarkedBoxesWithSplitting(positions, pageDimensions, columnSetti
         } else {
             // For non-floats: use normal column/page splitting
             segments = splitIntoSegments(positions, pageDimensions, columnSettings);
-            
-            if (segments.length > 1) {
-                splitCount++;
-                console.log(`   ✂️  Split ${id} into ${segments.length} segments`);
-            } else {
-                singleCount++;
+        
+        if (segments.length > 1) {
+            splitCount++;
+            console.log(`   ✂️  Split ${id} into ${segments.length} segments`);
+        } else {
+            singleCount++;
             }
         }
         

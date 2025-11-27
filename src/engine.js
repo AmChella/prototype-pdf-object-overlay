@@ -248,7 +248,10 @@ function _getNodePath(node) {
 function _matches(xmlNode, selectorPart) {
     if (xmlNode.nodeType !== 1) return false;
     
-    if (selectorPart.tag !== '*' && xmlNode.tagName.toLowerCase() !== selectorPart.tag.toLowerCase()) {
+    // Use localName to strip namespace prefixes (e.g., "ce:title" -> "title")
+    const localTagName = (xmlNode.localName || xmlNode.tagName).toLowerCase();
+    
+    if (selectorPart.tag !== '*' && localTagName !== selectorPart.tag.toLowerCase()) {
         return false;
     }
 
@@ -361,8 +364,9 @@ function _matchesPath(xmlNode, selectorParts) {
  */
 function _findBestMatch(xmlNode, engineState) {
     let bestMatch = null;
-    const tagName = xmlNode.tagName.toLowerCase();
-    const candidateTemplates = (engineState.templateCache[tagName] || []).concat(engineState.templateCache['*'] || []);
+    // Use localName to strip namespace prefixes (e.g., "ce:title" -> "title")
+    const localTagName = (xmlNode.localName || xmlNode.tagName).toLowerCase();
+    const candidateTemplates = (engineState.templateCache[localTagName] || []).concat(engineState.templateCache['*'] || []);
 
     for (const template of candidateTemplates) {
         const selector = template.getAttribute('data-xml-selector');

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "PDF overlay coordinate generation and testing",
   "scripts": {
-    "clean": "rm -f TeX/*.aux TeX/*.log TeX/*.fls TeX/*.fdb_latexmk TeX/*.synctex.gz TeX/*.out TeX/*.toc TeX/*.pdf TeX/*.tex TeX/*.json TeX/*.ndjson",
+    "clean": "rm -f TeX/*.*",
     "server": "node server/server.js",
     "dev:react": "cd ui-react && npm run dev",
     "build:react": "cd ui-react && npm run build",

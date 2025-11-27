@@ -799,28 +799,44 @@ async function main() {
                 if (fs.existsSync(auxPath)) {
                     try {
                         console.log('\n📍 Syncing coordinates from aux file for perfect accuracy...');
-                        const { parseAuxFile, generateNdjson, generateMarkedBoxes } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
+                        const { parseAuxFile, generateNdjson, generateMarkedBoxes, readPositionsFromNdjson, getPageDimensions, getColumnSettings } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
 
-                        const pageDimensions = { width: '597.50787pt', height: '845.04684pt' };
-                        const columnSettings = { cwsp: 15456563, twsp: 31699558, colsep: 786432 };
+                        const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+                        const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
 
-                        const positions = parseAuxFile(auxPath);
+                        // Try to read LaTeX-generated NDJSON first (which has type field)
+                        let positions = readPositionsFromNdjson(ndjsonPath);
+                        
+                        if (!positions || positions.length === 0) {
+                            // Fallback: Parse aux file if NDJSON doesn't exist or is empty
+                            console.log('LaTeX-generated NDJSON not found, parsing aux file as fallback...');
+                            const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
+                            const columnSettings = getColumnSettings(ndjsonPath);
+                            positions = parseAuxFile(auxPath);
+
+                            if (positions.length > 0) {
+                                // Generate NDJSON from aux file (without type field)
+                                generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+                                // Re-read to get proper positions
+                                positions = readPositionsFromNdjson(ndjsonPath) || positions;
+                            }
+                        } else {
+                            console.log(`=== Using LaTeX-generated NDJSON with type information ===`);
+                            console.log(`Found ${positions.length} position records`);
+                        }
 
                         if (positions.length > 0) {
-                            const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
-                            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
-
-                            generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+                            const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
+                            const columnSettings = getColumnSettings(ndjsonPath);
                             generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
-
                             console.log('✅ Coordinates synchronized from aux file with multi-column/page splitting');
                         } else {
-                            console.warn('⚠️  No position data found in aux file - skipping sync');
+                            console.warn('⚠️  No position data found - skipping sync');
                         }
                     } catch (syncError) {
                         console.error('⚠️  Failed to sync coordinates from aux file:');
                         console.error(syncError.message);
-                        console.log('📝 You can manually sync later with: make sync-aux AUX=' + auxPath);
+                        console.log('📝 You can manually sync later with: node scripts/external/sync_from_aux.js ' + auxPath);
                     }
                 } else {
                     console.warn('⚠️  Aux file not found - skipping coordinate sync');
@@ -1118,9 +1134,9 @@ async function main() {
             // Calculate bounding box for each segment
             for (const segment of segments) {
                 const bbox = calculateBoundingBox([segment.startRecord, segment.endRecord]);
-                if (bbox) {
-                    markedBoxes.push(bbox);
-                } else {
+            if (bbox) {
+                markedBoxes.push(bbox);
+            } else {
                     console.warn(`  ⚠️  Failed to calculate bbox for ${itemId} on page ${segment.page}`);
                 }
             }

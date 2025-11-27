@@ -30,7 +30,17 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
     }
   }, [isOpen, overlay?.id]);
   
-  // Detect overlay type from ID
+  // Normalize type from LaTeX (para) to UI format (paragraph)
+  const normalizeType = (type) => {
+    const typeMap = {
+      'para': 'paragraph',
+      'figure': 'figure',
+      'table': 'table'
+    };
+    return typeMap[type] || type;
+  };
+  
+  // Detect overlay type from ID (fallback only)
   const detectOverlayType = (id) => {
     if (!id) return 'unknown';
     
@@ -38,13 +48,14 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
     const baseId = id.replace(/_seg\d+of\d+$/i, '');
     
     // Use startsWith for more accurate detection (matching vanilla JS logic)
-    if (baseId.startsWith('fig-') || baseId.includes('figure')) return 'figure';
-    if (baseId.startsWith('tbl-') || baseId.includes('table')) return 'table';
-    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para')) return 'paragraph';
+    if (baseId.startsWith('fig-') || baseId.startsWith('fig') || baseId.includes('figure')) return 'figure';
+    if (baseId.startsWith('tbl-') || baseId.startsWith('tbl') || baseId.includes('table')) return 'table';
+    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para') || baseId.startsWith('p0') || baseId.startsWith('abspara')) return 'paragraph';
     return 'unknown';
   };
   
-  const overlayType = detectOverlayType(overlay?.id);
+  // Use type field from overlay if available, otherwise detect from ID; normalize both
+  const overlayType = normalizeType(overlay?.type || detectOverlayType(overlay?.id));
   
   // Get available actions based on overlay type
   const actionOptions = useMemo(() => {
@@ -111,15 +122,15 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
     const actionOption = actionOptions.find(opt => opt.value === selectedAction);
     const actionLabel = actionOption ? actionOption.label : selectedAction;
     
-    const baseElementId = getBaseElementId(overlay.id);
-    
+      const baseElementId = getBaseElementId(overlay.id);
+      
     const instruction = {
       elementId: baseElementId,
-      overlayType: overlayType,
-      instruction: selectedAction,
+        overlayType: overlayType,
+        instruction: selectedAction,
       instructionValue: undefined, // Can be extended in the future for actions that need values
       instructionLabel: actionLabel,
-      timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString()
     };
     
     // Check if instruction stack feature is enabled

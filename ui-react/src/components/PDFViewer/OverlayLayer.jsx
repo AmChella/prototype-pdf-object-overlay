@@ -112,7 +112,17 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
     return colors[type] || colors['default'];
   };
 
-  // Detect overlay type from ID
+  // Normalize type from LaTeX (para) to UI format (paragraph)
+  const normalizeType = (type) => {
+    const typeMap = {
+      'para': 'paragraph',
+      'figure': 'figure',
+      'table': 'table'
+    };
+    return typeMap[type] || type;
+  };
+  
+  // Detect overlay type from ID (fallback only)
   const detectOverlayType = (id) => {
     if (!id) return 'unknown';
     
@@ -120,9 +130,9 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
     const baseId = id.replace(/_seg\d+of\d+$/i, '');
     
     // Use startsWith for more accurate detection (matching vanilla JS logic)
-    if (baseId.startsWith('fig-') || baseId.includes('figure')) return 'figure';
-    if (baseId.startsWith('tbl-') || baseId.includes('table')) return 'table';
-    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para')) return 'paragraph';
+    if (baseId.startsWith('fig-') || baseId.startsWith('fig') || baseId.includes('figure')) return 'figure';
+    if (baseId.startsWith('tbl-') || baseId.startsWith('tbl') || baseId.includes('table')) return 'table';
+    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para') || baseId.startsWith('p0') || baseId.startsWith('abspara')) return 'paragraph';
     return 'unknown';
   };
 
@@ -176,7 +186,7 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
         const isHovered = overlay.id === hoveredOverlayId;
         
         // Use type field from LaTeX (via NDJSON), fallback to ID detection
-        const overlayType = overlay.type || detectOverlayType(overlay.id);
+        const overlayType = normalizeType(overlay.type || detectOverlayType(overlay.id));
         
         return (
           <div

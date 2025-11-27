@@ -226,8 +226,8 @@ const VersionHistory = () => {
           <span className="version-history-label">🕒</span>
           <span className="version-history-count">{versionCount}</span>
           {isConnected && <span className="version-history-arrow">{isExpanded ? '▼' : '▶'}</span>}
-        </button>
-
+          </button>
+        
         {/* Dropdown Panel */}
         {isExpanded && isConnected && (
           <div className="version-history-dropdown">
@@ -235,9 +235,9 @@ const VersionHistory = () => {
               <span className="version-title">{versionCount} VERSIONS</span>
               {stats?.activeVersion && (
                 <span className="version-active">v{stats.activeVersion}</span>
-              )}
-            </div>
-            
+        )}
+      </div>
+      
             {/* Version Content */}
         <div className="version-content">
           {/* Document Selector */}
@@ -250,6 +250,7 @@ const VersionHistory = () => {
             >
               <option value="document">document</option>
               <option value="ENDEND10921">ENDEND10921</option>
+              <option value="EGG_100411">EGG_100411</option>
             </select>
             <button
               onClick={fetchVersionHistory}
@@ -286,10 +287,10 @@ const VersionHistory = () => {
                 >
                   <div className="version-item-content">
                     <div className="version-item-left">
-                      <span className="version-number">
-                        v{version.versionNumber}
-                        {version.isActive && <span className="active-badge">●</span>}
-                      </span>
+                    <span className="version-number">
+                      v{version.versionNumber}
+                      {version.isActive && <span className="active-badge">●</span>}
+                    </span>
                       <span className="version-time">{formatTimestamp(version.timestamp)}</span>
                     </div>
                     
@@ -299,10 +300,10 @@ const VersionHistory = () => {
                       </div>
                       {version.elementId && (
                         <div className="version-element">{version.elementId}</div>
-                      )}
-                    </div>
-                    
-                    {!version.isActive && (
+                    )}
+                  </div>
+                  
+                  {!version.isActive && (
                       <button
                         onClick={() => handleRestoreVersion(version.versionNumber)}
                         className="restore-btn"
@@ -312,14 +313,14 @@ const VersionHistory = () => {
                         ↺
                       </button>
                     )}
-                  </div>
+                    </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-          </div>
-        )}
+        </div>
+      )}
       </div>
     </>
   );

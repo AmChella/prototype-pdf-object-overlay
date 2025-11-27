@@ -1092,6 +1092,7 @@ function setZoom(scale) {
 function setupDocumentGeneration() {
   const generateDocumentBtn = document.getElementById('generateDocumentBtn');
   const generateEndend10921Btn = document.getElementById('generateEndend10921Btn');
+  const generateEgg100411Btn = document.getElementById('generateEgg100411Btn');
   
   if (generateDocumentBtn) {
     generateDocumentBtn.addEventListener('click', () => {
@@ -1102,6 +1103,12 @@ function setupDocumentGeneration() {
   if (generateEndend10921Btn) {
     generateEndend10921Btn.addEventListener('click', () => {
       generateDocument('ENDEND10921');
+    });
+  }
+  
+  if (generateEgg100411Btn) {
+    generateEgg100411Btn.addEventListener('click', () => {
+      generateDocument('EGG_100411');
     });
   }
 }
@@ -1606,8 +1613,9 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
     
     // Add type-based class for styling (type field from LaTeX via NDJSON)
     if (item.type) {
-      el.dataset.type = item.type;
-      el.classList.add(`overlay-${item.type}`);
+      const normalizedType = normalizeType(item.type);
+      el.dataset.type = normalizedType;
+      el.classList.add(`overlay-${normalizedType}`);
     }
     
     el.style.left = Math.round(left) + "px";
@@ -1617,7 +1625,7 @@ function drawOverlaysForPage(overlayLayer, pageNum, viewport) {
 
     // Create informative title with coordinates in different units
     const displayCoords = getDisplayCoordinates(item, selectedUnit);
-    const typeLabel = item.type ? ` [${item.type}]` : '';
+    const typeLabel = item.type ? ` [${normalizeType(item.type)}]` : '';
     el.title = `${item.id}${typeLabel} - ${displayCoords}`;
 
     el.addEventListener("click", onOverlayClick);
@@ -2378,13 +2386,32 @@ async function checkFileExists(url) {
     }
 }
 
+// Normalize type from LaTeX (para) to UI format (paragraph)
+function normalizeType(type) {
+    const typeMap = {
+        'para': 'paragraph',
+        'figure': 'figure',
+        'table': 'table'
+    };
+    return typeMap[type] || type;
+}
+
 function detectOverlayType(elementId) {
-    if (elementId.startsWith('fig-') || elementId.includes('figure')) {
+    // Try to find the element in the loaded data first (most accurate)
+    if (allItems && allItems.length > 0) {
+        const item = allItems.find(it => it.id === elementId);
+        if (item && item.type) {
+            return normalizeType(item.type);  // Normalize: para → paragraph
+        }
+    }
+    
+    // Fallback to pattern-based detection if type field not available
+    if (elementId.startsWith('fig-') || elementId.startsWith('fig') || elementId.includes('figure')) {
         return 'figure';
-    } else if (elementId.startsWith('tbl-') || elementId.includes('table')) {
+    } else if (elementId.startsWith('tbl-') || elementId.startsWith('tbl') || elementId.includes('table')) {
         return 'table';
-    } else if (elementId.includes('-p') || elementId.startsWith('sec') || elementId.includes('para')) {
-        return 'paragraph';
+    } else if (elementId.includes('-p') || elementId.startsWith('sec') || elementId.includes('para') || elementId.startsWith('p0') || elementId.startsWith('abspara')) {
+        return 'paragraph';  // Return normalized form
     }
     return 'unknown';
 }
@@ -2461,10 +2488,10 @@ sendBtn.addEventListener("click", async () => {
     // Update instruction stack UI
     updateInstructionStackUI();
 
-    // Close modal
-    modal.style.display = "none";
-    currentClickedId = null;
-    currentOverlayType = null;
+        // Close modal
+        modal.style.display = "none";
+        currentClickedId = null;
+        currentOverlayType = null;
 
     // Show notification
     showProcessingNotification(`✅ Instruction added to queue (${instructionStack.length} total)`, 'success');

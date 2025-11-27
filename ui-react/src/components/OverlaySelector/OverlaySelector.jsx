@@ -47,7 +47,17 @@ const OverlaySelector = () => {
     return filtered;
   }, [overlayData, filterPage, searchTerm, currentPage]);
   
-  // Detect overlay type from ID
+  // Normalize type from LaTeX (para) to UI format (paragraph)
+  const normalizeType = (type) => {
+    const typeMap = {
+      'para': 'paragraph',
+      'figure': 'figure',
+      'table': 'table'
+    };
+    return typeMap[type] || type;
+  };
+  
+  // Detect overlay type from ID (fallback only)
   const detectOverlayType = (id) => {
     if (!id) return 'unknown';
     
@@ -55,9 +65,9 @@ const OverlaySelector = () => {
     const baseId = id.replace(/_seg\d+of\d+$/i, '');
     
     // Use startsWith for more accurate detection (matching vanilla JS logic)
-    if (baseId.startsWith('fig-') || baseId.includes('figure')) return 'figure';
-    if (baseId.startsWith('tbl-') || baseId.includes('table')) return 'table';
-    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para')) return 'paragraph';
+    if (baseId.startsWith('fig-') || baseId.startsWith('fig') || baseId.includes('figure')) return 'figure';
+    if (baseId.startsWith('tbl-') || baseId.startsWith('tbl') || baseId.includes('table')) return 'table';
+    if (baseId.includes('-p') || baseId.startsWith('sec') || baseId.includes('para') || baseId.startsWith('p0') || baseId.startsWith('abspara')) return 'paragraph';
     return 'unknown';
   };
   
@@ -129,7 +139,7 @@ const OverlaySelector = () => {
             </div>
           ) : (
           filteredOverlays.map((overlay) => {
-            const overlayType = detectOverlayType(overlay.id);
+            const overlayType = normalizeType(overlay.type || detectOverlayType(overlay.id));
             return (
               <div
                 key={overlay.id}

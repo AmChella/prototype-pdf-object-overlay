@@ -272,6 +272,10 @@ class PDFOverlayServer {
                 xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
                 templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
                 outputName = 'ENDEND10921-generated';
+            } else if (documentName === 'EGG_100411') {
+                xmlPath = path.join(this.projectRoot, 'xml/EGG_100411.xml');
+                templatePath = path.join(this.projectRoot, 'template/EGG_100411-sample-style.tex.xml');
+                outputName = 'EGG_100411-generated';
             } else {
                 throw new Error(`Unknown document: ${documentName}`);
             }
@@ -379,6 +383,10 @@ class PDFOverlayServer {
                 xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
                 templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
                 outputName = 'ENDEND10921-generated';
+            } else if (this.currentDocument === 'EGG_100411') {
+                xmlPath = path.join(this.projectRoot, 'xml/EGG_100411.xml');
+                templatePath = path.join(this.projectRoot, 'template/EGG_100411-sample-style.tex.xml');
+                outputName = 'EGG_100411-generated';
             } else if (this.currentDocument === 'document') {
                 xmlPath = path.join(this.projectRoot, 'xml/document.xml');
                 templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
@@ -549,6 +557,10 @@ class PDFOverlayServer {
                 xmlPath = path.join(this.projectRoot, 'xml/ENDEND10921.xml');
                 templatePath = path.join(this.projectRoot, 'template/ENDEND10921-sample-style.tex.xml');
                 outputName = 'ENDEND10921-generated';
+            } else if (this.currentDocument === 'EGG_100411') {
+                xmlPath = path.join(this.projectRoot, 'xml/EGG_100411.xml');
+                templatePath = path.join(this.projectRoot, 'template/EGG_100411-sample-style.tex.xml');
+                outputName = 'EGG_100411-generated';
             } else if (this.currentDocument === 'document') {
                 xmlPath = path.join(this.projectRoot, 'xml/document.xml');
                 templatePath = path.join(this.projectRoot, 'template/document.tex.xml');
