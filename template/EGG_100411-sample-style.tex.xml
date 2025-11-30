@@ -62,10 +62,10 @@
 \highabstracttitle{Highlights}
 \begin{authorhighlights}{}
 \begin{neolistenv}
-<apply-template data-xml-selector="head > author-highlights > list > list-item"/>
+<apply-template data-xml-selector="head > abstract[class='author-highlights'] > abstract-sec > simple-para > list > list-item"/>
 \begin{neoenumerate}
 \tagStructListStart{}
-<apply-template data-xml-selector="head > author-highlights > list > list-item" mode="detailed"/>
+<apply-template data-xml-selector="head > abstract[class='author-highlights'] > abstract-sec > simple-para > list > list-item" mode="detailed"/>
 \tagStructListEnd{}
 \end{neoenumerate}
 \end{neolistenv}
@@ -137,19 +137,41 @@
     <!-- Table - with markers at start and after content -->
     <template data-xml-selector="table" xml:space="preserve">
 \begin{neotable}{[[@id | raw]]}{%
-\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}%
-\tabfloatcaption{\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
+\tabfloatcaption{\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
 \begin{tablebody}\SetTblrInner{hspan=minimal}
 <apply-template data-xml-selector="tgroup"/>
+\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}%
 \end{tablebody}%
-\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}}\end{neotable}
+}\end{neotable}
 </template>
 
     <!-- Table group for tbl1 (5 columns, specific widths) -->
+        <!-- Table group for tbl1 (5 columns, specific widths) -->
     <template data-xml-selector="table[@id='tbl1'] > tgroup" xml:space="preserve">
 \begin{tblr}{width={524.4pt},colspec={@{}X[l,t,15.15343]X[l,t,168.10959]X[l,t,74.11115]X[l,t,84.03871]X[l,t,122.98715]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
 <apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
 <apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
+
+    <!-- Table group for tbl2 (5 columns, different widths) -->
+    <template data-xml-selector="table[@id='tbl2'] > tgroup" xml:space="preserve">
+\begin{tblr}{width={253.2pt},colspec={@{}X[l,t,16.95076]X[l,t,48.5617]X[l,t,48.5617]X[l,t,48.5617]X[l,t,30.5641]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
+<apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
+<apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
+
+    <!-- Generic table group fallback (5 columns, use tbl1 widths as default) -->
+    <template data-xml-selector="tgroup" xml:space="preserve">
+\begin{tblr}{width={524.4pt},colspec={@{}X[l,t,15.15343]X[l,t,168.10959]X[l,t,74.11115]X[l,t,84.03871]X[l,t,122.98715]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
+<apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
+<apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
+
+    <!-- Table wrapper -->
+    <template data-xml-selector="table" xml:space="preserve">
+\begin{neotable}{[[@id | raw]]}{\tabfloatcaption{\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
+\begin{tablebody}\SetTblrInner{hspan=minimal}
+<apply-template data-xml-selector="tgroup"/>
+\end{tablebody}%
+}\end{neotable}
+</template>
 
     <!-- Table group for tbl2 (5 columns, different widths) -->
     <template data-xml-selector="table[@id='tbl2'] > tgroup" xml:space="preserve">
@@ -231,8 +253,15 @@
 
     <!-- List item detailed for neoenumerate -->
     <template data-xml-selector="list-item" mode="detailed" xml:space="preserve">
-\tagStructListItemStart{}\item[\tagStructListLabelStart{}{\utfcode{•}}\tagStructListLabelEnd{}]\tagStructListBodyStart{}\paraid{[[@id | raw]]} [[...]]\tagStructListBodyEnd{}
+\tagStructListItemStart{}\item[\protect\tagStructListLabelStart{}{\utfcode{•}}\protect\tagStructListLabelEnd{}]\tagStructListBodyStart{}[[...]]\tagStructListBodyEnd{}
 \tagStructListItemEnd{}
+</template>
+
+    <!-- Regular paragraph detailed -->
+    <template data-xml-selector="para" mode="detailed" xml:space="preserve">
+\tagStructPara{}%
+\paraid{[[@id | raw]]}%
+\leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
 </template>
 
     <!-- Keyword -->
@@ -247,15 +276,15 @@
     <template data-xml-selector="section" xml:space="preserve">
 
 \section{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="section-title"/>}{[[@id | raw]]}
-<apply-template data-xml-selector="para"/>
-<apply-template data-xml-selector="section"/>
+<apply-template data-xml-selector="> para"/>
+<apply-template data-xml-selector="> section"/>
 </template>
 
     <!-- Subsection -->
     <template data-xml-selector="section > section" xml:space="preserve">
 
 \subsection{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="section-title"/>}{[[@id | raw]]}
-<apply-template data-xml-selector="para"/>
+<apply-template data-xml-selector="> para"/>
 </template>
 
     <!-- Section title -->
@@ -274,7 +303,7 @@
 \paraid{[[@id | raw]]}%
 \leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
 
-\fig[fig1]{\geommarkfloat{fig1}{FIG-start}{figure}\centering\includegraphics[width=0.7\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}\geommarkfloat{fig1}{FIG-end}{figure}}
+\fig[fig1]{\centering\geommarkfloat{fig1}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}\geommarkfloat{fig1}{FIG-end}{figure}}
 </template>
 
     <!-- Paragraph with figure 2 -->
@@ -283,7 +312,7 @@
 \paraid{[[@id | raw]]}%
 \leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
 
-\fig[fig2]{\geommarkfloat{fig2}{FIG-start}{figure}\centering\includegraphics[width=0.7\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}\geommarkfloat{fig2}{FIG-end}{figure}}
+\fig[fig2]{\centering\geommarkfloat{fig2}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}\geommarkfloat{fig2}{FIG-end}{figure}}
 </template>
 
     <!-- Regular paragraph -->
@@ -320,7 +349,7 @@
 
 \begin{acknowledgment}
 \section{}{Acknowledgments}{sectitle0160}
-<apply-template data-xml-selector="para"/>
+<apply-template data-xml-selector="> para"/>
 \end{acknowledgment}
 </template>
 

@@ -362,13 +362,21 @@ function _matchesPath(xmlNode, selectorParts) {
  * @param {object} engineState - The central state object.
  * @returns {object} The best matching template and selector part.
  */
-function _findBestMatch(xmlNode, engineState) {
+function _findBestMatch(xmlNode, engineState, mode = null) {
     let bestMatch = null;
     // Use localName to strip namespace prefixes (e.g., "ce:title" -> "title")
     const localTagName = (xmlNode.localName || xmlNode.tagName).toLowerCase();
     const candidateTemplates = (engineState.templateCache[localTagName] || []).concat(engineState.templateCache['*'] || []);
 
     for (const template of candidateTemplates) {
+        // Check mode match
+        const templateMode = template.getAttribute('mode');
+        if (mode) {
+            if (templateMode !== mode) continue;
+        } else {
+            if (templateMode) continue; // If no mode requested, skip templates with mode
+        }
+
         const selector = template.getAttribute('data-xml-selector');
         const parsedResult = selectorParser.parse(selector.trim());
         if (parsedResult.hasLeadingCombinator) continue;
@@ -618,7 +626,8 @@ function _processNode(engineState, xmlNode, parentOutputNode, overrideAttributes
 
     if (xmlNode.nodeType !== 1) return;
 
-    const { bestMatch } = _findBestMatch(xmlNode, engineState);
+    const mode = overrideAttributes ? overrideAttributes.mode : null;
+    const { bestMatch } = _findBestMatch(xmlNode, engineState, mode);
 
     if (bestMatch) {
         _applyTemplate(engineState, xmlNode, bestMatch.template, parentOutputNode, overrideAttributes);

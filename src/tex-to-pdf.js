@@ -801,8 +801,8 @@ async function main() {
                         console.log('\n📍 Syncing coordinates from aux file for perfect accuracy...');
                         const { parseAuxFile, generateNdjson, generateMarkedBoxes, readPositionsFromNdjson, getPageDimensions, getColumnSettings } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
 
-                        const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
-                        const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+                            const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+                            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
 
                         // Try to read LaTeX-generated NDJSON first (which has type field)
                         let positions = readPositionsFromNdjson(ndjsonPath);
@@ -816,7 +816,7 @@ async function main() {
 
                             if (positions.length > 0) {
                                 // Generate NDJSON from aux file (without type field)
-                                generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+                            generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
                                 // Re-read to get proper positions
                                 positions = readPositionsFromNdjson(ndjsonPath) || positions;
                             }

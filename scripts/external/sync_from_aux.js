@@ -90,9 +90,9 @@ function getPageDimensions(auxFilePath, ndjsonPath = null) {
                     };
                 }
             }
-        } catch (err) {
+    } catch (err) {
             console.warn('Could not read page dimensions from NDJSON, using defaults');
-        }
+    }
     }
 
     // Fallback to defaults
