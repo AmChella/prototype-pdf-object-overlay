@@ -432,7 +432,7 @@ async function main() {
                     const getRecord = (id, baseRole) => {
                         let rec = elementMap.get(id);
                         if (!rec) {
-                            rec = { id, role: baseRole, starts: [], ends: [] };
+                            rec = { id, role: baseRole, starts: [], ends: [], lines: [] };
                             elementMap.set(id, rec);
                         }
                         return rec;
@@ -441,11 +441,21 @@ async function main() {
                     for (const rawMark of marks) {
                         if (!rawMark || typeof rawMark !== 'object') continue;
                         const role = String(rawMark.role || '');
-                        if (!/^(FIG|TABLE|P)-(start|end)$/.test(role)) {
+                        const type = String(rawMark.type || '');
+                        
+                        let baseRole = role;
+                        let markType = type;
+                        
+                        if (role === 'P' && type === 'line') {
+                            baseRole = 'P';
+                            markType = 'line';
+                        } else if (/^(FIG|TABLE|P)-(start|end)$/.test(role)) {
+                            baseRole = getBaseRole(role);
+                            markType = role.endsWith('start') ? 'start' : 'end';
+                        } else {
                             continue;
                         }
-                        const baseRole = getBaseRole(role);
-                        const type = role.endsWith('start') ? 'start' : 'end';
+
                         const pageIndex = (rawMark.page || 1) - 1;
                         const pwPt = parsePt(rawMark.pw);
                         const phPt = parsePt(rawMark.ph);
@@ -454,11 +464,15 @@ async function main() {
                         const columnWidthPt = safeSpToPt(rawMark.cwsp);
                         const textWidthPt = safeSpToPt(rawMark.twsp);
                         const columnSepPt = safeSpToPt(rawMark.colsep);
+                        
+                        const wPt = safeSpToPt(rawMark.w);
+                        const hPt = safeSpToPt(rawMark.h);
+                        const dPt = safeSpToPt(rawMark.d);
 
                         const mark = {
                             id: rawMark.id,
                             role: baseRole,
-                            type,
+                            type: markType,
                             pageIndex,
                             pageWidthPt: pwPt,
                             pageHeightPt: phPt,
@@ -467,17 +481,20 @@ async function main() {
                             rawYSp: Number(rawMark.ysp),
                             columnWidthPt,
                             textWidthPt,
-                            columnSepPt
+                            columnSepPt,
+                            wPt, hPt, dPt
                         };
 
                         if (!marksByPage.has(pageIndex)) marksByPage.set(pageIndex, []);
                         marksByPage.get(pageIndex).push(mark);
 
                         const record = getRecord(mark.id, baseRole);
-                        if (type === 'start') {
+                        if (markType === 'start') {
                             record.starts.push(mark);
-                        } else {
+                        } else if (markType === 'end') {
                             record.ends.push(mark);
+                        } else if (markType === 'line') {
+                            record.lines.push(mark);
                         }
                     }
 
@@ -676,24 +693,54 @@ async function main() {
 
                     for (const record of elementMap.values()) {
                         const segmentsByPage = new Map();
-                        const coveredColumns = new Map();
 
-                        for (const startEvent of record.starts) {
-                            const seg = segmentFromEvent(startEvent);
-                            if (!seg) continue;
-                            if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
-                            segmentsByPage.get(seg.pageIndex).push(seg);
-                            if (!coveredColumns.has(seg.pageIndex)) coveredColumns.set(seg.pageIndex, new Set());
-                            coveredColumns.get(seg.pageIndex).add(seg.columnIndex);
-                        }
+                        if (record.lines && record.lines.length > 0) {
+                            for (const line of record.lines) {
+                                if (!isFiniteNumber(line.xPt) || !isFiniteNumber(line.yPt)) continue;
+                                const pageMeta = pageMetaMap.get(line.pageIndex);
+                                const pageHeight = (pageMeta && isFiniteNumber(pageMeta.pageHeight)) ? pageMeta.pageHeight : (line.pageHeightPt || 842);
+                                
+                                const left = line.xPt;
+                                const width = line.wPt || 0;
+                                const right = left + width;
+                                
+                                const h = line.hPt || 10;
+                                const d = line.dPt || 0;
+                                
+                                const top = pageHeight - (line.yPt + h);
+                                const bottom = pageHeight - (line.yPt - d);
+                                
+                                const quad = [left, top, right, top, right, bottom, left, bottom];
+                                
+                                const seg = {
+                                    pageIndex: line.pageIndex,
+                                    columnIndex: 0,
+                                    left, right, width, top, bottom, quad
+                                };
+                                
+                                if (!segmentsByPage.has(line.pageIndex)) segmentsByPage.set(line.pageIndex, []);
+                                segmentsByPage.get(line.pageIndex).push(seg);
+                            }
+                        } else {
+                            const coveredColumns = new Map();
 
-                        for (const endEvent of record.ends) {
-                            const covered = coveredColumns.get(endEvent.pageIndex);
-                            if (covered && covered.has(endEvent.columnIndex)) continue;
-                            const seg = segmentFromEvent(endEvent);
-                            if (!seg) continue;
-                            if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
-                            segmentsByPage.get(seg.pageIndex).push(seg);
+                            for (const startEvent of record.starts) {
+                                const seg = segmentFromEvent(startEvent);
+                                if (!seg) continue;
+                                if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
+                                segmentsByPage.get(seg.pageIndex).push(seg);
+                                if (!coveredColumns.has(seg.pageIndex)) coveredColumns.set(seg.pageIndex, new Set());
+                                coveredColumns.get(seg.pageIndex).add(seg.columnIndex);
+                            }
+
+                            for (const endEvent of record.ends) {
+                                const covered = coveredColumns.get(endEvent.pageIndex);
+                                if (covered && covered.has(endEvent.columnIndex)) continue;
+                                const seg = segmentFromEvent(endEvent);
+                                if (!seg) continue;
+                                if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
+                                segmentsByPage.get(seg.pageIndex).push(seg);
+                            }
                         }
 
                         for (const [pageIndex, segments] of segmentsByPage.entries()) {

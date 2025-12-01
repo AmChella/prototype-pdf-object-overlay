@@ -29,7 +29,7 @@
 % - Floats (type=table, type=figure): Always col=0 (atomic units, both start/end same value)
 % - Non-floats (type=para, etc.): Calculated from X position (more reliable than \if@firstcolumn)
 % - Multi-column layout is auto-detected by JavaScript: textwidth > columnwidth * 1.5
-% 
+%
 % Element types: para, table, figure, section, title, etc.
 % These types are explicitly marked in LaTeX and used by JavaScript for processing
 \makeatother
@@ -99,13 +99,14 @@
 % Inline mark attaches to the current line; safe in both paragraph and vertical mode
 % #1=id, #2=role, #3=type
 \def\geommarkinline#1#2#3{%
-  \ifvmode
-    % In vertical mode, use \vspace{0pt} to not disrupt layout
-    \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}%
-  \else
-    % In horizontal mode, use \vadjust
-    \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}}%
-  \fi
+  % Disabled: Using line-level marking instead of paragraph start/end markers
+  % \ifvmode
+  %   % In vertical mode, use \vspace{0pt} to not disrupt layout
+  %   \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}%
+  % \else
+  %   % In horizontal mode, use \vadjust
+  %   \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}}%
+  % \fi
 }
 
 % Immediate mark for floats (figures, tables) - improved version
@@ -127,3 +128,81 @@
   % TODO: Re-enable afterpage when label extraction is fixed
   \geomemit{#1}{#2}{#3}%
 }
+
+% ---------------------------------------------------------------------------
+% LuaTeX Line-Level Marking Support
+% ---------------------------------------------------------------------------
+\ifx\directlua\undefined
+  \message{GEOM: LuaTeX not detected. Line-level marking disabled.}
+  \def\geommarkpara#1{}
+\else
+  \directlua{
+    geom_line_output_filename = tex.jobname .. "-texpos-lines.ndjson"
+    geom_current_para_id = nil
+    
+    -- Clear/create fresh line-level NDJSON file at initialization
+    local f = io.open(geom_line_output_filename, "w")
+    if f then f:close() end
+    
+    function geom_write_line_data(id, line, w, h, d)
+        local x = tex.lastxpos or 0
+        local y = tex.lastypos or 0
+        local page = tex.count[0] or 1
+        
+        local json = '{"id":"' .. id .. '","role":"P","type":"line","line":' .. line .. ',"xsp":"' .. x .. '","ysp":"' .. y .. '","page":' .. page .. ',"w":' .. w .. ',"h":' .. h .. ',"d":' .. d .. '}' .. string.char(10)
+        
+        local f = io.open(geom_line_output_filename, "a")
+        if f then
+            f:write(json)
+            f:close()
+        end
+    end
+
+    function geom_linebreak_callback(head)
+        if not geom_current_para_id then return head end
+        
+        local para_id = geom_current_para_id
+        geom_current_para_id = nil
+        
+        local line_count = 0
+        
+        for n in node.traverse_id(node.id("hlist"), head) do
+            line_count = line_count + 1
+            
+            local save_pos = node.new("whatsit", "save_pos")
+            local latelua = node.new("whatsit", "late_lua")
+            latelua.data = 'geom_write_line_data("' .. para_id .. '", ' .. line_count .. ', ' .. n.width .. ', ' .. n.height .. ', ' .. n.depth .. ')'
+            
+            if n.list then
+                n.list = node.insert_before(n.list, n.list, save_pos)
+                node.insert_after(n.list, save_pos, latelua)
+            end
+        end
+        
+        return head
+    end
+  }%
+  \AtBeginDocument{%
+    \directlua{
+        if not geom_linebreak_callback then
+            texio.write_nl("ERROR: geom_linebreak_callback not defined!")
+        elseif not luatexbase then
+            texio.write_nl("GEOM: luatexbase not available")
+        elseif not luatexbase.add_to_callback then
+            texio.write_nl("GEOM: luatexbase.add_to_callback not available")
+        else
+            local success, err = pcall(function()
+                luatexbase.add_to_callback("post_linebreak_filter", geom_linebreak_callback, "geom_lines")
+            end)
+            if success then
+                texio.write_nl("GEOM: Line-level marking enabled")
+            else
+                texio.write_nl("GEOM: Callback registration failed: " .. tostring(err))
+            end
+        end
+    }%
+  }%
+  \def\geommarkpara#1{%
+    \directlua{geom_current_para_id = "#1"}%
+  }%
+\fi
