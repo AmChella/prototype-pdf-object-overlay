@@ -67,6 +67,45 @@ function parseAuxFile(auxFilePath) {
 }
 
 /**
+ * Read float coordinates from template/float_co-ordinate.txt
+ */
+function readFloatCoordinates() {
+    const floatCoordPath = path.join(__dirname, '../../template/float_co-ordinate.txt');
+    const floatCoords = new Map();
+    
+    if (fs.existsSync(floatCoordPath)) {
+        console.log(`Reading float coordinates from: ${floatCoordPath}`);
+        const content = fs.readFileSync(floatCoordPath, 'utf8');
+        const lines = content.split(/\r?\n/);
+        
+        // Format: table-callout-tbl1: x-axis=397.0pt, y-axis=91.0pt, HT="189.84233pt", WD="526.28201pt", PgNo="4"
+        const pattern = /table-callout-([^:]+): x-axis=([\d.]+)pt, y-axis=([\d.-]+)pt, HT="([\d.]+)pt", WD="([\d.]+)pt", PgNo="(\d+)"/;
+        
+        for (const line of lines) {
+            const match = line.match(pattern);
+            if (match) {
+                const [, id, x, y, ht, wd, pg] = match;
+                // Only store the main entry (not -end)
+                if (!id.endsWith('-end')) {
+                    floatCoords.set(id, {
+                        x: parseFloat(x),
+                        y: parseFloat(y),
+                        ht: parseFloat(ht),
+                        wd: parseFloat(wd),
+                        page: parseInt(pg, 10)
+                    });
+                }
+            }
+        }
+        console.log(`Loaded ${floatCoords.size} float coordinate overrides`);
+    } else {
+        console.warn(`Float coordinate file not found: ${floatCoordPath}`);
+    }
+    
+    return floatCoords;
+}
+
+/**
  * Get page dimensions from aux file or use defaults
  */
 function getPageDimensions(auxFilePath, ndjsonPath = null) {
@@ -310,6 +349,7 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
 
     // Get page height for coordinate system conversion
     const pageHeightPt = parseFloat(pageDimensions.height.replace('pt', ''));
+    const pageWidthPt = parseFloat(pageDimensions.width.replace('pt', ''));
 
     // Convert Y coordinates from TeX (top-left origin) to PDF (bottom-left origin)
     const y1PtPdf = pageHeightPt - y1Pt;
@@ -317,10 +357,103 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
 
     // Calculate bounding box using PURE COORDINATES (no column assumptions)
     // This approach works for any layout: 2-col, 3-col, asymmetric, etc.
-    const xPt = Math.min(x1Pt, x2Pt);
-    const yPt = Math.min(y1PtPdf, y2PtPdf);
+    let xPt = Math.min(x1Pt, x2Pt);
+    let yPt = Math.min(y1PtPdf, y2PtPdf);
     let wPt = Math.abs(x2Pt - x1Pt);
-    const hPt = Math.abs(y2PtPdf - y1PtPdf);
+    let hPt = Math.abs(y2PtPdf - y1PtPdf);
+
+    // Check for float coordinate override
+    // This is the most accurate source for tables/figures if available
+    // We read this map once at the top level (need to pass it down or read it here)
+    // For simplicity, we'll read it here (cached by require/fs cache hopefully, or we can move it)
+    // Actually, let's just read it once globally or pass it. 
+    // Since I can't easily change the function signature everywhere, I'll use a global or read it here.
+    // Reading small file is fast.
+    // Better: I'll assume it's passed in 'options' or I'll read it lazily.
+    // Let's just read it here for now, it's a script.
+    // Wait, I defined readFloatCoordinates but didn't call it.
+    // I'll call it inside calculateBoundingBox for now (inefficient but safe)
+    // Or better, I'll rely on the caller passing it? No, caller is generateMarkedBoxes.
+    
+    // Let's use a lazy static-like variable pattern
+    if (!global.floatCoords) {
+        global.floatCoords = readFloatCoordinates();
+    }
+    const floatOverride = global.floatCoords.get(startRecord.id);
+
+    if (floatOverride && floatOverride.page === startRecord.page) {
+        console.log(`   🎯 Using float override for ${startRecord.id}: WD=${floatOverride.wd}, HT=${floatOverride.ht}`);
+        
+        // Check if rotated (based on zsavepos detection or aspect ratio)
+        // If zsavepos indicates rotation (wide strip), we swap WD/HT from float file
+        const isOffPage = (xPt > pageWidthPt * 0.8) || (xPt + wPt > pageWidthPt * 1.1);
+        const isWideStrip = (wPt > hPt * 2);
+        const isRotated = (startRecord.type === 'table' || startRecord.type === 'figure') && (isOffPage || isWideStrip) && wPt > 100;
+        
+        if (isRotated) {
+            // Rotated: WD is Height, HT is Width
+            wPt = floatOverride.ht;
+            hPt = floatOverride.wd;
+            
+            // Center it
+            xPt = (pageWidthPt - wPt) / 2;
+            yPt = (pageHeightPt - hPt) / 2;
+            
+            console.log(`      Rotated override applied: w=${wPt}, h=${hPt} (centered)`);
+        } else {
+            // Not rotated: WD is Width, HT is Height
+            wPt = floatOverride.wd;
+            hPt = floatOverride.ht;
+            
+            // Use override position if available and reasonable?
+            // floatOverride.y is bottom-left Y.
+            // PDF Y (bottom-left) = floatOverride.y?
+            // Or PDF Y (top-left) = PageHeight - (floatOverride.y + hPt)?
+            // Let's trust the centering for full-page floats, or use the override Y.
+            // If x=0 in override, it might mean "margin" or "centered".
+            // Let's stick to centering for now if it looks like a float.
+             xPt = (pageWidthPt - wPt) / 2;
+             // yPt? If we center Y, it might be wrong for top/bottom floats.
+             // But for full page floats it's fine.
+             // Let's try using the override Y converted to Top-Left.
+             // yPt = pageHeightPt - (floatOverride.y + hPt);
+             // But floatOverride.y might be top-left?
+             // Let's stick to the zsavepos Y if not rotated?
+             // No, zsavepos Y is reliable for vertical position usually.
+             // But for rotated tables, zsavepos Y was wrong (off page).
+             // For non-rotated, zsavepos Y is usually fine.
+             // Let's just update W and H.
+        }
+    } else {
+        // Fallback to zsavepos logic with rotation fix
+        
+        // Handle rotated tables/figures (Vertical)
+        // Symptom: Width is very large (often > page width), Height is small, X is large (off page)
+        // This happens because markers are rotated with the content, but the coordinate system is confusing.
+        // We detect this by checking for "wide strip" aspect ratio OR "off page" dimensions.
+        // tbl1: w=609, h=91, x=434 (off page)
+        // tbl2: w=526, h=419, x=560 (off page)
+        const isOffPage = (xPt > pageWidthPt * 0.8) || (xPt + wPt > pageWidthPt * 1.1);
+        const isWideStrip = (wPt > hPt * 2);
+        
+        if ((startRecord.type === 'table' || startRecord.type === 'figure') && (isOffPage || isWideStrip) && wPt > 100) {
+            console.warn(`Warning: Detected likely rotated float for ${startRecord.id} (w=${wPt}, h=${hPt}, x=${xPt}). Swapping dimensions and centering.`);
+            
+            // Swap dimensions (Width becomes Height, Height becomes Width)
+            const temp = wPt;
+            wPt = hPt;
+            hPt = temp;
+            
+            // Center on page (best guess for rotated full-page tables)
+            // This fixes the "away from page" issue by forcing it onto the page
+            xPt = (pageWidthPt - wPt) / 2;
+            yPt = (pageHeightPt - hPt) / 2;
+        }
+    }
+
+    // Common variables
+    const textWidthPt = spToPt(startRecord.twsp || 31699558);
+    const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
 
     // Handle zero or very small width cases
     // This happens when start and end markers are at the same (or very close) X position
@@ -328,8 +461,6 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
     if (wPt === 0 || wPt < 10) {
         const isTable = (startRecord.type === 'table');
         const isParagraph = (startRecord.type === 'para');
-        const textWidthPt = spToPt(startRecord.twsp || 31699558);
-        const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
         const isMultiColumn = textWidthPt > columnWidthPt * 1.5;
         
         // Check if both markers are in the same column
@@ -363,6 +494,29 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
             console.warn(`Warning: Zero width for ${startRecord.id} (type=${startRecord.type}), using default column width`);
             wPt = columnWidthPt;
         }
+    }
+
+    // Handle rotated tables (Vertical tables)
+    // Symptom: Width is very large (often > page width), Height is small, X is large (off page)
+    // This happens because markers are rotated with the content, but the coordinate system is confusing.
+    // We detect this by checking for "wide strip" aspect ratio OR "off page" dimensions.
+    // tbl1: w=609, h=91, x=434 (off page)
+    // tbl2: w=526, h=419, x=560 (off page)
+    const isOffPage = (xPt > pageWidthPt * 0.8) || (xPt + wPt > pageWidthPt * 1.1);
+    const isWideStrip = (wPt > hPt * 2);
+    
+    if (startRecord.type === 'table' && (isOffPage || isWideStrip) && wPt > 100) {
+        console.warn(`Warning: Detected likely rotated table for ${startRecord.id} (w=${wPt}, h=${hPt}, x=${xPt}). Swapping dimensions and centering.`);
+        
+        // Swap dimensions (Width becomes Height, Height becomes Width)
+        const temp = wPt;
+        wPt = hPt;
+        hPt = temp;
+        
+        // Center on page (best guess for rotated full-page tables)
+        // This fixes the "away from page" issue by forcing it onto the page
+        xPt = (pageWidthPt - wPt) / 2;
+        yPt = (pageHeightPt - hPt) / 2;
     }
 
     // Convert to other units
@@ -774,8 +928,8 @@ function extractFigureBounds(positions, col0StartPt = 72.27, col1StartPt = 303.7
     const figures = {};
     
     for (const pos of positions) {
-        // Check if this is a figure marker (using type field)
-        if (pos.type !== 'figure') continue;
+        // Check if this is a figure or table marker (using type field)
+        if (pos.type !== 'figure' && pos.type !== 'table') continue;
         
         const figId = pos.id;
         if (!figures[figId]) {
@@ -784,7 +938,7 @@ function extractFigureBounds(positions, col0StartPt = 72.27, col1StartPt = 303.7
         figures[figId].positions.push(pos);
     }
     
-    // Calculate bounding boxes for figures
+    // Calculate bounding boxes for figures/tables
     const figureBounds = [];
     
     for (const [figId, figData] of Object.entries(figures)) {

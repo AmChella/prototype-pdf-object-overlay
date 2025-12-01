@@ -3,7 +3,12 @@ import { useAppContext } from '../../context/AppContext';
 import './OverlayLayer.css';
 
 const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
-  const { selectedOverlayId, setSelectedOverlayId, hoveredOverlayId, coordinateOrigin } = useAppContext();
+  const { selectedOverlayId, setSelectedOverlayId, hoveredOverlayId, coordinateOrigin, overlaysVisible } = useAppContext();
+  
+  // If overlays are globally disabled, do not render anything
+  if (!overlaysVisible) {
+    return null;
+  }
   
   console.log(`📊 OverlayLayer rendering for page ${pageNum}:`, {
     overlayCount: overlayData?.length || 0,
@@ -107,6 +112,7 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
       'paragraph': 'rgba(59, 130, 246, 0.3)', // Blue
       'header': 'rgba(139, 92, 246, 0.3)',    // Purple
       'footer': 'rgba(236, 72, 153, 0.3)',    // Pink
+      'custom': 'rgba(107, 114, 128, 0.5)',   // Gray - Custom/DevTools
       'default': 'rgba(239, 68, 68, 0.3)'     // Red
     };
     return colors[type] || colors['default'];

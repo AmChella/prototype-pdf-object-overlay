@@ -3,6 +3,7 @@ import { useAppContext } from '../../context/AppContext';
 import FileUploader from '../FileUploader/FileUploader';
 import JSONUploader from '../JSONUploader/JSONUploader';
 import DocumentSelector from '../DocumentSelector/DocumentSelector';
+import DevTools from '../DevTools/DevTools';
 import './Sidebar.css';
 
 const Sidebar = ({ onGenerateDocument }) => {
@@ -95,6 +96,11 @@ const Sidebar = ({ onGenerateDocument }) => {
             <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></span>
             <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
           </div>
+        </div>
+        
+        {/* DevTools Section */}
+        <div className="sidebar-section">
+          <DevTools />
         </div>
         
         {/* Instructions */}
