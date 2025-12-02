@@ -158,7 +158,7 @@ const OverlaySelector = () => {
                       {overlayType === 'unknown' && '📄'}
                       <span className="type-label">{overlayType}</span>
                     </span>
-                    <span className="overlay-id">{overlay.id}</span>
+                    <span className="overlay-id">{overlay.label || overlay.id}</span>
                   </div>
                   <span className="overlay-page">P{overlay.page}</span>
                 </div>

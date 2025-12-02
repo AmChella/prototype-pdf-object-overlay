@@ -108,6 +108,8 @@ class DocumentConverter {
             processedOutput = processedOutput.replace(/&gt;/g, '>');
             processedOutput = processedOutput.replace(/&quot;/g, '"');
             processedOutput = processedOutput.replace(/&apos;/g, "'");
+            // Fix: Convert &amp; to & for table column separators in LaTeX
+            processedOutput = processedOutput.replace(/&amp;/g, '&');
             // Fix: Replace AMPERSAND placeholder with actual & for table cell separation
             // DO NOT escape ampersands - they're needed for table column separators
             processedOutput = processedOutput.replace(/AMPERSAND/g, '&');

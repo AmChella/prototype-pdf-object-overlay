@@ -209,12 +209,11 @@ const OverlayLayer = ({ overlayData, viewport, pageNum }) => {
               borderColor: isSelected ? '#6366f1' : isHovered ? '#ffc107' : 'rgba(255, 255, 255, 0.5)'
             }}
             onClick={() => setSelectedOverlayId(overlay.id)}
-            title={`${getTypeLabel(overlayType)}: ${overlay.id}${overlay.text ? ` - ${overlay.text}` : ''}`}
+            title={`${overlay.label || overlay.id}${overlay.text ? ` - ${overlay.text}` : ''}`}
           >
             <div className="overlay-label">
               <span className="overlay-label-icon">{getTypeIcon(overlayType)}</span>
-              <span className="overlay-label-type">{getTypeLabel(overlayType)}</span>
-              <span className="overlay-label-id">{overlay.id}</span>
+              <span className="overlay-label-text-display">{overlay.label || overlay.id}</span>
               {overlay.page && (
                 <span className="overlay-label-page">P{overlay.page}</span>
               )}

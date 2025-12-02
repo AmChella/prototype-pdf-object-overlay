@@ -221,16 +221,24 @@ function createOverlaySegments(groups) {
         });
         
         if (segments.length === 1) {
-            // Single segment - remove column field from output
+            // Single segment - remove column field from output, add label
             const { column, ...rest } = segments[0];
-            result.push(rest);
+            result.push({
+                ...rest,
+                label: `para ${paraId}`
+            });
         } else {
-            // Multi-segment - add segment info to ID
+            // Multi-segment - unique IDs with human-readable labels
             for (let i = 0; i < segments.length; i++) {
                 const { column, ...rest } = segments[i];
+                // Unique ID for data: seg1of3, seg2of3, etc.
+                const segmentId = `${paraId}_seg${i + 1}of${segments.length}`;
+                // Human-readable label: "para p0035" or "para p0035 continue"
+                const label = i === 0 ? `para ${paraId}` : `para ${paraId} continue`;
                 result.push({
                     ...rest,
-                    id: `${paraId}_seg${i + 1}of${segments.length}`,
+                    id: segmentId,
+                    label: label,
                     originalId: paraId,
                     segmentIndex: i,
                     totalSegments: segments.length,

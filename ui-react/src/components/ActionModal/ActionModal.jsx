@@ -173,9 +173,15 @@ const ActionModal = ({ isOpen, overlay, onClose, onSubmit }) => {
           {/* Overlay Information */}
           <div className="overlay-info">
             <div className="info-field">
-              <label>Element ID</label>
-              <span className="info-value">{overlay.id}</span>
+              <label>Label</label>
+              <span className="info-value">{overlay.label || overlay.id}</span>
             </div>
+            {overlay.label && (
+              <div className="info-field">
+                <label>Element ID</label>
+                <span className="info-value info-value-small">{overlay.id}</span>
+              </div>
+            )}
             <div className="info-field">
               <label>Type</label>
               <span className={`type-badge type-${overlayType}`}>
