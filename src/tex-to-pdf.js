@@ -890,6 +890,57 @@ async function main() {
                 }
             }
 
+            // Convert line-level NDJSON to paragraph overlays (if line-level data exists)
+            const linesNdjsonPath = path.join(outputDir, `${jobName}-texpos-lines.ndjson`);
+            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+            if (fs.existsSync(linesNdjsonPath)) {
+                try {
+                    console.log('\n📏 Converting line-level coordinates to paragraph overlays...');
+                    const { convertLinesToOverlays } = require(path.join(__dirname, '../scripts/external/lines_to_overlays.js'));
+                    
+                    // Generate line-based overlays
+                    const linesMarkedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes-lines.json`);
+                    convertLinesToOverlays(linesNdjsonPath, linesMarkedBoxesPath);
+                    
+                    // Merge with existing marked-boxes.json (floats from sync_from_aux)
+                    let existingBoxes = [];
+                    if (fs.existsSync(markedBoxesPath)) {
+                        try {
+                            existingBoxes = JSON.parse(fs.readFileSync(markedBoxesPath, 'utf8'));
+                            // Keep only non-paragraph items (figures, tables)
+                            existingBoxes = existingBoxes.filter(box => 
+                                box.type === 'figure' || box.type === 'table' || 
+                                box.id?.startsWith('fig') || box.id?.startsWith('tbl')
+                            );
+                            console.log(`   📦 Keeping ${existingBoxes.length} float overlays from existing file`);
+                        } catch (e) {
+                            existingBoxes = [];
+                        }
+                    }
+                    
+                    // Read line-based paragraph overlays
+                    const lineBoxes = JSON.parse(fs.readFileSync(linesMarkedBoxesPath, 'utf8'));
+                    console.log(`   📝 Generated ${lineBoxes.length} paragraph overlays from line data`);
+                    
+                    // Merge: floats + paragraphs
+                    const mergedBoxes = [...existingBoxes, ...lineBoxes];
+                    
+                    // Sort by page then y position
+                    mergedBoxes.sort((a, b) => {
+                        if (a.page !== b.page) return a.page - b.page;
+                        return (a.y_pt || 0) - (b.y_pt || 0);
+                    });
+                    
+                    // Write merged result
+                    fs.writeFileSync(markedBoxesPath, JSON.stringify(mergedBoxes, null, 2));
+                    console.log(`✅ Merged ${mergedBoxes.length} total overlays to ${path.basename(markedBoxesPath)}`);
+                    
+                } catch (lineConvertError) {
+                    console.error('⚠️  Failed to convert line-level data:');
+                    console.error(lineConvertError.message);
+                }
+            }
+
             if (!flags.keepAux) {
                 cleanAuxiliaryFiles(outputDir, jobName);
             }

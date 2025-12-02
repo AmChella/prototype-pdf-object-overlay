@@ -98,15 +98,9 @@
 
 % Inline mark attaches to the current line; safe in both paragraph and vertical mode
 % #1=id, #2=role, #3=type
+% DISABLED: Using line-level marking instead (see geom-marks-lines.tex)
 \def\geommarkinline#1#2#3{%
-  % Disabled: Using line-level marking instead of paragraph start/end markers
-  % \ifvmode
-  %   % In vertical mode, use \vspace{0pt} to not disrupt layout
-  %   \vspace{0pt}\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}%
-  % \else
-  %   % In horizontal mode, use \vadjust
-  %   \vadjust{\zsavepos{gm:#1:#2}\geomemit{#1}{#2}{#3}}%
-  % \fi
+  % No-op: Line-level marking provides better accuracy
 }
 
 % Immediate mark for floats (figures, tables) - improved version
@@ -136,6 +130,7 @@
   \message{GEOM: LuaTeX not detected. Line-level marking disabled.}
   \def\geommarkpara#1{}
 \else
+  % Define Lua functions first
   \directlua{
     geom_line_output_filename = tex.jobname .. "-texpos-lines.ndjson"
     geom_current_para_id = nil
@@ -149,7 +144,7 @@
         local y = tex.lastypos or 0
         local page = tex.count[0] or 1
         
-        local json = '{"id":"' .. id .. '","role":"P","type":"line","line":' .. line .. ',"xsp":"' .. x .. '","ysp":"' .. y .. '","page":' .. page .. ',"w":' .. w .. ',"h":' .. h .. ',"d":' .. d .. '}' .. string.char(10)
+        local json = string.char(123) .. '"id":"' .. id .. '","role":"P","type":"line","line":' .. line .. ',"xsp":"' .. x .. '","ysp":"' .. y .. '","page":' .. page .. ',"w":' .. w .. ',"h":' .. h .. ',"d":' .. d .. string.char(125) .. string.char(10)
         
         local f = io.open(geom_line_output_filename, "a")
         if f then
@@ -164,10 +159,9 @@
         local para_id = geom_current_para_id
         geom_current_para_id = nil
         
-        local line_count = 0
-        
         for n in node.traverse_id(node.id("hlist"), head) do
-            line_count = line_count + 1
+            local line_count = (n.geom_line_number or 0) + 1
+            n.geom_line_number = line_count
             
             local save_pos = node.new("whatsit", "save_pos")
             local latelua = node.new("whatsit", "late_lua")
@@ -181,28 +175,13 @@
         
         return head
     end
+    
+    texio.write_nl("GEOM: Lua functions defined")
   }%
-  \AtBeginDocument{%
-    \directlua{
-        if not geom_linebreak_callback then
-            texio.write_nl("ERROR: geom_linebreak_callback not defined!")
-        elseif not luatexbase then
-            texio.write_nl("GEOM: luatexbase not available")
-        elseif not luatexbase.add_to_callback then
-            texio.write_nl("GEOM: luatexbase.add_to_callback not available")
-        else
-            local success, err = pcall(function()
-                luatexbase.add_to_callback("post_linebreak_filter", geom_linebreak_callback, "geom_lines")
-            end)
-            if success then
-                texio.write_nl("GEOM: Line-level marking enabled")
-            else
-                texio.write_nl("GEOM: Callback registration failed: " .. tostring(err))
-            end
-        end
-    }%
-  }%
+  
+  % Line-level marking moved to geom-marks-lines.tex
+  % This avoids conflicts with Elsevier template callbacks
   \def\geommarkpara#1{%
-    \directlua{geom_current_para_id = "#1"}%
+    % No-op: Load geom-marks-lines.tex for line-level marking
   }%
 \fi

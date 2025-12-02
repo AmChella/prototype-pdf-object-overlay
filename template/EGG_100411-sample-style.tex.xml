@@ -29,6 +29,7 @@
 \newif\ifneedcutedpackage\needcutedpackagefalse
 \usepackage[auproof]{\Templatepath autotemplate}
 \input{../TeX-lib/geom-marks.tex}
+\input{../TeX-lib/geom-marks-lines.tex}
 
 % Define unhandledtag command for template fallback
 \newcommand{\unhandledtag}[2]{#2}
@@ -261,7 +262,7 @@
     <template data-xml-selector="para" mode="detailed" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
-\leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
 </template>
 
     <!-- Keyword -->
@@ -293,7 +294,7 @@
     <!-- Abstract paragraph (simple-para) -->
     <template data-xml-selector="abstract-sec > simple-para" xml:space="preserve">
 \paraid{[[@id | raw]]}%
-\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par
 </template>
 
@@ -301,7 +302,7 @@
     <template data-xml-selector="para[id='p0045']" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
-\leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
 
 \fig[fig1]{\centering\geommarkfloat{fig1}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}\geommarkfloat{fig1}{FIG-end}{figure}}
 </template>
@@ -310,7 +311,7 @@
     <template data-xml-selector="para[id='p0060']" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
-\leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
 
 \fig[fig2]{\centering\geommarkfloat{fig2}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}\geommarkfloat{fig2}{FIG-end}{figure}}
 </template>
@@ -319,7 +320,7 @@
     <template data-xml-selector="para" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
-\leavevmode\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}\tagStructParaEnd{}
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
 </template>
 
     <!-- For tbl1 - insert table reference -->

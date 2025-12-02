@@ -1,0 +1,79 @@
+% True line-level geometry markers for paragraphs
+% Uses LuaTeX callbacks to capture every typeset line within paragraphs
+
+\message{GEOM-LINES: Loading line-level marking system}
+
+\ifx\directlua\undefined
+  \message{GEOM-LINES: LuaTeX not detected, line marking disabled}
+  \def\geommark#1#2{}
+\else
+  \message{GEOM-LINES: LuaTeX detected, initializing callbacks}
+  
+  \directlua{
+    geom_line_output = tex.jobname .. "-texpos-lines.ndjson"
+    geom_para_id = nil
+    geom_line_data = {}
+    geom_line_idx = 0
+    
+    local f = io.open(geom_line_output, "w")
+    if f then f:close() end
+    texio.write_nl("GEOM-LINES: Output file created: " .. geom_line_output)
+    
+    function geom_write_line_now(idx)
+      local data = geom_line_data[idx]
+      if not data then return end
+      local x, y = pdf.getpos()
+      local pg = status.total_pages + 1
+      local json = '{"id":"' .. data.id .. '","type":"line","line":' .. data.num .. ',"xsp":' .. x .. ',"ysp":' .. y .. ',"w":' .. data.w .. ',"h":' .. data.h .. ',"d":' .. data.d .. ',"page":' .. pg .. '}' .. string.char(10)
+      local f = io.open(geom_line_output, "a")
+      if f then f:write(json) f:close() end
+    end
+    
+    function geom_linebreak_callback(head, groupcode)
+      if not geom_para_id then return head end
+      local id = geom_para_id
+      local num = 0
+      for n in node.traverse_id(node.id("hlist"), head) do
+        num = num + 1
+        local w = n.width or 0
+        local h = n.height or 0
+        local d = n.depth or 0
+        if n.list then
+          geom_line_idx = geom_line_idx + 1
+          local idx = geom_line_idx
+          geom_line_data[idx] = {id=id, num=num, w=w, h=h, d=d}
+          local savepos = node.new("whatsit", "save_pos")
+          local late = node.new("whatsit", "late_lua")
+          late.data = "geom_write_line_now(" .. idx .. ")"
+          n.list = node.insert_before(n.list, n.list, savepos)
+          node.insert_after(n.list, savepos, late)
+        end
+      end
+      geom_para_id = nil
+      return head
+    end
+    
+    texio.write_nl("GEOM-LINES: Lua functions defined")
+  }
+  
+  \AtBeginDocument{%
+    \directlua{
+      if luatexbase and luatexbase.add_to_callback then
+        luatexbase.add_to_callback("post_linebreak_filter", geom_linebreak_callback, "geom_lines")
+        texio.write_nl("GEOM-LINES: Callback registered")
+      else
+        texio.write_nl("GEOM-LINES: luatexbase not available")
+      end
+    }%
+  }
+  
+  \def\geommark#1#2{%
+    \edef\temprole{#2}%
+    \edef\checkstart{start}%
+    \ifx\temprole\checkstart
+      \directlua{geom_para_id = "\luatexluaescapestring{#1}"}%
+    \fi
+  }
+\fi
+
+\message{GEOM-LINES: System loaded}
