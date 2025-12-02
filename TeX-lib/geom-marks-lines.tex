@@ -12,6 +12,7 @@
   \directlua{
     geom_line_output = tex.jobname .. "-texpos-lines.ndjson"
     geom_para_id = nil
+    geom_para_line_num = 0
     geom_line_data = {}
     geom_line_idx = 0
     
@@ -24,6 +25,7 @@
       if not data then return end
       local x, y = pdf.getpos()
       local pg = status.total_pages + 1
+      if x < 0 or x > 35000000 then return end
       local json = '{"id":"' .. data.id .. '","type":"line","line":' .. data.num .. ',"xsp":' .. x .. ',"ysp":' .. y .. ',"w":' .. data.w .. ',"h":' .. data.h .. ',"d":' .. data.d .. ',"page":' .. pg .. '}' .. string.char(10)
       local f = io.open(geom_line_output, "a")
       if f then f:write(json) f:close() end
@@ -32,13 +34,13 @@
     function geom_linebreak_callback(head, groupcode)
       if not geom_para_id then return head end
       local id = geom_para_id
-      local num = 0
       for n in node.traverse_id(node.id("hlist"), head) do
-        num = num + 1
         local w = n.width or 0
         local h = n.height or 0
         local d = n.depth or 0
-        if n.list then
+        if n.list and h > 0 and h < 1000000 and w > 0 then
+          geom_para_line_num = geom_para_line_num + 1
+          local num = geom_para_line_num
           geom_line_idx = geom_line_idx + 1
           local idx = geom_line_idx
           geom_line_data[idx] = {id=id, num=num, w=w, h=h, d=d}
@@ -49,7 +51,6 @@
           node.insert_after(n.list, savepos, late)
         end
       end
-      geom_para_id = nil
       return head
     end
     
@@ -70,8 +71,19 @@
   \def\geommark#1#2{%
     \edef\temprole{#2}%
     \edef\checkstart{start}%
+    \edef\checkend{end}%
     \ifx\temprole\checkstart
-      \directlua{geom_para_id = "\luatexluaescapestring{#1}"}%
+      \directlua{
+        if geom_para_id then
+          texio.write_nl("GEOM-LINES: Warning - previous para not ended: " .. geom_para_id)
+        end
+        geom_para_id = "\luatexluaescapestring{#1}"
+        geom_para_line_num = 0
+      }%
+    \fi
+    \ifx\temprole\checkend
+      \par
+      \directlua{geom_para_id = nil}%
     \fi
   }
 \fi

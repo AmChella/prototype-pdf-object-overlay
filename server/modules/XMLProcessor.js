@@ -17,6 +17,11 @@ class XMLProcessor {
                 paragraph: 'p',
                 table: 'table'
             },
+            'elsevier': {
+                figure: 'ce:figure',
+                paragraph: 'ce:para',
+                table: 'ce:table'
+            },
             'standard': {
                 figure: 'figure',
                 paragraph: 'para',
@@ -43,6 +48,7 @@ class XMLProcessor {
             console.log(`📋 Detected XML schema: ${this.xmlSchema.name}`);
             console.log(`   Figure tag: <${this.xmlSchema.tags.figure}>`);
             console.log(`   Paragraph tag: <${this.xmlSchema.tags.paragraph}>`);
+            console.log(`   Table tag: <${this.xmlSchema.tags.table}>`);
             
             return true;
         } catch (error) {
@@ -60,14 +66,25 @@ class XMLProcessor {
             const hasFigTag = xpath.select('//fig', this.xmlDocument).length > 0;
             const hasPTag = xpath.select('//p', this.xmlDocument).length > 0;
             
-            // Check for standard schema (<figure> and <para> tags)
-            const hasFigureTag = xpath.select('//figure', this.xmlDocument).length > 0;
-            const hasParaTag = xpath.select('//para', this.xmlDocument).length > 0;
+            // Check for Elsevier schema (<ce:figure> and <ce:para> tags)
+            const hasCeFigureTag = xpath.select('//*[local-name()="figure" and namespace-uri()="http://www.elsevier.com/xml/common/dtd"]', this.xmlDocument).length > 0 ||
+                                   xpath.select('//*[starts-with(name(), "ce:figure")]', this.xmlDocument).length > 0;
+            const hasCeParaTag = xpath.select('//*[local-name()="para" and namespace-uri()="http://www.elsevier.com/xml/common/dtd"]', this.xmlDocument).length > 0 ||
+                                 xpath.select('//*[starts-with(name(), "ce:para")]', this.xmlDocument).length > 0;
+            
+            // Check for standard schema (<figure> and <para> tags without namespace)
+            const hasFigureTag = xpath.select('//figure[not(contains(name(), ":"))]', this.xmlDocument).length > 0;
+            const hasParaTag = xpath.select('//para[not(contains(name(), ":"))]', this.xmlDocument).length > 0;
             
             if (hasFigTag || hasPTag) {
                 return {
                     name: 'endend',
                     tags: this.schemaDefinitions.endend
+                };
+            } else if (hasCeFigureTag || hasCeParaTag) {
+                return {
+                    name: 'elsevier',
+                    tags: this.schemaDefinitions.elsevier
                 };
             } else if (hasFigureTag || hasParaTag) {
                 return {
@@ -219,6 +236,7 @@ class XMLProcessor {
     /**
      * Adapt XPath query to work with detected XML schema
      * Replaces standard tag names with schema-specific tag names
+     * Uses local-name() for namespace-prefixed tags (e.g., ce:figure)
      */
     adaptXPathToSchema(xpathQuery) {
         if (!this.xmlSchema) {
@@ -226,21 +244,35 @@ class XMLProcessor {
         }
 
         let adaptedQuery = xpathQuery;
+        const isNamespaced = this.xmlSchema.name === 'elsevier';
+
+        // Helper to create the right XPath expression for a tag
+        const getTagExpr = (tag) => {
+            if (isNamespaced && tag.includes(':')) {
+                // For namespaced tags like ce:figure, use local-name()
+                const localName = tag.split(':')[1];
+                return `*[local-name()="${localName}"]`;
+            }
+            return tag;
+        };
 
         // Replace figure-related tags (handle various XPath patterns)
+        const figureExpr = getTagExpr(this.xmlSchema.tags.figure);
         adaptedQuery = adaptedQuery
-            .replace(/\/\/figure(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.figure}`)
-            .replace(/([^\/])\/figure(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.figure}`);
+            .replace(/\/\/figure(?=[\[@\s\|\/]|$)/g, `//${figureExpr}`)
+            .replace(/([^\/])\/figure(?=[\[@\s\|\/]|$)/g, `$1/${figureExpr}`);
 
         // Replace paragraph-related tags
+        const paraExpr = getTagExpr(this.xmlSchema.tags.paragraph);
         adaptedQuery = adaptedQuery
-            .replace(/\/\/para(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.paragraph}`)
-            .replace(/([^\/])\/para(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.paragraph}`);
+            .replace(/\/\/para(?=[\[@\s\|\/]|$)/g, `//${paraExpr}`)
+            .replace(/([^\/])\/para(?=[\[@\s\|\/]|$)/g, `$1/${paraExpr}`);
 
         // Replace table-related tags
+        const tableExpr = getTagExpr(this.xmlSchema.tags.table);
         adaptedQuery = adaptedQuery
-            .replace(/\/\/table(?=[\[@\s\|\/]|$)/g, `//${this.xmlSchema.tags.table}`)
-            .replace(/([^\/])\/table(?=[\[@\s\|\/]|$)/g, `$1/${this.xmlSchema.tags.table}`);
+            .replace(/\/\/table(?=[\[@\s\|\/]|$)/g, `//${tableExpr}`)
+            .replace(/([^\/])\/table(?=[\[@\s\|\/]|$)/g, `$1/${tableExpr}`);
 
         return adaptedQuery;
     }

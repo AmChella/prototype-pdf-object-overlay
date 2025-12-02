@@ -1,0 +1,33 @@
+% Custom float placement macros for Elsevier templates
+% Provides per-figure placement control using Elsevier's {!placement} syntax
+
+\message{CUSTOM-FLOATS: Loading custom float placement macros}
+
+\makeatletter
+
+% figwithplacement: Figure with explicit placement (raw letter like b, t, p)
+% #1 = figure ID (label)
+% #2 = placement option (b, t, p, h, htbp, etc.)
+% #3 = figure content
+\newcommand{\figwithplacement}[3]{%
+  \begin{figure}{!#2}%
+    \fig[#1]{#3}%
+  \end{figure}%
+}
+
+% figwithplacementbrackets: Handle bracketed placement [b], [t], [htbp], etc.
+% The brackets are part of the value from XML, we need to strip them
+% #1 = figure ID (label)
+% #2 = placement WITH brackets: [b], [t], [htbp], etc.
+% #3 = figure content
+\def\figwithplacementbrackets#1#2#3{%
+  \figwithplacementbrackets@parse{#1}#2\@nil{#3}%
+}
+\def\figwithplacementbrackets@parse#1[#2]#3\@nil#4{%
+  \figwithplacement{#1}{#2}{#4}%
+}
+
+\makeatother
+
+\message{CUSTOM-FLOATS: Macros loaded}
+

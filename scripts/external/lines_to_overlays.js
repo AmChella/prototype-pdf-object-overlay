@@ -104,14 +104,16 @@ function analyzeColumnLayout(lineRecords) {
 }
 
 /**
- * Group lines by paragraph ID, page, and column
+ * Group lines by paragraph ID, page, column, and width type (full-width vs column-width)
  */
 function groupLinesByColumn(lineRecords, columnThreshold) {
     const groups = {};
+    const FULL_WIDTH_THRESHOLD = 26214400; // ~400pt in sp - lines wider than this are "full-width"
     
     for (const record of lineRecords) {
         const { id, line, xsp, ysp, w, h, d, page } = record;
-        const column = detectColumn(xsp, columnThreshold);
+        const isFullWidth = w > FULL_WIDTH_THRESHOLD;
+        const column = isFullWidth ? 'full' : detectColumn(xsp, columnThreshold);
         const key = `${id}_p${page}_c${column}`;
         
         if (!groups[key]) {
@@ -119,6 +121,7 @@ function groupLinesByColumn(lineRecords, columnThreshold) {
                 id,
                 page,
                 column,
+                isFullWidth,
                 lines: []
             };
         }
@@ -214,25 +217,40 @@ function createOverlaySegments(groups) {
     // Process each paragraph - add segment info if spans multiple columns/pages
     const result = [];
     for (const [paraId, segments] of Object.entries(byParaId)) {
-        // Sort by page, then by column
-        segments.sort((a, b) => {
+        // Filter out small spurious full-width segments from paragraphs that have column-width segments
+        const hasColumnWidth = segments.some(s => s.column !== 'full');
+        const hasFullWidth = segments.some(s => s.column === 'full');
+        
+        let filteredSegments = segments;
+        if (hasColumnWidth && hasFullWidth) {
+            // Keep only column-width segments if we have both types
+            // (full-width in a two-column paragraph is likely spurious)
+            filteredSegments = segments.filter(s => s.column !== 'full');
+            console.log(`   ⚠️  ${paraId}: Filtered out ${segments.length - filteredSegments.length} spurious full-width segment(s)`);
+        }
+        
+        // Sort by page, then by column (full-width first, then left=0, right=1)
+        const columnOrder = (col) => col === 'full' ? -1 : col;
+        filteredSegments.sort((a, b) => {
             if (a.page !== b.page) return a.page - b.page;
-            return a.column - b.column;
+            return columnOrder(a.column) - columnOrder(b.column);
         });
         
-        if (segments.length === 1) {
+        if (filteredSegments.length === 0) continue;
+        
+        if (filteredSegments.length === 1) {
             // Single segment - remove column field from output, add label
-            const { column, ...rest } = segments[0];
+            const { column, ...rest } = filteredSegments[0];
             result.push({
                 ...rest,
                 label: `para ${paraId}`
             });
         } else {
             // Multi-segment - unique IDs with human-readable labels
-            for (let i = 0; i < segments.length; i++) {
-                const { column, ...rest } = segments[i];
+            for (let i = 0; i < filteredSegments.length; i++) {
+                const { column, ...rest } = filteredSegments[i];
                 // Unique ID for data: seg1of3, seg2of3, etc.
-                const segmentId = `${paraId}_seg${i + 1}of${segments.length}`;
+                const segmentId = `${paraId}_seg${i + 1}of${filteredSegments.length}`;
                 // Human-readable label: "para p0035" or "para p0035 continue"
                 const label = i === 0 ? `para ${paraId}` : `para ${paraId} continue`;
                 result.push({
@@ -241,8 +259,8 @@ function createOverlaySegments(groups) {
                     label: label,
                     originalId: paraId,
                     segmentIndex: i,
-                    totalSegments: segments.length,
-                    columnInfo: column === 0 ? 'left' : 'right'
+                    totalSegments: filteredSegments.length,
+                    columnInfo: column === 'full' ? 'full-width' : (column === 0 ? 'left' : 'right')
                 });
             }
         }

@@ -30,6 +30,7 @@
 \usepackage[auproof]{\Templatepath autotemplate}
 \input{../TeX-lib/geom-marks.tex}
 \input{../TeX-lib/geom-marks-lines.tex}
+\input{../TeX-lib/custom-floats.tex}
 
 % Define unhandledtag command for template fallback
 \newcommand{\unhandledtag}[2]{#2}
@@ -119,13 +120,26 @@
     <!-- Title -->
     <template data-xml-selector="head > title">[[.]]</template>
 
-    <!-- Floats (Figures and Tables) - Only tables, figures are inline -->
+    <!-- Floats (Figures and Tables) -->
     <template data-xml-selector="floats" xml:space="preserve">
-\begin{floats}<apply-template data-xml-selector="table"/>
+\begin{floats}<apply-template data-xml-selector="figure"/><apply-template data-xml-selector="table"/>
 \end{floats}
     </template>
 
-    <!-- Figure - skip, defined inline in paragraphs -->
+    <!-- Figure with per-figure placement support -->
+    <template data-xml-selector="figure[id=fig1]" xml:space="preserve">
+\geommarkfloat{fig1}{FIG-start}{figure}%
+\figwithplacementbrackets{fig1}{[[@placement]]}{\centering\includegraphics[width=0.45\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}}%
+\geommarkfloat{fig1}{FIG-end}{figure}
+</template>
+
+    <template data-xml-selector="figure[id=fig2]" xml:space="preserve">
+\geommarkfloat{fig2}{FIG-start}{figure}%
+\figwithplacementbrackets{fig2}{[[@placement]]}{\centering\includegraphics[width=0.45\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}}%
+\geommarkfloat{fig2}{FIG-end}{figure}
+</template>
+
+    <!-- Generic figure fallback -->
     <template data-xml-selector="figure"></template>
 
     <!-- Figure/Table label -->
@@ -298,25 +312,35 @@
 \par
 </template>
 
-    <!-- Paragraph with figure 1 -->
+    <!-- Paragraph with figure reference 1 - figure now in floats section -->
     <template data-xml-selector="para[id='p0045']" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
 \leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
-
-\fig[fig1]{\centering\geommarkfloat{fig1}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}\geommarkfloat{fig1}{FIG-end}{figure}}
 </template>
 
-    <!-- Paragraph with figure 2 -->
+    <!-- Paragraph with figure reference 2 - figure now in floats section -->
     <template data-xml-selector="para[id='p0060']" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
 \leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
-
-\fig[fig2]{\centering\geommarkfloat{fig2}{FIG-start}{figure}\includegraphics[width=0.7\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}\geommarkfloat{fig2}{FIG-end}{figure}}
 </template>
 
-    <!-- Regular paragraph -->
+    <!-- Paragraph with tight spacing -->
+    <template data-xml-selector='para[spacing="tight"]' xml:space="preserve">
+{\setlength{\parskip}{0.3em}\tagStructPara{}%
+\paraid{[[@id | raw]]}%
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}\par}
+</template>
+
+    <!-- Paragraph with loose spacing -->
+    <template data-xml-selector='para[spacing="loose"]' xml:space="preserve">
+{\setlength{\parskip}{1.2em}\tagStructPara{}%
+\paraid{[[@id | raw]]}%
+\leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}\par}
+</template>
+
+    <!-- Regular paragraph (default spacing) -->
     <template data-xml-selector="para" xml:space="preserve">
 \tagStructPara{}%
 \paraid{[[@id | raw]]}%
@@ -325,7 +349,7 @@
 
     <!-- For tbl1 - insert table reference -->
     <template data-xml-selector="para[id='p0065'] > float-anchor">{\bgroup\InsertTable{tbl1}{}{t}\egroup}</template>
-    
+
     <!-- For tbl2 - insert table reference -->
     <template data-xml-selector="para[id='p0105'] > float-anchor">{\bgroup\InsertTable{tbl2}{}{b}\egroup}</template>
 
