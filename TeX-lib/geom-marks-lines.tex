@@ -4,8 +4,19 @@
 \message{GEOM-LINES: Loading line-level marking system}
 
 \ifx\directlua\undefined
-  \message{GEOM-LINES: LuaTeX not detected, line marking disabled}
-  \def\geommark#1#2{}
+  \message{GEOM-LINES: LuaTeX not detected, falling back to paragraph-level marking}
+  % Fallback to paragraph-level marking using geommarkinline from geom-marks.tex
+  \def\geommark#1#2{%
+    \edef\temprole{#2}%
+    \edef\checkstart{start}%
+    \edef\checkend{end}%
+    \ifx\temprole\checkstart
+      \geommarkinline{#1}{P-start}{para}%
+    \fi
+    \ifx\temprole\checkend
+      \geommarkinline{#1}{P-end}{para}%
+    \fi
+  }
 \else
   \message{GEOM-LINES: LuaTeX detected, initializing callbacks}
   
@@ -77,7 +88,7 @@
         if geom_para_id then
           texio.write_nl("GEOM-LINES: Warning - previous para not ended: " .. geom_para_id)
         end
-        geom_para_id = "\luatexluaescapestring{#1}"
+        geom_para_id = [=[\detokenize{#1}]=]
         geom_para_line_num = 0
       }%
     \fi

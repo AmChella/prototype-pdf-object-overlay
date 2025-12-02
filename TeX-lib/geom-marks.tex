@@ -98,9 +98,10 @@
 
 % Inline mark attaches to the current line; safe in both paragraph and vertical mode
 % #1=id, #2=role, #3=type
-% DISABLED: Using line-level marking instead (see geom-marks-lines.tex)
+% Used as fallback for non-LuaTeX engines (LuaTeX uses geom-marks-lines.tex)
 \def\geommarkinline#1#2#3{%
-  % No-op: Line-level marking provides better accuracy
+  \zsavepos{gm:#1:#2}%
+  \geomemit{#1}{#2}{#3}%
 }
 
 % Immediate mark for floats (figures, tables) - improved version

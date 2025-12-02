@@ -51,6 +51,7 @@
 
 % Geometry writer (zref-savepos preferred)
 \input{../TeX-lib/geom-marks.tex}
+\input{../TeX-lib/geom-marks-lines.tex}
 
 <apply-template data-xml-selector="section"/>
 \end{document}
@@ -70,20 +71,20 @@
 \end{quote}
 </template>
 
-    <!-- Paragraph templates with spacing control -->
+    <!-- Paragraph templates with spacing control (using line-level marking) -->
     <template data-xml-selector='para[spacing="tight"]' xml:space="preserve">
-{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par}
 </template>
 
     <template data-xml-selector='para[spacing="loose"]' xml:space="preserve">
-{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par}
 </template>
 
-    <!-- Default paragraph template (no spacing attribute or normal spacing) -->
+    <!-- Default paragraph template (using line-level marking) -->
     <template data-xml-selector="para" xml:space="preserve">
-\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par
 </template>
 
@@ -162,7 +163,7 @@
     <!-- Long table for multi-page tables - temporarily switches to single column -->
     <template data-xml-selector="table[type='long']" xml:space="preserve">
 \onecolumn
-\hypertarget{[[@id | raw]]}{}\geommarkinline{[[@id | raw]]}{TABLE-start}{table}%
+\hypertarget{[[@id | raw]]}{}\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}%
 \begin{longtable}{[[@cols | raw]]}
 \caption{[[caption:.]]}
 \label{[[@label | raw]]}\\
@@ -180,7 +181,7 @@
 \endlastfoot
 <apply-template data-xml-selector="tbody"/>
 \end{longtable}%
-\hypertarget{[[@id | raw]]-end}{}\geommarkinline{[[@id | raw]]}{TABLE-end}{table}%
+\hypertarget{[[@id | raw]]-end}{}\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}%
 \twocolumn
 </template>
 

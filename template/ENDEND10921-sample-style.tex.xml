@@ -46,6 +46,7 @@
 % Geometry writer (zref-savepos preferred)
 \IfFileExists{zref-savepos.sty}{\usepackage{zref-savepos}}{}
 \input{../TeX-lib/geom-marks.tex}
+\input{../TeX-lib/geom-marks-lines.tex}
 
 % Paragraph ID command for hyperlink targets
 \newcommand{\paraid}[1]{\par\noindent\hypertarget{#1}{\ignorespaces}}
@@ -177,20 +178,20 @@
     <!-- Null template for section titles (handled in section template) -->
     <null-template data-xml-selector="sec > title"/>
 
-    <!-- Paragraph templates with spacing control -->
+    <!-- Paragraph templates with spacing control (using line-level marking) -->
     <template data-xml-selector='p[spacing="tight"]' xml:space="preserve">
-{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+{\setlength{\parskip}{0.5em}\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par}
 </template>
 
     <template data-xml-selector='p[spacing="loose"]' xml:space="preserve">
-{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+{\setlength{\parskip}{1.5em}\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 \par}
 </template>
 
-    <!-- Default paragraph template (no spacing attribute or normal spacing) -->
+    <!-- Default paragraph template (using line-level marking) -->
     <template data-xml-selector="p" xml:space="preserve">
-\paraid{[[@id | raw]]}\geommarkinline{[[@id | raw]]}{P-start}{para}[[...]]\geommarkinline{[[@id | raw]]}{P-end}{para}
+\paraid{[[@id | raw]]}\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}
 
 </template>
 
