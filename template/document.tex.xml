@@ -47,11 +47,11 @@
 }
 \makeatother
 
-\begin{document}
-
 % Geometry writer (zref-savepos preferred)
 \input{../TeX-lib/geom-marks.tex}
 \input{../TeX-lib/geom-marks-lines.tex}
+
+\begin{document}
 
 <apply-template data-xml-selector="section"/>
 \end{document}
