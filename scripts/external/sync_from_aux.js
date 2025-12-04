@@ -430,13 +430,14 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
             const isFullWidthFloat = floatOverride.x < 50; // Near left margin = full width
             
             if (isFullWidthFloat && startRecord.type === 'figure') {
-                // Full-width figure: use textwidth
+                // Full-width figure: use textwidth and center on page
                 wPt = textWidthPt;
-                xPt = (pageWidthPt - wPt) / 2; // Center it
+                xPt = (pageWidthPt - wPt) / 2;
             } else {
                 // Single-column figure or table: use float override WD
+                // Keep the original xPt from zsavepos - it correctly identifies the column
                 wPt = floatOverride.wd;
-                xPt = (pageWidthPt - wPt) / 2; // Center it
+                // xPt stays as calculated from zsavepos (don't center on page)
             }
         }
     } else {
