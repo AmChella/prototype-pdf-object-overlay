@@ -67,19 +67,34 @@ function parseAuxFile(auxFilePath) {
 }
 
 /**
- * Read float coordinates from template/float_co-ordinate.txt
+ * Read float coordinates from TeX/float_co-ordinate.txt
  */
 function readFloatCoordinates() {
-    const floatCoordPath = path.join(__dirname, '../../template/float_co-ordinate.txt');
-    const floatCoords = new Map();
+    // Try multiple possible locations for float coordinate file
+    const possiblePaths = [
+        path.join(__dirname, '../../TeX/float_co-ordinate.txt'),
+        path.join(__dirname, '../../template/float_co-ordinate.txt'),
+        path.join(process.cwd(), 'TeX/float_co-ordinate.txt')
+    ];
     
-    if (fs.existsSync(floatCoordPath)) {
+    const floatCoords = new Map();
+    let floatCoordPath = null;
+    
+    for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+            floatCoordPath = p;
+            break;
+        }
+    }
+    
+    if (floatCoordPath) {
         console.log(`Reading float coordinates from: ${floatCoordPath}`);
         const content = fs.readFileSync(floatCoordPath, 'utf8');
         const lines = content.split(/\r?\n/);
         
         // Format: table-callout-tbl1: x-axis=397.0pt, y-axis=91.0pt, HT="189.84233pt", WD="526.28201pt", PgNo="4"
-        const pattern = /table-callout-([^:]+): x-axis=([\d.]+)pt, y-axis=([\d.-]+)pt, HT="([\d.]+)pt", WD="([\d.]+)pt", PgNo="(\d+)"/;
+        // Also:   figure-callout-fig1: x-axis=271.0pt, y-axis=693.0pt, HT="199.94008pt", WD="253.19998pt", PgNo="2"
+        const pattern = /(?:table|figure)-callout-([^:]+): x-axis=([\d.]+)pt, y-axis=([\d.-]+)pt, HT="([\d.]+)pt", WD="([\d.]+)pt", PgNo="(\d+)"/;
         
         for (const line of lines) {
             const match = line.match(pattern);
@@ -94,12 +109,13 @@ function readFloatCoordinates() {
                         wd: parseFloat(wd),
                         page: parseInt(pg, 10)
                     });
+                    console.log(`   Float override: ${id} -> x=${x}pt, WD=${wd}pt, HT=${ht}pt, page=${pg}`);
                 }
             }
         }
         console.log(`Loaded ${floatCoords.size} float coordinate overrides`);
     } else {
-        console.warn(`Float coordinate file not found: ${floatCoordPath}`);
+        console.warn(`Float coordinate file not found in any expected location`);
     }
     
     return floatCoords;
@@ -380,9 +396,13 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
         global.floatCoords = readFloatCoordinates();
     }
     const floatOverride = global.floatCoords.get(startRecord.id);
-
+    
+    // Common variables - need to declare these early for use in float override logic
+    const textWidthPt = spToPt(startRecord.twsp || 31699558);
+    const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
+    
     if (floatOverride && floatOverride.page === startRecord.page) {
-        console.log(`   🎯 Using float override for ${startRecord.id}: WD=${floatOverride.wd}, HT=${floatOverride.ht}`);
+        console.log(`   🎯 Using float override for ${startRecord.id}: x=${floatOverride.x}, WD=${floatOverride.wd}, HT=${floatOverride.ht}`);
         
         // Check if rotated (based on zsavepos detection or aspect ratio)
         // If zsavepos indicates rotation (wide strip), we swap WD/HT from float file
@@ -401,28 +421,23 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
             
             console.log(`      Rotated override applied: w=${wPt}, h=${hPt} (centered)`);
         } else {
-            // Not rotated: WD is Width, HT is Height
-            wPt = floatOverride.wd;
+            // Not rotated: use HT for height
             hPt = floatOverride.ht;
             
-            // Use override position if available and reasonable?
-            // floatOverride.y is bottom-left Y.
-            // PDF Y (bottom-left) = floatOverride.y?
-            // Or PDF Y (top-left) = PageHeight - (floatOverride.y + hPt)?
-            // Let's trust the centering for full-page floats, or use the override Y.
-            // If x=0 in override, it might mean "margin" or "centered".
-            // Let's stick to centering for now if it looks like a float.
-             xPt = (pageWidthPt - wPt) / 2;
-             // yPt? If we center Y, it might be wrong for top/bottom floats.
-             // But for full page floats it's fine.
-             // Let's try using the override Y converted to Top-Left.
-             // yPt = pageHeightPt - (floatOverride.y + hPt);
-             // But floatOverride.y might be top-left?
-             // Let's stick to the zsavepos Y if not rotated?
-             // No, zsavepos Y is reliable for vertical position usually.
-             // But for rotated tables, zsavepos Y was wrong (off page).
-             // For non-rotated, zsavepos Y is usually fine.
-             // Let's just update W and H.
+            // For width: check if this is a full-width float based on x position
+            // If x is near 0 or near left margin, it's a full-width (two-column) float
+            // Otherwise it's a single-column float and we use the float override WD
+            const isFullWidthFloat = floatOverride.x < 50; // Near left margin = full width
+            
+            if (isFullWidthFloat && startRecord.type === 'figure') {
+                // Full-width figure: use textwidth
+                wPt = textWidthPt;
+                xPt = (pageWidthPt - wPt) / 2; // Center it
+            } else {
+                // Single-column figure or table: use float override WD
+                wPt = floatOverride.wd;
+                xPt = (pageWidthPt - wPt) / 2; // Center it
+            }
         }
     } else {
         // Fallback to zsavepos logic with rotation fix
@@ -450,10 +465,6 @@ function calculateBoundingBox(positions, pageDimensions, segmentInfo = null, pag
             yPt = (pageHeightPt - hPt) / 2;
         }
     }
-
-    // Common variables
-    const textWidthPt = spToPt(startRecord.twsp || 31699558);
-    const columnWidthPt = spToPt(startRecord.cwsp || 15456563);
 
     // Handle zero or very small width cases
     // This happens when start and end markers are at the same (or very close) X position
@@ -1224,12 +1235,14 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
     console.log(`   📐 Found ${figureBounds.length} figure bounds for overlap detection`);
     
     const groupedById = groupPositionsByIdOnly(positionsToUse);
+    
     const markedBoxes = [];
     let splitElementCount = 0;
     let singleElementCount = 0;
     let figureAvoidanceCount = 0;
 
     for (const [id, elementPositions] of Object.entries(groupedById)) {
+        try {
         // Check if this is a float (figure or table) using type field
         const isFloat = elementPositions.some(p => p.type === 'table' || p.type === 'figure');
         
@@ -1396,6 +1409,9 @@ function generateMarkedBoxes(positions, pageDimensions, outputPath, columnSettin
             } else {
                 console.warn(`   ⚠️  Skipping segment for ${id} (page ${segment.page}, col ${segment.column}) due to calculation error`);
             }
+        }
+        } catch (err) {
+            console.error(`Error processing "${id}": ${err.message}`);
         }
     }
 

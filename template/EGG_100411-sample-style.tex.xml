@@ -32,6 +32,9 @@
 \input{../TeX-lib/geom-marks-lines.tex}
 \input{../TeX-lib/custom-floats.tex}
 
+% Set figure path for \InsertFig command
+\gdef\Figpath{../images/}
+
 % Define unhandledtag command for template fallback
 \newcommand{\unhandledtag}[2]{#2}
 
@@ -122,24 +125,14 @@
 
     <!-- Floats (Figures and Tables) -->
     <template data-xml-selector="floats" xml:space="preserve">
-\begin{floats}<apply-template data-xml-selector="figure"/><apply-template data-xml-selector="table"/>
+\begin{floats}
+<apply-template data-xml-selector="table"/>
+\fig[fig1]{\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}}
+\fig[fig2]{\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}}
 \end{floats}
     </template>
 
-    <!-- Figure with per-figure placement support -->
-    <template data-xml-selector="figure[id=fig1]" xml:space="preserve">
-\geommarkfloat{fig1}{FIG-start}{figure}%
-\figwithplacementbrackets{fig1}{[[@placement]]}{\centering\includegraphics[width=0.45\textwidth]{../images/gr1.jpg}\figurecaption{Fig. 1}{A timeline of the emergence of meta-omics in context of soil microbiology.}}%
-\geommarkfloat{fig1}{FIG-end}{figure}
-</template>
-
-    <template data-xml-selector="figure[id=fig2]" xml:space="preserve">
-\geommarkfloat{fig2}{FIG-start}{figure}%
-\figwithplacementbrackets{fig2}{[[@placement]]}{\centering\includegraphics[width=0.45\textwidth]{../images/gr2.jpg}\figurecaption{Fig. 2}{A systematic representation showing the steps involved in soil meta-omics studies.}}%
-\geommarkfloat{fig2}{FIG-end}{figure}
-</template>
-
-    <!-- Generic figure fallback -->
+    <!-- Figure elements are handled via \InsertFig which uses markers in NeoPagefigure.sty -->
     <template data-xml-selector="figure"></template>
 
     <!-- Figure/Table label -->
@@ -149,13 +142,12 @@
     <!-- Caption simple-para -->
     <template data-xml-selector="caption > simple-para">[[.]]</template>
 
-    <!-- Table - with markers at start and after content -->
+    <!-- Table definition (markers are at float-anchor location) -->
     <template data-xml-selector="table" xml:space="preserve">
 \begin{neotable}{[[@id | raw]]}{%
-\tabfloatcaption{\geommarkfloat{[[@id | raw]]}{TABLE-start}{table}\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
+\tabfloatcaption{\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
 \begin{tablebody}\SetTblrInner{hspan=minimal}
 <apply-template data-xml-selector="tgroup"/>
-\geommarkfloat{[[@id | raw]]}{TABLE-end}{table}%
 \end{tablebody}%
 }\end{neotable}
 </template>
@@ -166,27 +158,6 @@
 \begin{tblr}{width={524.4pt},colspec={@{}X[l,t,15.15343]X[l,t,168.10959]X[l,t,74.11115]X[l,t,84.03871]X[l,t,122.98715]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
 <apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
 <apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
-
-    <!-- Table group for tbl2 (5 columns, different widths) -->
-    <template data-xml-selector="table[@id='tbl2'] > tgroup" xml:space="preserve">
-\begin{tblr}{width={253.2pt},colspec={@{}X[l,t,16.95076]X[l,t,48.5617]X[l,t,48.5617]X[l,t,48.5617]X[l,t,30.5641]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
-<apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
-<apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
-
-    <!-- Generic table group fallback (5 columns, use tbl1 widths as default) -->
-    <template data-xml-selector="tgroup" xml:space="preserve">
-\begin{tblr}{width={524.4pt},colspec={@{}X[l,t,15.15343]X[l,t,168.10959]X[l,t,74.11115]X[l,t,84.03871]X[l,t,122.98715]@{}},row{1-1}={guard},colsep=6pt,stretch=1,rowsep=0pt}\tabletoprule
-<apply-template data-xml-selector="thead > row" mode="header"/>\tablemidrule
-<apply-template data-xml-selector="tbody > row" mode="body"/>\tablebottomrule\end{tblr}</template>
-
-    <!-- Table wrapper -->
-    <template data-xml-selector="table" xml:space="preserve">
-\begin{neotable}{[[@id | raw]]}{\tabfloatcaption{\tablelabel{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="caption > simple-para"/>}}%
-\begin{tablebody}\SetTblrInner{hspan=minimal}
-<apply-template data-xml-selector="tgroup"/>
-\end{tablebody}%
-}\end{neotable}
-</template>
 
     <!-- Table group for tbl2 (5 columns, different widths) -->
     <template data-xml-selector="table[@id='tbl2'] > tgroup" xml:space="preserve">
@@ -218,6 +189,7 @@
 
     <!-- Fallback entry -->
     <template data-xml-selector="entry">[[.]] &amp;</template>
+
 
     <!-- Author - ONLY in head > author-group -->
     <template data-xml-selector="head > author-group > author" xml:space="preserve">
@@ -347,11 +319,13 @@
 \leavevmode\geommark{[[@id | raw]]}{start}[[...]]\geommark{[[@id | raw]]}{end}\tagStructParaEnd{}
 </template>
 
-    <!-- For tbl1 - insert table reference -->
-    <template data-xml-selector="para[id='p0065'] > float-anchor">{\bgroup\InsertTable{tbl1}{}{t}\egroup}</template>
+    <!-- Figure float-anchors - insert figure using \InsertFig{id}{imageBasename}{}{placement} -->
+    <template data-xml-selector="float-anchor[refid=fig1]">{\bgroup\InsertFig{fig1}{gr1.jpg}{}{t}\egroup}</template>
+    <template data-xml-selector="float-anchor[refid=fig2]">{\bgroup\InsertFig{fig2}{gr2.jpg}{}{t}\egroup}</template>
 
-    <!-- For tbl2 - insert table reference -->
-    <template data-xml-selector="para[id='p0105'] > float-anchor">{\bgroup\InsertTable{tbl2}{}{b}\egroup}</template>
+    <!-- Table float-anchors - insert table using \InsertTable{id}{}{placement} -->
+    <template data-xml-selector="float-anchor[refid=tbl1]">\geommarkfloat{tbl1}{TABLE-start}{table}{\bgroup\InsertTable{tbl1}{}{t}\egroup}\geommarkfloat{tbl1}{TABLE-end}{table}</template>
+    <template data-xml-selector="float-anchor[refid=tbl2]">\geommarkfloat{tbl2}{TABLE-start}{table}{\bgroup\InsertTable{tbl2}{}{b}\egroup}\geommarkfloat{tbl2}{TABLE-end}{table}</template>
 
     <!-- Generic float-anchor fallback (empty) -->
     <template data-xml-selector="float-anchor"></template>
