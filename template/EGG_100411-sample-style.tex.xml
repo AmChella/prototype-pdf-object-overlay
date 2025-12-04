@@ -135,9 +135,10 @@
     <!-- Figure elements are handled via \InsertFig which uses markers in NeoPagefigure.sty -->
     <template data-xml-selector="figure"></template>
 
-    <!-- Figure/Table label -->
+    <!-- Figure/Table/Section label -->
     <template data-xml-selector="figure > label">[[.]]</template>
     <template data-xml-selector="table > label">[[.]]</template>
+    <template data-xml-selector="section > label">[[.]]</template>
 
     <!-- Caption simple-para -->
     <template data-xml-selector="caption > simple-para">[[.]]</template>
@@ -262,15 +263,15 @@
     <!-- Section -->
     <template data-xml-selector="section" xml:space="preserve">
 
-\section{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="section-title"/>}{[[@id | raw]]}
+\section{<apply-template data-xml-selector="> label"/>}{<apply-template data-xml-selector="> section-title"/>}{[[@id | raw]]}
 <apply-template data-xml-selector="> para"/>
-<apply-template data-xml-selector="> section"/>
+<apply-template data-xml-selector="> section" mode="subsection"/>
 </template>
 
-    <!-- Subsection -->
-    <template data-xml-selector="section > section" xml:space="preserve">
+    <!-- Subsection (matched by ID containing dot, e.g., sec4.1) -->
+    <template data-xml-selector="section[id]" mode="subsection" xml:space="preserve">
 
-\subsection{<apply-template data-xml-selector="label"/>}{<apply-template data-xml-selector="section-title"/>}{[[@id | raw]]}
+\subsection{<apply-template data-xml-selector="> label"/>}{<apply-template data-xml-selector="> section-title"/>}{[[@id | raw]]}
 <apply-template data-xml-selector="> para"/>
 </template>
 
@@ -320,12 +321,14 @@
 </template>
 
     <!-- Figure float-anchors - insert figure using \InsertFig{id}{imageBasename}{}{placement} -->
-    <template data-xml-selector="float-anchor[refid=fig1]">{\bgroup\InsertFig{fig1}{gr1.jpg}{}{t}\egroup}</template>
-    <template data-xml-selector="float-anchor[refid=fig2]">{\bgroup\InsertFig{fig2}{gr2.jpg}{}{t}\egroup}</template>
+    <!-- placement attribute is read from XML: [[@placement]] -->
+    <template data-xml-selector="float-anchor[refid=fig1]">{\bgroup\InsertFig{fig1}{gr1.jpg}{}{[[@placement]]}\egroup}</template>
+    <template data-xml-selector="float-anchor[refid=fig2]">{\bgroup\InsertFig{fig2}{gr2.jpg}{}{[[@placement]]}\egroup}</template>
 
     <!-- Table float-anchors - insert table using \InsertTable{id}{}{placement} -->
-    <template data-xml-selector="float-anchor[refid=tbl1]">\geommarkfloat{tbl1}{TABLE-start}{table}{\bgroup\InsertTable{tbl1}{}{t}\egroup}\geommarkfloat{tbl1}{TABLE-end}{table}</template>
-    <template data-xml-selector="float-anchor[refid=tbl2]">\geommarkfloat{tbl2}{TABLE-start}{table}{\bgroup\InsertTable{tbl2}{}{b}\egroup}\geommarkfloat{tbl2}{TABLE-end}{table}</template>
+    <!-- placement attribute is read from XML: [[@placement]] -->
+    <template data-xml-selector="float-anchor[refid=tbl1]">\geommarkfloat{tbl1}{TABLE-start}{table}{\bgroup\InsertTable{tbl1}{}{[[@placement]]}\egroup}\geommarkfloat{tbl1}{TABLE-end}{table}</template>
+    <template data-xml-selector="float-anchor[refid=tbl2]">\geommarkfloat{tbl2}{TABLE-start}{table}{\bgroup\InsertTable{tbl2}{}{[[@placement]]}\egroup}\geommarkfloat{tbl2}{TABLE-end}{table}</template>
 
     <!-- Generic float-anchor fallback (empty) -->
     <template data-xml-selector="float-anchor"></template>
@@ -337,7 +340,7 @@
     <template data-xml-selector="sub">\textsubscript{[[...]]}</template>
 
     <!-- Cross references -->
-    <template data-xml-selector="cross-ref">[\internallink{[[@id | raw]]}{[[.]]}]</template>
+    <template data-xml-selector="cross-ref">\internallink{[[@id | raw]]}{[[.]]}</template>
 
     <!-- Email addresses -->
     <template data-xml-selector="head > email-addresses">\emailaddresses{[[...]]}</template>
@@ -352,9 +355,15 @@
 \end{acknowledgment}
 </template>
 
-    <!-- Bibliography reference - simplified -->
+    <!-- Bibliography reference label -->
+    <template data-xml-selector="bib-reference > label">[[.]]</template>
+
+    <!-- Bibliography source text (excludes label from content) -->
+    <template data-xml-selector="bib-reference > source-text">[[.]]</template>
+
+    <!-- Bibliography reference - simplified, uses source-text for content -->
     <template data-xml-selector="bib-reference" xml:space="preserve">
-\bibReference{[[@id | raw]]}{\RefLabel{[<apply-template data-xml-selector="label"/>]}[[...]]}
+\bibReference{[[@id | raw]]}{\RefLabel{<apply-template data-xml-selector="> label"/>}<apply-template data-xml-selector="> source-text"/>}
 
 </template>
 

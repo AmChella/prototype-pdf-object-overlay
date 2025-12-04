@@ -1,0 +1,81 @@
+{
+  "$schema": "./pi-types-schema.json",
+  "description": "Processing Instruction Types Configuration",
+  
+  "piTypes": {
+    "elsevier-insert-figure": {
+      "description": "Elsevier InsertFig command for figures",
+      "template": "<?xmltex {\\bgroup\\InsertFig{$id}{$image}{}{$placement}\\egroup}?>",
+      "targetElement": "ce:float-anchor",
+      "floatType": "figure",
+      "refidPrefix": "fig",
+      "variables": {
+        "id": "refid from float-anchor",
+        "image": "optional image filename (preserved if exists)",
+        "placement": "t|b|h|p (provided at runtime)"
+      }
+    },
+    "elsevier-insert-table": {
+      "description": "Elsevier InsertTable command for tables",
+      "template": "<?xmltex {\\bgroup\\InsertTable{$id}{}{$placement}\\egroup}?>",
+      "targetElement": "ce:float-anchor",
+      "floatType": "table",
+      "refidPrefix": "tbl",
+      "variables": {
+        "id": "refid from float-anchor",
+        "placement": "t|b|h|p (provided at runtime)"
+      }
+    },
+    "standard-figure": {
+      "description": "Standard LaTeX figure float",
+      "template": "<?xmltex \\begin{figure}[$placement]\\includegraphics{$image}\\end{figure}?>",
+      "targetElement": "float-anchor",
+      "floatType": "figure",
+      "refidPrefix": "fig",
+      "variables": {
+        "image": "image filename",
+        "placement": "htbp placement specifier"
+      }
+    },
+    "standard-table": {
+      "description": "Standard LaTeX table float",
+      "template": "<?xmltex \\begin{table}[$placement]\\input{$id}\\end{table}?>",
+      "targetElement": "float-anchor",
+      "floatType": "table",
+      "refidPrefix": "tbl",
+      "variables": {
+        "id": "table identifier",
+        "placement": "htbp placement specifier"
+      }
+    }
+  },
+  
+  "documentMappings": {
+    "EGG_100411": {
+      "description": "Soil meta-omics Elsevier article",
+      "schema": "elsevier",
+      "figure": "elsevier-insert-figure",
+      "table": "elsevier-insert-table"
+    },
+    "ENDEND10921": {
+      "description": "Standard article",
+      "schema": "standard",
+      "figure": "elsevier-insert-figure",
+      "table": "elsevier-insert-table"
+    },
+    "default": {
+      "description": "Default mapping for unknown documents",
+      "schema": "elsevier",
+      "figure": "elsevier-insert-figure",
+      "table": "elsevier-insert-table"
+    }
+  },
+  
+  "placementOptions": {
+    "t": { "label": "Top", "description": "Place at top of page" },
+    "b": { "label": "Bottom", "description": "Place at bottom of page" },
+    "h": { "label": "Here", "description": "Place at current position if possible" },
+    "p": { "label": "Page", "description": "Place on a dedicated float page" }
+  }
+}
+
