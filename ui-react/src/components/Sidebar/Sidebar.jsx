@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useDevTools } from '../../context/DevToolsContext';
 import FileUploader from '../FileUploader/FileUploader';
 import JSONUploader from '../JSONUploader/JSONUploader';
 import DocumentSelector from '../DocumentSelector/DocumentSelector';
-import DevTools from '../DevTools/DevTools';
 import './Sidebar.css';
 
 const Sidebar = ({ onGenerateDocument }) => {
-  const { 
+  const {
     isSidebarOpen,
     currentPdf,
     currentPage,
@@ -18,100 +18,150 @@ const Sidebar = ({ onGenerateDocument }) => {
     setCoordinateOrigin,
     isConnected
   } = useAppContext();
-  
+
+  const { toggleDevTools, isDevToolsOpen } = useDevTools();
+
+  const [expandedSection, setExpandedSection] = useState('files');
+
+  const toggleSection = (section) => {
+    setExpandedSection(expandedSection === section ? '' : section);
+  };
+
   return (
     <aside className={`sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
+      {/* Sidebar Header */}
+      <div className="sidebar-header">
+        <div className="sidebar-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14,2 14,8 20,8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <span>PDF Overlay</span>
+        </div>
+        <div className={`connection-indicator ${isConnected ? 'connected' : ''}`} title={isConnected ? 'Connected' : 'Disconnected'}>
+          <span className="connection-dot"></span>
+        </div>
+      </div>
+
       <div className="sidebar-content">
-        {/* File Upload Section */}
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Load PDF</h3>
-          <FileUploader />
+        {/* Files Section - Collapsible */}
+        <div className={`sidebar-accordion ${expandedSection === 'files' ? 'expanded' : ''}`}>
+          <button className="accordion-header" onClick={() => toggleSection('files')}>
+            <div className="accordion-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>Files</span>
+            </div>
+            <svg className="accordion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="6,9 12,15 18,9" />
+            </svg>
+          </button>
+          <div className="accordion-content">
+            <div className="upload-group">
+              <label className="upload-label">PDF Document</label>
+              <FileUploader />
+            </div>
+            <div className="upload-group">
+              <label className="upload-label">Coordinates (JSON)</label>
+              <JSONUploader />
+            </div>
+          </div>
         </div>
-        
-        {/* JSON Upload Section */}
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Load Coordinates</h3>
-          <JSONUploader />
-        </div>
-        
-        {/* Document Info Section */}
+
+        {/* Document Info - Only show when PDF is loaded */}
         {currentPdf && (
-          <div className="sidebar-section">
-            <h3 className="sidebar-title">Document Info</h3>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="info-label">Pages:</span>
-                <span className="info-value">{totalPages}</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Current:</span>
-                <span className="info-value">{currentPage}</span>
-              </div>
+          <div className="document-info-bar">
+            <div className="doc-stat">
+              <span className="doc-stat-value">{currentPage}</span>
+              <span className="doc-stat-label">/ {totalPages}</span>
+            </div>
+            <div className="doc-stat-divider"></div>
+            <div className="doc-stat">
+              <span className="doc-stat-label">Pages</span>
             </div>
           </div>
         )}
-        
-        {/* Document Generation Section */}
+
+        {/* Generate Section - Collapsible */}
         {isConnected && onGenerateDocument && (
-          <div className="sidebar-section">
-            <h3 className="sidebar-title">Generate Document</h3>
-            <DocumentSelector onGenerate={onGenerateDocument} />
+          <div className={`sidebar-accordion ${expandedSection === 'generate' ? 'expanded' : ''}`}>
+            <button className="accordion-header" onClick={() => toggleSection('generate')}>
+              <div className="accordion-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5,3 19,12 5,21 5,3" />
+                </svg>
+                <span>Generate</span>
+              </div>
+              <svg className="accordion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6,9 12,15 18,9" />
+              </svg>
+            </button>
+            <div className="accordion-content">
+              <DocumentSelector onGenerate={onGenerateDocument} />
+            </div>
           </div>
         )}
-        
-        {/* Display Options Section */}
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Display Options</h3>
-          <div className="option-list">
-            <label className="option-item">
-              <input
-                type="checkbox"
-                checked={overlaysVisible}
-                onChange={toggleOverlays}
-              />
+
+        {/* Settings Section - Collapsible */}
+        <div className={`sidebar-accordion ${expandedSection === 'settings' ? 'expanded' : ''}`}>
+          <button className="accordion-header" onClick={() => toggleSection('settings')}>
+            <div className="accordion-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <span>Settings</span>
+            </div>
+            <svg className="accordion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="6,9 12,15 18,9" />
+            </svg>
+          </button>
+          <div className="accordion-content">
+            <label className="toggle-option">
               <span>Show Overlays</span>
+              <div className={`toggle-switch ${overlaysVisible ? 'active' : ''}`} onClick={toggleOverlays}>
+                <div className="toggle-knob"></div>
+              </div>
             </label>
-            
-            <div className="option-item origin-selector">
-              <label htmlFor="coordinateOrigin" className="origin-label">
-                Coordinate Origin:
-              </label>
+
+            <div className="select-option">
+              <label>Coordinate Origin</label>
               <select
-                id="coordinateOrigin"
-                className="origin-select"
+                className="modern-select"
                 value={coordinateOrigin}
                 onChange={(e) => setCoordinateOrigin(e.target.value)}
               >
-                <option value="top-left">Top-Left (Default)</option>
-                <option value="bottom-left">Bottom-Left (PDF Standard)</option>
+                <option value="top-left">Top-Left</option>
+                <option value="bottom-left">Bottom-Left (PDF)</option>
               </select>
             </div>
           </div>
         </div>
-        
-        {/* Server Status Section */}
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Server Status</h3>
-          <div className="status-item">
-            <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></span>
-            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-          </div>
-        </div>
-        
-        {/* DevTools Section */}
-        <div className="sidebar-section">
-          <DevTools />
-        </div>
-        
-        {/* Instructions */}
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Quick Guide</h3>
-          <ul className="instruction-list">
-            <li>📄 Upload a PDF file to begin</li>
-            <li>🔍 Press Ctrl+F to search</li>
-            <li>👁️ Toggle overlays on/off</li>
-            <li>⌨️ Use arrow keys for navigation</li>
-          </ul>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="sidebar-footer">
+        <button
+          className={`footer-btn devtools-btn ${isDevToolsOpen ? 'active' : ''}`}
+          onClick={toggleDevTools}
+          title="Toggle Developer Tools (F12)"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          <span>DevTools</span>
+          {isDevToolsOpen && <span className="btn-badge">Open</span>}
+        </button>
+
+        <div className="footer-shortcuts">
+          <kbd>F12</kbd> DevTools
+          <span className="shortcut-divider">•</span>
+          <kbd>⌘F</kbd> Search
         </div>
       </div>
     </aside>
@@ -119,4 +169,3 @@ const Sidebar = ({ onGenerateDocument }) => {
 };
 
 export default Sidebar;
-

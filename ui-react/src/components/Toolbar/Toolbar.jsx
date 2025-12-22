@@ -24,14 +24,14 @@ const Toolbar = () => {
     toggleSidebar,
     toggleOverlays,
   } = useAppContext();
-  
+
   const handlePageInput = (e) => {
     const pageNum = parseInt(e.target.value);
     if (pageNum && pageNum >= 1 && pageNum <= totalPages) {
       goToPage(pageNum);
     }
   };
-  
+
   const handleZoomSelect = (e) => {
     const value = e.target.value;
     if (value === 'auto' || value === 'page-fit') {
@@ -45,157 +45,195 @@ const Toolbar = () => {
       }
     }
   };
-  
+
+  const zoomPercentage = Math.round(scale * 100);
+
   return (
-    <div className="pdfjs-toolbar">
-      {/* Left Section - Sidebar + Page Navigation */}
-      <div className="toolbar-left">
-        <button 
-          className="toolbar-button" 
+    <header className="toolbar">
+      {/* Left Section - Menu + Navigation */}
+      <div className="toolbar-section toolbar-left">
+        {/* Sidebar Toggle */}
+        <button
+          className={`toolbar-btn icon-btn ${isSidebarOpen ? 'active' : ''}`}
           onClick={toggleSidebar}
           title="Toggle Sidebar (S)"
         >
-          <span>☰</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
         </button>
-        
-        <div className="toolbar-separator"></div>
-        
-        <button 
-          className="toolbar-button" 
-          onClick={() => goToPage(1)}
-          disabled={!totalPages || currentPage === 1}
-          title="First Page"
-        >
-          <span>⏮</span>
-        </button>
-        
-        <button 
-          className="toolbar-button" 
-          onClick={previousPage}
-          disabled={!totalPages || currentPage === 1}
-          title="Previous Page"
-        >
-          <span>◀</span>
-        </button>
-        
-        <div className="page-controls">
-          <div className="page-input-container">
-            <input 
-              type="number" 
-              className="page-number-input"
+
+        <div className="toolbar-divider" />
+
+        {/* Page Navigation */}
+        <div className="nav-group">
+          <button
+            className="toolbar-btn icon-btn"
+            onClick={() => goToPage(1)}
+            disabled={!totalPages || currentPage === 1}
+            title="First Page"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="11,17 6,12 11,7" />
+              <polyline points="18,17 13,12 18,7" />
+            </svg>
+          </button>
+
+          <button
+            className="toolbar-btn icon-btn"
+            onClick={previousPage}
+            disabled={!totalPages || currentPage === 1}
+            title="Previous Page"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15,18 9,12 15,6" />
+            </svg>
+          </button>
+
+          <div className="page-indicator">
+            <input
+              type="number"
+              className="page-input"
               value={currentPage || 1}
               onChange={handlePageInput}
               min="1"
               max={totalPages || 1}
               disabled={!totalPages}
             />
-            <span>/ {totalPages || 0}</span>
+            <span className="page-separator">/</span>
+            <span className="page-total">{totalPages || 0}</span>
           </div>
+
+          <button
+            className="toolbar-btn icon-btn"
+            onClick={nextPage}
+            disabled={!totalPages || currentPage === totalPages}
+            title="Next Page"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9,18 15,12 9,6" />
+            </svg>
+          </button>
+
+          <button
+            className="toolbar-btn icon-btn"
+            onClick={() => goToPage(totalPages)}
+            disabled={!totalPages || currentPage === totalPages}
+            title="Last Page"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="13,17 18,12 13,7" />
+              <polyline points="6,17 11,12 6,7" />
+            </svg>
+          </button>
         </div>
-        
-        <button 
-          className="toolbar-button" 
-          onClick={nextPage}
-          disabled={!totalPages || currentPage === totalPages}
-          title="Next Page"
-        >
-          <span>▶</span>
-        </button>
-        
-        <button 
-          className="toolbar-button" 
-          onClick={() => goToPage(totalPages)}
-          disabled={!totalPages || currentPage === totalPages}
-          title="Last Page"
-        >
-          <span>⏭</span>
-        </button>
       </div>
-      
-      {/* Center Section - Title or Search */}
-      <div className="toolbar-center">
+
+      {/* Center Section - Search or Title */}
+      <div className="toolbar-section toolbar-center">
         {isSearchOpen ? (
           <SearchBar />
         ) : (
-          <span className="toolbar-title">PDF Overlay System</span>
+          <div className="toolbar-brand">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+            </svg>
+            <span>PDF Overlay System</span>
+          </div>
         )}
       </div>
-      
-      {/* Right Section - Search, Zoom, Overlays, Status */}
-      <div className="toolbar-right">
-        <button 
-          className="toolbar-button" 
+
+      {/* Right Section - Tools */}
+      <div className="toolbar-section toolbar-right">
+        {/* Search */}
+        <button
+          className={`toolbar-btn icon-btn ${isSearchOpen ? 'active' : ''}`}
           onClick={toggleSearch}
           title="Search (Ctrl+F)"
         >
-          <span>🔍</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
         </button>
-        
-        <div className="toolbar-separator"></div>
-        
-        <div className="zoom-controls">
-          <button 
-            className="toolbar-button" 
+
+        <div className="toolbar-divider" />
+
+        {/* Zoom Controls */}
+        <div className="zoom-group">
+          <button
+            className="toolbar-btn icon-btn"
             onClick={zoomOut}
             title="Zoom Out"
           >
-            <span>-</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
           </button>
-          
-          <select 
-            className="zoom-select"
-            value={scale ? scale.toString() : "1.5"}
-            onChange={handleZoomSelect}
-          >
-            <option value="0.5">50%</option>
-            <option value="0.75">75%</option>
-            <option value="1">100%</option>
-            <option value="1.25">125%</option>
-            <option value="1.5">150%</option>
-            <option value="2">200%</option>
-            <option value="auto">Auto</option>
-            <option value="page-fit">Page Fit</option>
-            <option value="page-width">Page Width</option>
-          </select>
-          
-          <button 
-            className="toolbar-button" 
+
+          <div className="zoom-indicator">
+            <span className="zoom-value">{zoomPercentage}%</span>
+          </div>
+
+          <button
+            className="toolbar-btn icon-btn"
             onClick={zoomIn}
             title="Zoom In"
           >
-            <span>+</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
           </button>
         </div>
-        
-        <div className="toolbar-separator"></div>
-        
-        <button 
-          className="toolbar-button" 
+
+        <div className="toolbar-divider" />
+
+        {/* Overlays Toggle */}
+        <button
+          className={`toolbar-btn icon-btn ${overlaysVisible ? 'active' : ''}`}
           onClick={toggleOverlays}
           title="Toggle Overlays (O)"
-          style={{ background: !overlaysVisible ? 'rgba(255,255,255,0.15)' : 'transparent' }}
         >
-          <span>👁️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {overlaysVisible ? (
+              <>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </>
+            ) : (
+              <>
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </>
+            )}
+          </svg>
         </button>
-        
-        <div className="toolbar-separator"></div>
-        
-        {/* Instruction Stack - Collapsible */}
+
+        <div className="toolbar-divider" />
+
+        {/* Instruction Stack */}
         <InstructionStack />
-        
-        {/* Version History - Collapsible */}
+
+        {/* Version History */}
         {isConnected && <VersionHistory />}
-        
-        <div className="toolbar-separator"></div>
-        
-        <div className="status-indicator">
-          <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></span>
-          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+
+        <div className="toolbar-divider" />
+
+        {/* Connection Status */}
+        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+          <span className="status-dot" />
+          <span className="status-text">{isConnected ? 'Online' : 'Offline'}</span>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
 export default Toolbar;
-

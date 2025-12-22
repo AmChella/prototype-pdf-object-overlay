@@ -1,18 +1,18 @@
-/* PDF.js-style Toolbar */
-.pdfjs-toolbar {
-  background: #474747;
-  border-bottom: 1px solid #333;
-  padding: 8px;
+/* Modern Toolbar Styles */
+.toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 48px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  background: linear-gradient(180deg, #2d2d2d 0%, #252525 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.toolbar-left,
-.toolbar-center,
-.toolbar-right {
+/* Toolbar Sections */
+.toolbar-section {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -20,6 +20,7 @@
 
 .toolbar-left {
   flex: 1;
+  justify-content: flex-start;
 }
 
 .toolbar-center {
@@ -31,130 +32,216 @@
   justify-content: flex-end;
 }
 
-.toolbar-button {
-  background: transparent;
-  border: 1px solid transparent;
-  color: rgba(255,255,255,0.8);
-  padding: 6px 10px;
-  cursor: pointer;
-  border-radius: 3px;
-  font-size: 13px;
+/* Toolbar Buttons */
+.toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-  min-width: 32px;
-  height: 32px;
   justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.toolbar-button:hover:not(:disabled) {
-  background: #5a5a5a;
-  color: white;
+.toolbar-btn.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
 }
 
-.toolbar-button:disabled {
-  opacity: 0.4;
+.toolbar-btn.icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.toolbar-btn.icon-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.toolbar-separator {
+.toolbar-btn svg {
+  flex-shrink: 0;
+}
+
+/* Divider */
+.toolbar-divider {
   width: 1px;
   height: 24px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.1);
   margin: 0 4px;
 }
 
-.page-controls {
+/* Navigation Group */
+.nav-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255,255,255,0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.page-input-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: rgba(255,255,255,0.9);
-  font-size: 13px;
-}
-
-.page-number-input {
-  width: 50px;
-  text-align: center;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
+  gap: 4px;
   padding: 4px;
-  border-radius: 3px;
-  font-size: 13px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
 }
 
-.page-number-input:focus {
+.nav-group .toolbar-btn.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+/* Page Indicator */
+.page-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.page-input {
+  width: 44px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.page-input:focus {
   outline: none;
   border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.15);
 }
 
-.zoom-controls {
+.page-input:disabled {
+  opacity: 0.5;
+}
+
+/* Remove number input arrows */
+.page-input::-webkit-outer-spin-button,
+.page-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.page-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.page-separator {
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 2px;
+}
+
+.page-total {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Brand / Title */
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.toolbar-brand svg {
+  color: #6366f1;
+}
+
+/* Zoom Group */
+.zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.zoom-group .toolbar-btn.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.zoom-indicator {
+  min-width: 48px;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.zoom-value {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Connection Status */
+.connection-status {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.zoom-select {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 3px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.zoom-select:focus {
-  outline: none;
-  border-color: #6366f1;
-}
-
-.toolbar-title {
-  color: rgba(255,255,255,0.9);
-  font-size: 14px;
-  font-weight: 500;
-  margin: 0 12px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
   font-size: 12px;
-  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
+.connection-status.connected {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.connection-status.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.connection-status .status-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
-.status-dot.connected {
+.connection-status.connected .status-dot {
   background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
-.status-dot.disconnected {
+.connection-status.disconnected .status-dot {
   background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.status-text {
+  letter-spacing: 0.3px;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* Responsive */
@@ -162,26 +249,35 @@
   .toolbar-center {
     display: none;
   }
+
+  .toolbar {
+    padding: 0 12px;
+  }
 }
 
 @media (max-width: 768px) {
-  .pdfjs-toolbar {
-    padding: 6px;
+  .toolbar {
     height: auto;
     flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .toolbar-section {
+    flex: 1 1 auto;
   }
 
   .toolbar-left,
   .toolbar-right {
     flex: 1 1 100%;
+    justify-content: center;
   }
 
-  .page-controls {
-    font-size: 12px;
+  .connection-status .status-text {
+    display: none;
   }
 
-  .zoom-controls {
-    flex-wrap: wrap;
+  .toolbar-divider {
+    display: none;
   }
 }
-
