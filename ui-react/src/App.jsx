@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { DevToolsProvider } from './context/DevToolsContext';
 import { ToastProvider, useToast } from './components/Toast/ToastContainer';
 import Toolbar from './components/Toolbar/Toolbar';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -605,7 +606,9 @@ function App() {
     <ErrorBoundary>
       <ToastProvider>
         <AppProvider>
-          <AppContent />
+          <DevToolsProvider>
+            <AppContent />
+          </DevToolsProvider>
         </AppProvider>
       </ToastProvider>
     </ErrorBoundary>

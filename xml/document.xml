@@ -37,7 +37,7 @@
 </inline-math>
       <run> User research highlights the importance of rapid preview cycles for editorial teams.</run>
     </para>
-    <para id="sec1-p4">
+    <para id="sec1-p4" spacing="tight">
       <run>Caching policies respect cross references, ensuring that labels stay synchronized with the table of contents. </run>
       <inline-math>
 <![CDATA[\left\|A_{5}\right\|_{2} = \sqrt{\lambda_{\max}}]]>

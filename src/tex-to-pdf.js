@@ -5,72 +5,31 @@ const { spawn } = require('child_process');
 
 const HELP_FLAGS = new Set(['--help', '-h']);
 
-function extractElementIdQueues(texSource) {
-    if (!texSource || typeof texSource !== 'string') {
-        return null;
-    }
-
-    const queues = {};
-    const push = (role, value) => {
-        if (!value) return;
-        if (!queues[role]) {
-            queues[role] = [];
-        }
-        queues[role].push(value.trim());
-    };
-
-    const titleRegex = /\\title\{[^}]*\}\{([^}]*)\}/g;
-    let match;
-    while ((match = titleRegex.exec(texSource)) !== null) {
-        push('Title', match[1]);
-    }
-
-    const paraRegex = /\\paraid\{([^}]*)\}/g;
-    while ((match = paraRegex.exec(texSource)) !== null) {
-        push('P', match[1]);
-    }
-
-    const sectionRegex = /\\section\{[^}]*\}\s*\\label\{([^}]*)\}/g;
-    while ((match = sectionRegex.exec(texSource)) !== null) {
-        push('H1', match[1]);
-    }
-
-    // Hypertarget anchors for figures and tables (start and end)
-    const hypertargetRegex = /\\hypertarget\{([^}]*)\}\{\}/g;
-    while ((match = hypertargetRegex.exec(texSource)) !== null) {
-        const id = match[1];
-        if (id.startsWith('fig-')) {
-            // only collect the base figure id (skip -end variant)
-            if (!id.endsWith('-end')) push('FIG', id);
-        } else if (id.startsWith('tbl-')) {
-            if (!id.endsWith('-end')) push('TABLE', id);
-        }
-    }
-
-    return Object.keys(queues).length ? queues : null;
-}
+const { extractElementIdQueues } = require('./tex-parser');
+const { generateGeometryFromMarks } = require('./tex-geometry');
+const { convertNdjsonToMarkedBoxes } = require('./ndjson-utils');
 
 function printUsage() {
     console.log(`Usage: node src/tex-to-pdf.js <input.tex> [output-directory|output.pdf] [options]\n` +
-`Options:\n` +
-`  --keep-aux        Preserve auxiliary files (.aux, .log, .toc, .out, .synctex.gz)\n` +
-`  --shell-escape    Enable LaTeX shell escape (passes --shell-escape to lualatex)\n` +
-`  --geometry-json <path>  Emit layout geometry JSON to the provided path\n` +
-`                         (defaults to <jobname>-geometry.json next to the PDF)\n` +
-`  --geometry-grouping <mode>  Set grouping mode: 'default' (current) or 'strict'\n` +
-`  --no-geometry     Skip geometry JSON generation\n` +
-`  --marked-boxes    Generate marked-boxes JSON from NDJSON coordinates\n` +
-`  --convert-ndjson  Convert NDJSON to marked-boxes format (alias for --marked-boxes)\n` +
-`  --sync-aux        Sync coordinates from aux file for perfect accuracy (recommended)\n` +
-`  --sync-from-aux   Alias for --sync-aux\n` +
-`  --lang <code>     Set the language code for geometry metadata (default: en)\n` +
-`  -h, --help        Show this help text\n` +
-`Examples:\n` +
-`  node src/tex-to-pdf.js output.tex\n` +
-`  node src/tex-to-pdf.js output.tex dist/\n` +
-`  node src/tex-to-pdf.js output.tex dist/final.pdf --keep-aux\n` +
-`  node src/tex-to-pdf.js output.tex --geometry-json build/layout.json\n` +
-`  node src/tex-to-pdf.js output.tex --marked-boxes --sync-aux`);
+        `Options:\n` +
+        `  --keep-aux        Preserve auxiliary files (.aux, .log, .toc, .out, .synctex.gz)\n` +
+        `  --shell-escape    Enable LaTeX shell escape (passes --shell-escape to lualatex)\n` +
+        `  --geometry-json <path>  Emit layout geometry JSON to the provided path\n` +
+        `                         (defaults to <jobname>-geometry.json next to the PDF)\n` +
+        `  --geometry-grouping <mode>  Set grouping mode: 'default' (current) or 'strict'\n` +
+        `  --no-geometry     Skip geometry JSON generation\n` +
+        `  --marked-boxes    Generate marked-boxes JSON from NDJSON coordinates\n` +
+        `  --convert-ndjson  Convert NDJSON to marked-boxes format (alias for --marked-boxes)\n` +
+        `  --sync-aux        Sync coordinates from aux file for perfect accuracy (recommended)\n` +
+        `  --sync-from-aux   Alias for --sync-aux\n` +
+        `  --lang <code>     Set the language code for geometry metadata (default: en)\n` +
+        `  -h, --help        Show this help text\n` +
+        `Examples:\n` +
+        `  node src/tex-to-pdf.js output.tex\n` +
+        `  node src/tex-to-pdf.js output.tex dist/\n` +
+        `  node src/tex-to-pdf.js output.tex dist/final.pdf --keep-aux\n` +
+        `  node src/tex-to-pdf.js output.tex --geometry-json build/layout.json\n` +
+        `  node src/tex-to-pdf.js output.tex --marked-boxes --sync-aux`);
 }
 
 function ensureDirectory(dirPath) {
@@ -164,7 +123,7 @@ function sanitizeArgs(rawArgs) {
         }
         if (arg === '--geometry-grouping') {
             const next = rawArgs[i + 1];
-            if (!next || next.startsWith('--') || !['default','strict'].includes(next)) {
+            if (!next || next.startsWith('--') || !['default', 'strict'].includes(next)) {
                 console.error("Error: --geometry-grouping requires 'default' or 'strict'.");
                 process.exit(1);
             }
@@ -183,7 +142,7 @@ function sanitizeArgs(rawArgs) {
         }
         if (arg.startsWith('--geometry-grouping=')) {
             const value = arg.split('=').slice(1).join('=');
-            if (!['default','strict'].includes(value)) {
+            if (!['default', 'strict'].includes(value)) {
                 console.error("Error: --geometry-grouping must be 'default' or 'strict'.");
                 process.exit(1);
             }
@@ -314,9 +273,9 @@ async function main() {
 
     const { workingDir, outputDir, jobName } = resolveOutputPaths(resolvedTexFile, outputTarget);
 
-        const pdfPath = path.join(outputDir, `${jobName}.pdf`);
+    const pdfPath = path.join(outputDir, `${jobName}.pdf`);
 
-        const latexArgs = [
+    const latexArgs = [
         '-interaction=nonstopmode',
         '-halt-on-error',
         `-output-directory=${outputDir}`,
@@ -352,10 +311,10 @@ async function main() {
         const texPosCandidateCwd = path.join(workingDir, `${jobName}-texpos.ndjson`);
         if (fs.existsSync(texPosCandidate) || fs.existsSync(texPosCandidateOut) || fs.existsSync(texPosCandidateCwd)) {
             console.log('Pass 2/3: Updating cross-references...');
-            try { await runLatex(latexArgs, workingDir); } catch (_) {}
+            try { await runLatex(latexArgs, workingDir); } catch (_) { }
 
             console.log('Pass 3/3: Finalizing positions for accurate page numbers...');
-            try { await runLatex(latexArgs, workingDir); } catch (_) {}
+            try { await runLatex(latexArgs, workingDir); } catch (_) { }
         }
         const elapsed = ((Date.now() - start) / 1000).toFixed(2);
 
@@ -405,398 +364,7 @@ async function main() {
             }
             if (marks) {
                 try {
-                    const spToPt = (sp) => Number(sp) / 65536;
-                    const safeSpToPt = (value) => {
-                        if (value === undefined || value === null || value === '') return null;
-                        const num = Number(value);
-                        return Number.isFinite(num) ? spToPt(num) : null;
-                    };
-                    const parsePt = (s) => {
-                        if (s === undefined || s === null || s === '') return null;
-                        const parsed = parseFloat(String(s).replace(/pt$/, ''));
-                        return Number.isFinite(parsed) ? parsed : null;
-                    };
-                    const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
-                    const DEFAULT_LINE_HEIGHT = 14;
-
-                    const marksByPage = new Map();
-                    const elementMap = new Map();
-
-                    const getBaseRole = (role) => {
-                        if (role.startsWith('FIG')) return 'FIG';
-                        if (role.startsWith('TABLE')) return 'TABLE';
-                        if (role.startsWith('P')) return 'P';
-                        return role;
-                    };
-
-                    const getRecord = (id, baseRole) => {
-                        let rec = elementMap.get(id);
-                        if (!rec) {
-                            rec = { id, role: baseRole, starts: [], ends: [], lines: [] };
-                            elementMap.set(id, rec);
-                        }
-                        return rec;
-                    };
-
-                    for (const rawMark of marks) {
-                        if (!rawMark || typeof rawMark !== 'object') continue;
-                        const role = String(rawMark.role || '');
-                        const type = String(rawMark.type || '');
-                        
-                        let baseRole = role;
-                        let markType = type;
-                        
-                        if (role === 'P' && type === 'line') {
-                            baseRole = 'P';
-                            markType = 'line';
-                        } else if (/^(FIG|TABLE|P)-(start|end)$/.test(role)) {
-                            baseRole = getBaseRole(role);
-                            markType = role.endsWith('start') ? 'start' : 'end';
-                        } else {
-                            continue;
-                        }
-
-                        const pageIndex = (rawMark.page || 1) - 1;
-                        const pwPt = parsePt(rawMark.pw);
-                        const phPt = parsePt(rawMark.ph);
-                        const xPt = safeSpToPt(rawMark.xsp);
-                        const yPt = safeSpToPt(rawMark.ysp);
-                        const columnWidthPt = safeSpToPt(rawMark.cwsp);
-                        const textWidthPt = safeSpToPt(rawMark.twsp);
-                        const columnSepPt = safeSpToPt(rawMark.colsep);
-                        
-                        const wPt = safeSpToPt(rawMark.w);
-                        const hPt = safeSpToPt(rawMark.h);
-                        const dPt = safeSpToPt(rawMark.d);
-
-                        const mark = {
-                            id: rawMark.id,
-                            role: baseRole,
-                            type: markType,
-                            pageIndex,
-                            pageWidthPt: pwPt,
-                            pageHeightPt: phPt,
-                            xPt,
-                            yPt,
-                            rawYSp: Number(rawMark.ysp),
-                            columnWidthPt,
-                            textWidthPt,
-                            columnSepPt,
-                            wPt, hPt, dPt
-                        };
-
-                        if (!marksByPage.has(pageIndex)) marksByPage.set(pageIndex, []);
-                        marksByPage.get(pageIndex).push(mark);
-
-                        const record = getRecord(mark.id, baseRole);
-                        if (markType === 'start') {
-                            record.starts.push(mark);
-                        } else if (markType === 'end') {
-                            record.ends.push(mark);
-                        } else if (markType === 'line') {
-                            record.lines.push(mark);
-                        }
-                    }
-
-                    if (!marksByPage.size) {
-                        throw new Error('No usable TeX position marks were found.');
-                    }
-
-                    const clusterColumnLefts = (values) => {
-                        const sorted = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
-                        const clusters = [];
-                        const tolerance = 5; // pts
-                        for (const value of sorted) {
-                            let cluster = null;
-                            for (const existing of clusters) {
-                                if (Math.abs(existing.value - value) <= tolerance) {
-                                    cluster = existing;
-                                    break;
-                                }
-                            }
-                            if (!cluster) {
-                                clusters.push({ value, count: 1 });
-                            } else {
-                                cluster.value = (cluster.value * cluster.count + value) / (cluster.count + 1);
-                                cluster.count += 1;
-                            }
-                        }
-                        return clusters.map((c) => c.value).sort((a, b) => a - b);
-                    };
-
-                    const assignColumnIndex = (xPt, columnLefts) => {
-                        if (!Number.isFinite(xPt) || !columnLefts.length) return null;
-                        let bestIndex = 0;
-                        let bestDistance = Infinity;
-                        for (let i = 0; i < columnLefts.length; i += 1) {
-                            const distance = Math.abs(columnLefts[i] - xPt);
-                            if (distance < bestDistance) {
-                                bestDistance = distance;
-                                bestIndex = i;
-                            }
-                        }
-                        return bestIndex;
-                    };
-
-                    const pageMetaMap = new Map();
-
-                    for (const [pageIndex, markList] of marksByPage.entries()) {
-                        if (!markList.length) continue;
-                        const pageHeight = markList.find((m) => isFiniteNumber(m.pageHeightPt))?.pageHeightPt || null;
-                        const pageWidth = markList.find((m) => isFiniteNumber(m.pageWidthPt))?.pageWidthPt || null;
-                        for (const mark of markList) {
-                            if (isFiniteNumber(mark.yPt) && isFiniteNumber(pageHeight)) {
-                                mark.topCoord = pageHeight - mark.yPt;
-                            } else {
-                                mark.topCoord = null;
-                            }
-                        }
-
-                        let xValues = markList
-                            .filter((m) => m.type === 'start' && Number.isFinite(m.xPt))
-                            .map((m) => m.xPt);
-                        if (!xValues.length) {
-                            xValues = markList.map((m) => m.xPt).filter((v) => Number.isFinite(v));
-                        }
-                        let columnLefts = clusterColumnLefts(xValues);
-                        if (!columnLefts.length && Number.isFinite(pageWidth)) {
-                            columnLefts = [72];
-                        }
-
-                        const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-                        const columnWidthAvg = avg(markList.map((m) => m.columnWidthPt).filter(isFiniteNumber));
-                        const textWidthAvg = avg(markList.map((m) => m.textWidthPt).filter(isFiniteNumber));
-                        const columnSepAvg = avg(markList.map((m) => m.columnSepPt).filter(isFiniteNumber));
-
-                        markList.forEach((mark) => {
-                            mark.columnIndex = assignColumnIndex(mark.xPt, columnLefts);
-                        });
-
-                        const columns = columnLefts.map((left, idx) => ({
-                            index: idx,
-                            left,
-                            width: columnWidthAvg,
-                            events: []
-                        }));
-
-                        for (const mark of markList) {
-                            if (mark.columnIndex !== null && columns[mark.columnIndex]) {
-                                columns[mark.columnIndex].events.push(mark);
-                            }
-                        }
-
-                        for (let c = 0; c < columns.length; c += 1) {
-                            const column = columns[c];
-                            column.events.sort((a, b) => {
-                                const ay = Number.isFinite(a.rawYSp) ? a.rawYSp : -Infinity;
-                                const by = Number.isFinite(b.rawYSp) ? b.rawYSp : -Infinity;
-                                return by - ay;
-                            });
-                            const topValues = column.events.map((ev) => ev.topCoord).filter(isFiniteNumber);
-                            column.columnTop = topValues.length ? Math.min(...topValues) : 0;
-                            const topMax = topValues.length ? Math.max(...topValues) : (isFiniteNumber(pageHeight) ? pageHeight - 72 : DEFAULT_LINE_HEIGHT * 4);
-                            const bottomBase = isFiniteNumber(pageHeight) ? Math.min(pageHeight, topMax + DEFAULT_LINE_HEIGHT) : topMax + DEFAULT_LINE_HEIGHT;
-                            column.columnBottom = bottomBase;
-
-                            if (!isFiniteNumber(column.width)) {
-                                if (columns.length > 1 && c < columns.length - 1) {
-                                    const gap = columns[c + 1].left - column.left;
-                                    column.width = columnSepAvg ? Math.max(10, gap - columnSepAvg) : gap - 10;
-                                } else if (isFiniteNumber(textWidthAvg) && columns.length) {
-                                    const totalSep = columnSepAvg ? columnSepAvg * (columns.length - 1) : 0;
-                                    column.width = (textWidthAvg - totalSep) / Math.max(1, columns.length);
-                                } else if (isFiniteNumber(columnWidthAvg)) {
-                                    column.width = columnWidthAvg;
-                                } else if (isFiniteNumber(pageWidth)) {
-                                    column.width = pageWidth - 144; // assume 1in margins
-                                } else {
-                                    column.width = 200;
-                                }
-                            }
-
-                            for (let i = 0; i < column.events.length; i += 1) {
-                                const event = column.events[i];
-                                const nextEvent = column.events[i + 1];
-                                let nextTop = column.columnBottom;
-                                if (nextEvent && isFiniteNumber(nextEvent.topCoord)) {
-                                    nextTop = nextEvent.topCoord;
-                                }
-                                if (!isFiniteNumber(nextTop)) {
-                                    nextTop = isFiniteNumber(event.topCoord) ? event.topCoord + DEFAULT_LINE_HEIGHT : DEFAULT_LINE_HEIGHT;
-                                }
-                                if (isFiniteNumber(event.topCoord) && nextTop <= event.topCoord) {
-                                    nextTop = event.topCoord + DEFAULT_LINE_HEIGHT;
-                                }
-                                event.nextTop = nextTop;
-                            }
-                        }
-
-                        pageMetaMap.set(pageIndex, {
-                            pageHeight,
-                            pageWidth,
-                            columns,
-                            columnSep: columnSepAvg,
-                            columnWidth: columnWidthAvg,
-                            textWidth: textWidthAvg
-                        });
-                    }
-
-                    const segmentFromEvent = (event) => {
-                        if (!event) return null;
-                        const pageMeta = pageMetaMap.get(event.pageIndex);
-                        if (!pageMeta) return null;
-                        const column = (event.columnIndex !== null) ? pageMeta.columns[event.columnIndex] : null;
-                        if (!column) return null;
-                        const left = column.left;
-                        const width = column.width;
-                        if (!isFiniteNumber(left) || !isFiniteNumber(width)) return null;
-                        const right = left + width;
-                        const top = isFiniteNumber(event.topCoord) ? event.topCoord : column.columnTop;
-                        let bottom = isFiniteNumber(event.nextTop) ? event.nextTop : column.columnBottom;
-                        if (!isFiniteNumber(bottom)) {
-                            bottom = top + DEFAULT_LINE_HEIGHT;
-                        }
-                        if (bottom <= top) bottom = top + DEFAULT_LINE_HEIGHT;
-                        const quad = [left, top, right, top, right, bottom, left, bottom];
-                        return {
-                            pageIndex: event.pageIndex,
-                            columnIndex: event.columnIndex,
-                            left,
-                            right,
-                            width,
-                            top,
-                            bottom,
-                            quad
-                        };
-                    };
-
-                    const mergeQuads = (quads) => {
-                        if (!quads.length) return null;
-                        let left = Infinity;
-                        let right = -Infinity;
-                        let top = Infinity;
-                        let bottom = -Infinity;
-                        for (const quad of quads) {
-                            if (!Array.isArray(quad) || quad.length !== 8) continue;
-                            left = Math.min(left, quad[0], quad[6]);
-                            right = Math.max(right, quad[2], quad[4]);
-                            top = Math.min(top, quad[1], quad[3]);
-                            bottom = Math.max(bottom, quad[5], quad[7]);
-                        }
-                        if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
-                            return null;
-                        }
-                        return [left, top, right, top, right, bottom, left, bottom];
-                    };
-
-                    const pagesMap = new Map();
-
-                    for (const record of elementMap.values()) {
-                        const segmentsByPage = new Map();
-
-                        if (record.lines && record.lines.length > 0) {
-                            for (const line of record.lines) {
-                                if (!isFiniteNumber(line.xPt) || !isFiniteNumber(line.yPt)) continue;
-                                const pageMeta = pageMetaMap.get(line.pageIndex);
-                                const pageHeight = (pageMeta && isFiniteNumber(pageMeta.pageHeight)) ? pageMeta.pageHeight : (line.pageHeightPt || 842);
-                                
-                                const left = line.xPt;
-                                const width = line.wPt || 0;
-                                const right = left + width;
-                                
-                                const h = line.hPt || 10;
-                                const d = line.dPt || 0;
-                                
-                                const top = pageHeight - (line.yPt + h);
-                                const bottom = pageHeight - (line.yPt - d);
-                                
-                                const quad = [left, top, right, top, right, bottom, left, bottom];
-                                
-                                const seg = {
-                                    pageIndex: line.pageIndex,
-                                    columnIndex: 0,
-                                    left, right, width, top, bottom, quad
-                                };
-                                
-                                if (!segmentsByPage.has(line.pageIndex)) segmentsByPage.set(line.pageIndex, []);
-                                segmentsByPage.get(line.pageIndex).push(seg);
-                            }
-                        } else {
-                            const coveredColumns = new Map();
-
-                            for (const startEvent of record.starts) {
-                                const seg = segmentFromEvent(startEvent);
-                                if (!seg) continue;
-                                if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
-                                segmentsByPage.get(seg.pageIndex).push(seg);
-                                if (!coveredColumns.has(seg.pageIndex)) coveredColumns.set(seg.pageIndex, new Set());
-                                coveredColumns.get(seg.pageIndex).add(seg.columnIndex);
-                            }
-
-                            for (const endEvent of record.ends) {
-                                const covered = coveredColumns.get(endEvent.pageIndex);
-                                if (covered && covered.has(endEvent.columnIndex)) continue;
-                                const seg = segmentFromEvent(endEvent);
-                                if (!seg) continue;
-                                if (!segmentsByPage.has(seg.pageIndex)) segmentsByPage.set(seg.pageIndex, []);
-                                segmentsByPage.get(seg.pageIndex).push(seg);
-                            }
-                        }
-
-                        for (const [pageIndex, segments] of segmentsByPage.entries()) {
-                            if (!segments.length) continue;
-                            const quads = segments.map((seg) => seg.quad).filter(Boolean);
-                            if (!quads.length) continue;
-                            const paragraphQuad = mergeQuads(quads);
-                            const element = {
-                                id: record.id,
-                                role: record.role,
-                                lang: flags.language,
-                                quads,
-                                columnSegments: segments.map((seg) => ({
-                                    columnIndex: seg.columnIndex,
-                                    columnLeftPt: Number(seg.left.toFixed(4)),
-                                    columnRightPt: Number(seg.right.toFixed(4)),
-                                    columnWidthPt: Number(seg.width.toFixed(4)),
-                                    topPt: Number(seg.top.toFixed(4)),
-                                    bottomPt: Number(seg.bottom.toFixed(4))
-                                }))
-                            };
-                            if (paragraphQuad) {
-                                element.paragraphQuad = paragraphQuad;
-                            }
-                            const primarySegment = segments[0];
-                            if (primarySegment) {
-                                element.columnIndex = primarySegment.columnIndex;
-                                element.columnLeftPt = Number(primarySegment.left.toFixed(4));
-                                element.columnRightPt = Number(primarySegment.right.toFixed(4));
-                                element.columnWidthPt = Number(primarySegment.width.toFixed(4));
-                            }
-                            const pageMeta = pageMetaMap.get(pageIndex);
-                            if (pageMeta && pageMeta.columns && pageMeta.columns.length > 1) {
-                                element.twoColumnLayout = true;
-                                if (isFiniteNumber(pageMeta.columnSep)) {
-                                    element.columnSepPt = Number(pageMeta.columnSep.toFixed(4));
-                                }
-                                if (isFiniteNumber(pageMeta.textWidth)) {
-                                    element.textWidthPt = Number(pageMeta.textWidth.toFixed(4));
-                                }
-                            }
-                            if (!pagesMap.has(pageIndex)) pagesMap.set(pageIndex, []);
-                            pagesMap.get(pageIndex).push(element);
-                        }
-                    }
-
-                    if (!pagesMap.size) {
-                        throw new Error('Unable to derive geometry segments from TeX marks.');
-                    }
-
-                    const pageIndices = Array.from(pagesMap.keys()).sort((a, b) => a - b);
-                    const pages = pageIndices.map((idx) => ({ index: idx, elements: pagesMap.get(idx) }));
-                    const crypto = require('crypto');
-                    const pdfBuf = fs.readFileSync(pdfPath);
-                    const docId = crypto.createHash('sha256').update(pdfBuf).digest('hex');
-                    const geometryData = { pdfGeometryV1: { docId, pages } };
+                    const geometryData = generateGeometryFromMarks(marks, pdfPath, flags.language);
                     fs.writeFileSync(geometryTarget, JSON.stringify(geometryData, null, 2));
                     console.log(`Geometry JSON written: ${geometryTarget}`);
                     usedTexPos = true;
@@ -825,436 +393,136 @@ async function main() {
             }
         }
 
-            // Convert NDJSON to marked-boxes format if requested
-            if (flags.markedBoxes || flags.convertNdjson) {
-                const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
-                if (fs.existsSync(ndjsonPath)) {
-                    try {
-                        const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
-                        await convertNdjsonToMarkedBoxes(ndjsonPath, markedBoxesPath);
-                        console.log(`Marked boxes JSON generated: ${markedBoxesPath}`);
-                    } catch (convertError) {
-                        console.error('Failed to convert NDJSON to marked-boxes format:');
-                        console.error(convertError.message);
-                    }
+        // Convert NDJSON to marked-boxes format if requested
+        if (flags.markedBoxes || flags.convertNdjson) {
+            const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+            if (fs.existsSync(ndjsonPath)) {
+                try {
+                    const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+                    await convertNdjsonToMarkedBoxes(ndjsonPath, markedBoxesPath);
+                    console.log(`Marked boxes JSON generated: ${markedBoxesPath}`);
+                } catch (convertError) {
+                    console.error('Failed to convert NDJSON to marked-boxes format:');
+                    console.error(convertError.message);
                 }
             }
+        }
 
-            // Sync coordinates from aux file for perfect accuracy (if requested)
-            if (flags.syncFromAux || flags.syncAux) {
-                const auxPath = path.join(outputDir, `${jobName}.aux`);
-                if (fs.existsSync(auxPath)) {
-                    try {
-                        console.log('\n📍 Syncing coordinates from aux file for perfect accuracy...');
-                        const { parseAuxFile, generateNdjson, generateMarkedBoxes, readPositionsFromNdjson, getPageDimensions, getColumnSettings } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
+        // Sync coordinates from aux file for perfect accuracy (if requested)
+        if (flags.syncFromAux || flags.syncAux) {
+            const auxPath = path.join(outputDir, `${jobName}.aux`);
+            if (fs.existsSync(auxPath)) {
+                try {
+                    console.log('\n📍 Syncing coordinates from aux file for perfect accuracy...');
+                    const { parseAuxFile, generateNdjson, generateMarkedBoxes, readPositionsFromNdjson, getPageDimensions, getColumnSettings } = require(path.join(__dirname, '../scripts/external/sync_from_aux.js'));
 
-                            const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
-                            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+                    const ndjsonPath = path.join(outputDir, `${jobName}-texpos.ndjson`);
+                    const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
 
-                        // Try to read LaTeX-generated NDJSON first (which has type field)
-                        let positions = readPositionsFromNdjson(ndjsonPath);
-                        
-                        if (!positions || positions.length === 0) {
-                            // Fallback: Parse aux file if NDJSON doesn't exist or is empty
-                            console.log('LaTeX-generated NDJSON not found, parsing aux file as fallback...');
-                            const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
-                            const columnSettings = getColumnSettings(ndjsonPath);
-                            positions = parseAuxFile(auxPath);
+                    // Try to read LaTeX-generated NDJSON first (which has type field)
+                    let positions = readPositionsFromNdjson(ndjsonPath);
 
-                            if (positions.length > 0) {
-                                // Generate NDJSON from aux file (without type field)
-                            generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
-                                // Re-read to get proper positions
-                                positions = readPositionsFromNdjson(ndjsonPath) || positions;
-                            }
-                        } else {
-                            console.log(`=== Using LaTeX-generated NDJSON with type information ===`);
-                            console.log(`Found ${positions.length} position records`);
-                        }
+                    if (!positions || positions.length === 0) {
+                        // Fallback: Parse aux file if NDJSON doesn't exist or is empty
+                        console.log('LaTeX-generated NDJSON not found, parsing aux file as fallback...');
+                        const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
+                        const columnSettings = getColumnSettings(ndjsonPath);
+                        positions = parseAuxFile(auxPath);
 
                         if (positions.length > 0) {
-                            const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
-                            const columnSettings = getColumnSettings(ndjsonPath);
-                            generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
-                            console.log('✅ Coordinates synchronized from aux file with multi-column/page splitting');
-                        } else {
-                            console.warn('⚠️  No position data found - skipping sync');
+                            // Generate NDJSON from aux file (without type field)
+                            generateNdjson(positions, pageDimensions, columnSettings, ndjsonPath);
+                            // Re-read to get proper positions
+                            positions = readPositionsFromNdjson(ndjsonPath) || positions;
                         }
-                    } catch (syncError) {
-                        console.error('⚠️  Failed to sync coordinates from aux file:');
-                        console.error(syncError.message);
-                        console.log('📝 You can manually sync later with: node scripts/external/sync_from_aux.js ' + auxPath);
+                    } else {
+                        console.log(`=== Using LaTeX-generated NDJSON with type information ===`);
+                        console.log(`Found ${positions.length} position records`);
                     }
-                } else {
-                    console.warn('⚠️  Aux file not found - skipping coordinate sync');
-                }
-            }
 
-            // Convert line-level NDJSON to paragraph overlays (if line-level data exists)
-            const linesNdjsonPath = path.join(outputDir, `${jobName}-texpos-lines.ndjson`);
-            const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
-            if (fs.existsSync(linesNdjsonPath)) {
-                try {
-                    console.log('\n📏 Converting line-level coordinates to paragraph overlays...');
-                    const { convertLinesToOverlays } = require(path.join(__dirname, '../scripts/external/lines_to_overlays.js'));
-                    
-                    // Generate line-based overlays
-                    const linesMarkedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes-lines.json`);
-                    convertLinesToOverlays(linesNdjsonPath, linesMarkedBoxesPath);
-                    
-                    // Merge with existing marked-boxes.json (floats from sync_from_aux)
-                    let existingBoxes = [];
-                    if (fs.existsSync(markedBoxesPath)) {
-                        try {
-                            existingBoxes = JSON.parse(fs.readFileSync(markedBoxesPath, 'utf8'));
-                            // Keep only non-paragraph items (figures, tables)
-                            existingBoxes = existingBoxes.filter(box => 
-                                box.type === 'figure' || box.type === 'table' || 
-                                box.id?.startsWith('fig') || box.id?.startsWith('tbl')
-                            );
-                            console.log(`   📦 Keeping ${existingBoxes.length} float overlays from existing file`);
-                        } catch (e) {
-                            existingBoxes = [];
-                        }
+                    if (positions.length > 0) {
+                        const pageDimensions = getPageDimensions(auxPath, ndjsonPath);
+                        const columnSettings = getColumnSettings(ndjsonPath);
+                        generateMarkedBoxes(positions, pageDimensions, markedBoxesPath, columnSettings);
+                        console.log('✅ Coordinates synchronized from aux file with multi-column/page splitting');
+                    } else {
+                        console.warn('⚠️  No position data found - skipping sync');
                     }
-                    
-                    // Read line-based paragraph overlays
-                    const lineBoxes = JSON.parse(fs.readFileSync(linesMarkedBoxesPath, 'utf8'));
-                    console.log(`   📝 Generated ${lineBoxes.length} paragraph overlays from line data`);
-                    
-                    // Merge: floats + paragraphs
-                    const mergedBoxes = [...existingBoxes, ...lineBoxes];
-                    
-                    // Sort by page then y position
-                    mergedBoxes.sort((a, b) => {
-                        if (a.page !== b.page) return a.page - b.page;
-                        return (a.y_pt || 0) - (b.y_pt || 0);
-                    });
-                    
-                    // Write merged result
-                    fs.writeFileSync(markedBoxesPath, JSON.stringify(mergedBoxes, null, 2));
-                    console.log(`✅ Merged ${mergedBoxes.length} total overlays to ${path.basename(markedBoxesPath)}`);
-                    
-                } catch (lineConvertError) {
-                    console.error('⚠️  Failed to convert line-level data:');
-                    console.error(lineConvertError.message);
+                } catch (syncError) {
+                    console.error('⚠️  Failed to sync coordinates from aux file:');
+                    console.error(syncError.message);
+                    console.log('📝 You can manually sync later with: node scripts/external/sync_from_aux.js ' + auxPath);
                 }
+            } else {
+                console.warn('⚠️  Aux file not found - skipping coordinate sync');
             }
-
-            if (!flags.keepAux) {
-                cleanAuxiliaryFiles(outputDir, jobName);
-            }
-
-            console.log(`\nPDF generated: ${pdfPath}`);
-            console.log(`Compilation time: ${elapsed}s`);
-        } catch (error) {
-            console.error(`\nFailed to compile ${resolvedTexFile}`);
-            console.error(error.message);
-            process.exit(1);
         }
-    }
 
-    // NDJSON to Marked-Boxes Conversion Functions
-    // ============================================
+        // Convert line-level NDJSON to paragraph overlays (if line-level data exists)
+        const linesNdjsonPath = path.join(outputDir, `${jobName}-texpos-lines.ndjson`);
+        const markedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes.json`);
+        if (fs.existsSync(linesNdjsonPath)) {
+            try {
+                console.log('\n📏 Converting line-level coordinates to paragraph overlays...');
+                const { convertLinesToOverlays } = require(path.join(__dirname, '../scripts/external/lines_to_overlays.js'));
 
-    /**
-     * Convert scaled points to points (1 pt = 65536 sp)
-     */
-    function spToPt(spValue) {
-        return parseFloat(spValue) / 65536.0;
-    }
+                // Generate line-based overlays
+                const linesMarkedBoxesPath = path.join(outputDir, `${jobName}-marked-boxes-lines.json`);
+                convertLinesToOverlays(linesNdjsonPath, linesMarkedBoxesPath);
 
-    /**
-     * Convert points to millimeters (1 pt = 0.352778 mm)
-     */
-    function ptToMm(ptValue) {
-        return ptValue * 0.352778;
-    }
-
-    /**
-     * Convert points to pixels (default 72 DPI, 1 pt = 1 px at 72 DPI)
-     */
-    function ptToPx(ptValue, dpi = 72) {
-        return ptValue * (dpi / 72.0);
-    }
-
-    /**
-     * Parse NDJSON file and return list of position records
-     */
-    function parseNdjson(filePath) {
-        const records = [];
-        const content = fs.readFileSync(filePath, 'utf8');
-        const lines = content.split(/\r?\n/);
-
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed) {
-                try {
-                    records.push(JSON.parse(trimmed));
-                } catch (e) {
-                    console.warn(`Warning: Failed to parse NDJSON line: ${trimmed}`);
+                // Merge with existing marked-boxes.json (floats from sync_from_aux)
+                let existingBoxes = [];
+                if (fs.existsSync(markedBoxesPath)) {
+                    try {
+                        existingBoxes = JSON.parse(fs.readFileSync(markedBoxesPath, 'utf8'));
+                        // Keep only non-paragraph items (figures, tables)
+                        existingBoxes = existingBoxes.filter(box =>
+                            box.type === 'figure' || box.type === 'table' ||
+                            box.id?.startsWith('fig') || box.id?.startsWith('tbl')
+                        );
+                        console.log(`   📦 Keeping ${existingBoxes.length} float overlays from existing file`);
+                    } catch (e) {
+                        existingBoxes = [];
+                    }
                 }
+
+                // Read line-based paragraph overlays
+                const lineBoxes = JSON.parse(fs.readFileSync(linesMarkedBoxesPath, 'utf8'));
+                console.log(`   📝 Generated ${lineBoxes.length} paragraph overlays from line data`);
+
+                // Merge: floats + paragraphs
+                const mergedBoxes = [...existingBoxes, ...lineBoxes];
+
+                // Sort by page then y position
+                mergedBoxes.sort((a, b) => {
+                    if (a.page !== b.page) return a.page - b.page;
+                    return (a.y_pt || 0) - (b.y_pt || 0);
+                });
+
+                // Write merged result
+                fs.writeFileSync(markedBoxesPath, JSON.stringify(mergedBoxes, null, 2));
+                console.log(`✅ Merged ${mergedBoxes.length} total overlays to ${path.basename(markedBoxesPath)}`);
+
+            } catch (lineConvertError) {
+                console.error('⚠️  Failed to convert line-level data:');
+                console.error(lineConvertError.message);
             }
         }
 
-        return records;
+        if (!flags.keepAux) {
+            cleanAuxiliaryFiles(outputDir, jobName);
+        }
+
+        console.log(`\nPDF generated: ${pdfPath}`);
+        console.log(`Compilation time: ${elapsed}s`);
+    } catch (error) {
+        console.error(`\nFailed to compile ${resolvedTexFile}`);
+        console.error(error.message);
+        process.exit(1);
     }
+}
 
-    /**
-     * Group start/end records by ID only (to pair markers that might span pages)
-     */
-    function groupRecordsById(records) {
-        const grouped = {};
-        const seenRecords = new Set(); // Track unique (id, page, role) to avoid duplicates
 
-        for (const record of records) {
-            // Create a unique key for deduplication (id, page, role)
-            const dedupKey = `${record.id}-${record.page}-${record.role}`;
-
-            // Skip if we've already seen this exact record
-            if (seenRecords.has(dedupKey)) {
-                console.log(`Info: Skipping duplicate record for ${record.id} on page ${record.page} (role: ${record.role})`);
-                continue;
-            }
-
-            seenRecords.add(dedupKey);
-
-            // Group by ID ONLY (not by page) to pair start/end markers
-            // Multi-page spanning will be handled later
-            const key = record.id;
-            if (!grouped[key]) {
-                grouped[key] = [];
-            }
-            grouped[key].push(record);
-        }
-        return grouped;
-    }
-
-    /**
-     * Split multi-page elements into segments (one per page)
-     * Returns array of { startRecord, endRecord, page } objects
-     */
-    function splitMultiPageElement(records) {
-        if (records.length !== 2) {
-            return null;
-        }
-
-        // Find start and end records
-        let startRecord = null;
-        let endRecord = null;
-
-        for (const record of records) {
-            if (record.role && record.role.endsWith('-start')) {
-                startRecord = record;
-            } else if (record.role && record.role.endsWith('-end')) {
-                endRecord = record;
-            }
-        }
-
-        if (!startRecord || !endRecord) {
-            return null;
-        }
-
-        const startPage = startRecord.page;
-        const endPage = endRecord.page;
-
-        // If on same page, no splitting needed
-        if (startPage === endPage) {
-            return [{ startRecord, endRecord, page: startPage }];
-        }
-
-        // Multi-page element - split into segments
-        console.log(`📄 Splitting multi-page element ${startRecord.id} (pages ${startPage}-${endPage})`);
-
-        const segments = [];
-        const pageHeightPt = parseFloat(startRecord.ph.replace('pt', ''));
-
-        for (let page = startPage; page <= endPage; page++) {
-            let segmentStart, segmentEnd;
-
-            if (page === startPage) {
-                // First page: from start marker to bottom of page
-                segmentStart = { ...startRecord };
-                segmentEnd = {
-                    ...startRecord,
-                    ysp: '0',  // Bottom of page in TeX coordinates (top-left origin)
-                    role: 'P-end'  // Synthetic end marker
-                };
-            } else if (page === endPage) {
-                // Last page: from top of page to end marker
-                segmentStart = {
-                    ...endRecord,
-                    ysp: String(Math.round(pageHeightPt * 65536)),  // Top of page in TeX coordinates
-                    role: 'P-start'  // Synthetic start marker
-                };
-                segmentEnd = { ...endRecord };
-            } else {
-                // Middle page: full height
-                segmentStart = {
-                    ...startRecord,
-                    page: page,
-                    ysp: String(Math.round(pageHeightPt * 65536)),  // Top of page
-                    role: 'P-start'
-                };
-                segmentEnd = {
-                    ...startRecord,
-                    page: page,
-                    ysp: '0',  // Bottom of page
-                    role: 'P-end'
-                };
-            }
-
-            segmentStart.page = page;
-            segmentEnd.page = page;
-
-            segments.push({ startRecord: segmentStart, endRecord: segmentEnd, page });
-        }
-
-        return segments;
-    }
-
-    /**
-     * Calculate bounding box from start/end records
-     */
-    function calculateBoundingBox(records) {
-        if (records.length !== 2) {
-            console.warn(`Warning: Expected 2 records (start/end), got ${records.length} for ID`);
-            return null;
-        }
-
-        // Find start and end records
-        let startRecord = null;
-        let endRecord = null;
-
-        for (const record of records) {
-            if (record.role && record.role.endsWith('-start')) {
-                startRecord = record;
-            } else if (record.role && record.role.endsWith('-end')) {
-                endRecord = record;
-            }
-        }
-
-        if (!startRecord || !endRecord) {
-            console.warn('Warning: Missing start or end record');
-            return null;
-        }
-
-        // Convert coordinates from sp to pt
-        const x1Pt = spToPt(startRecord.xsp);
-        const y1Pt = spToPt(startRecord.ysp);
-        const x2Pt = spToPt(endRecord.xsp);
-        const y2Pt = spToPt(endRecord.ysp);
-
-        // Get page height for coordinate system conversion
-        const pageHeightPt = parseFloat(startRecord.ph.replace('pt', ''));
-
-        // Convert Y coordinates from TeX (top-left origin) to PDF (bottom-left origin)
-        const y1PtPdf = pageHeightPt - y1Pt;
-        const y2PtPdf = pageHeightPt - y2Pt;
-
-        // Calculate bounding box using PURE COORDINATES (no column assumptions)
-        // This approach works for any layout: 2-col, 3-col, asymmetric (30/70), etc.
-        const xPt = Math.min(x1Pt, x2Pt);
-        const yPt = Math.min(y1PtPdf, y2PtPdf);
-        let wPt = Math.abs(x2Pt - x1Pt);
-        const hPt = Math.abs(y2PtPdf - y1PtPdf);
-
-        // Only use default width if coordinates are identical (shouldn't happen with proper markers)
-        if (wPt === 0) {
-            console.warn(`Warning: Zero width detected for element, using default column width`);
-            wPt = spToPt(startRecord.cwsp || 15456563);
-        }
-
-        // Convert to other units
-        const xMm = ptToMm(xPt);
-        const yMm = ptToMm(yPt);
-        const wMm = ptToMm(wPt);
-        const hMm = ptToMm(hPt);
-
-        const xPx = ptToPx(xPt);
-        const yPx = ptToPx(yPt);
-        const wPx = ptToPx(wPt);
-        const hPx = ptToPx(hPt);
-
-        return {
-            id: startRecord.id,
-            page: startRecord.page,
-            x_pt: Math.round(xPt * 100) / 100,
-            y_pt: Math.round(yPt * 100) / 100,
-            w_pt: Math.round(wPt * 100) / 100,
-            h_pt: Math.round(hPt * 100) / 100,
-            x_mm: Math.round(xMm * 100) / 100,
-            y_mm: Math.round(yMm * 100) / 100,
-            w_mm: Math.round(wMm * 100) / 100,
-            h_mm: Math.round(hMm * 100) / 100,
-            x_px: Math.round(xPx * 100) / 100,
-            y_px: Math.round(yPx * 100) / 100,
-            w_px: Math.round(wPx * 100) / 100,
-            h_px: Math.round(hPx * 100) / 100
-        };
-    }
-
-    /**
-     * Convert NDJSON file to marked-boxes.json format
-     */
-    async function convertNdjsonToMarkedBoxes(inputFile, outputFile) {
-        console.log(`Converting NDJSON: ${inputFile}`);
-
-        // Parse the NDJSON file
-        const records = parseNdjson(inputFile);
-        console.log(`Parsed ${records.length} records from ${path.basename(inputFile)}`);
-
-        // Group records by ID (not by page, to pair start/end markers)
-        const groupedRecords = groupRecordsById(records);
-        console.log(`Found ${Object.keys(groupedRecords).length} unique elements`);
-
-        // Convert to marked boxes format
-        const markedBoxes = [];
-        let multiPageCount = 0;
-        let singlePageCount = 0;
-
-        for (const [itemId, itemRecords] of Object.entries(groupedRecords)) {
-            // Split multi-page elements into segments
-            const segments = splitMultiPageElement(itemRecords);
-            
-            if (!segments) {
-                console.warn(`Skipping ${itemId} due to splitting error`);
-                continue;
-            }
-
-            if (segments.length > 1) {
-                multiPageCount++;
-                console.log(`  📄 ${itemId}: ${segments.length} page segments`);
-            } else {
-                singlePageCount++;
-            }
-
-            // Calculate bounding box for each segment
-            for (const segment of segments) {
-                const bbox = calculateBoundingBox([segment.startRecord, segment.endRecord]);
-            if (bbox) {
-                markedBoxes.push(bbox);
-            } else {
-                    console.warn(`  ⚠️  Failed to calculate bbox for ${itemId} on page ${segment.page}`);
-                }
-            }
-        }
-
-        // Sort by page and then by ID for consistent output
-        markedBoxes.sort((a, b) => {
-            if (a.page !== b.page) return a.page - b.page;
-            return a.id.localeCompare(b.id);
-        });
-
-        // Write the result
-        fs.writeFileSync(outputFile, JSON.stringify(markedBoxes, null, 2));
-
-        console.log(`Converted to ${path.basename(outputFile)}`);
-        console.log(`Generated ${markedBoxes.length} marked boxes (${singlePageCount} single-page, ${multiPageCount} multi-page)`);
-
-        return outputFile;
-    }
-
-    if (require.main === module) {
-        main();
-    }
+if (require.main === module) {
+    main();
+}
