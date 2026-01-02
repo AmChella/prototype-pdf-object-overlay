@@ -4,9 +4,10 @@ import { useDevTools } from '../../context/DevToolsContext';
 import FileUploader from '../FileUploader/FileUploader';
 import JSONUploader from '../JSONUploader/JSONUploader';
 import DocumentSelector from '../DocumentSelector/DocumentSelector';
+import ArticleFetcher from '../ArticleFetcher/ArticleFetcher';
 import './Sidebar.css';
 
-const Sidebar = ({ onGenerateDocument }) => {
+const Sidebar = ({ onGenerateDocument, onArticleFetched }) => {
   const {
     isSidebarOpen,
     currentPdf,
@@ -104,6 +105,27 @@ const Sidebar = ({ onGenerateDocument }) => {
             </div>
           </div>
         )}
+
+        {/* Fetch S3 Section - Collapsible */}
+        <div className={`sidebar-accordion ${expandedSection === 'fetch-s3' ? 'expanded' : ''}`}>
+          <button className="accordion-header" onClick={() => toggleSection('fetch-s3')}>
+            <div className="accordion-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7,10 12,15 17,10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Fetch from S3</span>
+            </div>
+            <svg className="accordion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="6,9 12,15 18,9" />
+            </svg>
+          </button>
+          <div className="accordion-content">
+            <ArticleFetcher onArticleFetched={onArticleFetched} />
+          </div>
+        </div>
+
 
         {/* Settings Section - Collapsible */}
         <div className={`sidebar-accordion ${expandedSection === 'settings' ? 'expanded' : ''}`}>

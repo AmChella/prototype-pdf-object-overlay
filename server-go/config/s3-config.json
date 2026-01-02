@@ -1,0 +1,7 @@
+{
+    "endpoint": "localhost:9003",
+    "accessKey": "minioadmin",
+    "secretKey": "minio1234",
+    "bucket": "articles",
+    "useSSL": false
+}

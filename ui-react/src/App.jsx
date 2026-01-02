@@ -22,8 +22,8 @@ import './App.css';
  * and sets up the main application layout.
  */
 function AppContent() {
-  const { 
-    loadPDF: contextLoadPDF, 
+  const {
+    loadPDF: contextLoadPDF,
     setIsConnected,
     setDropdownOptions,
     setSend,
@@ -56,7 +56,7 @@ function AppContent() {
     isOpen: false,
     overlay: null
   });
-  
+
   // WebSocket handlers
   const wsHandlers = {
     onConfig: (data) => {
@@ -64,38 +64,38 @@ function AppContent() {
       if (data.data) {
         // Load dropdown options
         if (data.data.dropdownOptions) {
-        setDropdownOptions(data.data.dropdownOptions);
-        console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
+          setDropdownOptions(data.data.dropdownOptions);
+          console.log('✅ Dropdown options loaded:', data.data.dropdownOptions);
         }
-        
+
         // Load feature flags
         if (data.data.featureFlags) {
           const { enableInstructionStack, enableVersioning } = data.data.featureFlags;
-          
+
           if (enableInstructionStack !== undefined) {
             setEnableInstructionStack(enableInstructionStack);
             console.log('✅ Feature flag - Instruction Stack:', enableInstructionStack);
           }
-          
+
           if (enableVersioning !== undefined) {
             setEnableVersioning(enableVersioning);
             console.log('✅ Feature flag - Versioning:', enableVersioning);
           }
-          
+
           console.log('✅ Feature flags loaded from server:', data.data.featureFlags);
         }
       }
     },
-    
+
     onProcessingStarted: (data) => {
       console.log('🎯 Processing started:', data);
-      
+
       // Check if this is a batch operation
       const isBatch = data.batchSize > 0;
-      
+
       if (isBatch) {
         toast.showInfo(`Processing ${data.batchSize} instructions...`);
-        
+
         // Show progress modal for batch
         setProgress({
           isOpen: true,
@@ -109,42 +109,42 @@ function AppContent() {
           ]
         });
       } else {
-      toast.showInfo(`Processing ${data.overlayType} instruction...`);
-      
+        toast.showInfo(`Processing ${data.overlayType} instruction...`);
+
         // Show progress modal for single instruction
-      setProgress({
-        isOpen: true,
-        title: `Processing ${data.instruction} on ${data.elementId}...`,
-        progress: 0,
-        status: 'Applying instruction to XML...',
-        stages: [
-          { label: 'Applying Instruction', status: 'active' },
-          { label: 'Regenerating PDF', status: 'pending' },
-          { label: 'Loading Results', status: 'pending' }
-        ]
-      });
+        setProgress({
+          isOpen: true,
+          title: `Processing ${data.instruction} on ${data.elementId}...`,
+          progress: 0,
+          status: 'Applying instruction to XML...',
+          stages: [
+            { label: 'Applying Instruction', status: 'active' },
+            { label: 'Regenerating PDF', status: 'pending' },
+            { label: 'Loading Results', status: 'pending' }
+          ]
+        });
       }
     },
-    
+
     onProcessingComplete: async (data) => {
       console.log('✅ Processing complete:', data);
-      
+
       // Check if this was a batch operation
       const isBatch = data.batchSize > 0;
-      
+
       setProgress(prev => ({
         ...prev,
         progress: 100,
         status: 'Complete! Loading updated files...',
         stages: prev.stages.map(s => ({ ...s, status: 'completed' }))
       }));
-      
+
       if (isBatch) {
         toast.showSuccess(`All ${data.batchSize} instructions processed successfully!`);
       } else {
-      toast.showSuccess('Document updated successfully!');
+        toast.showSuccess('Document updated successfully!');
       }
-      
+
       // Load the updated PDF and JSON
       if (data.result && data.result.pdfPath && data.result.jsonPath) {
         setTimeout(async () => {
@@ -152,29 +152,29 @@ function AppContent() {
             // Convert file system paths to URLs
             const pdfRelative = convertToRelativeUrl(data.result.pdfPath);
             let jsonRelative = convertToRelativeUrl(data.result.jsonPath);
-            
+
             const pdfUrl = `http://localhost:8081${pdfRelative}`;
             let jsonUrl = `http://localhost:8081${jsonRelative}`;
-            
+
             // Check for preferred marked-boxes format
             jsonUrl = await findPreferredJSONPath(jsonUrl);
-            
+
             console.log('📂 Loading updated files:');
             console.log('  PDF:', pdfUrl);
             console.log('  JSON:', jsonUrl);
-            
+
             // Load PDF
             setProgress(prev => ({ ...prev, status: 'Loading PDF...' }));
             const pdf = await loadPDF(pdfUrl);
             contextLoadPDF(pdf);
-            
+
             // Load JSON overlays
             setProgress(prev => ({ ...prev, status: 'Loading overlays...' }));
             const overlays = await loadOverlayJSON(jsonUrl);
             setOverlayData(overlays);
-            
+
             toast.showSuccess(`Updated PDF and ${overlays.length} overlays loaded!`);
-            
+
             // Close progress modal after brief delay
             setTimeout(() => {
               setProgress(prev => ({ ...prev, isOpen: false }));
@@ -190,31 +190,31 @@ function AppContent() {
         }, 500);
       }
     },
-    
+
     onProcessingError: (data) => {
       console.error('❌ Processing error:', data);
-      
+
       toast.showError('Processing failed: ' + (data.error || 'Unknown error'));
-      
+
       setProgress(prev => ({
         ...prev,
         status: `Error: ${data.error || 'Unknown error'}`,
-        stages: prev.stages.map((s, i) => 
-          i === prev.stages.findIndex(st => st.status === 'active') 
-            ? { ...s, status: 'error' } 
+        stages: prev.stages.map((s, i) =>
+          i === prev.stages.findIndex(st => st.status === 'active')
+            ? { ...s, status: 'error' }
             : s
         )
       }));
     },
-    
+
     onProgress: (data) => {
       console.log('📊 Progress update:', data);
-      
+
       // Update progress based on message and progress value
       let updatedStages = [...(progress.stages || [])];
       const message = data.message || '';
       const progressValue = data.progress !== undefined ? data.progress : 0;
-      
+
       // Update stages based on progress percentage
       if (progressValue < 30) {
         // Stage 1: Converting/Processing
@@ -244,7 +244,7 @@ function AppContent() {
           return stage;
         });
       }
-      
+
       setProgress(prev => ({
         ...prev,
         progress: progressValue,
@@ -252,7 +252,7 @@ function AppContent() {
         stages: updatedStages
       }));
     },
-    
+
     onComplete: async (data) => {
       console.log('✅ Generation complete:', data);
       setProgress(prev => ({
@@ -261,9 +261,9 @@ function AppContent() {
         status: 'Complete! Loading files...',
         stages: prev.stages.map(s => ({ ...s, status: 'completed' }))
       }));
-      
+
       toast.showSuccess('Document generated successfully!');
-      
+
       // Load the generated PDF and JSON
       if (data.pdfPath && data.jsonPath) {
         setTimeout(async () => {
@@ -271,29 +271,29 @@ function AppContent() {
             // Convert file system paths to URLs
             const pdfRelative = convertToRelativeUrl(data.pdfPath);
             let jsonRelative = convertToRelativeUrl(data.jsonPath);
-            
+
             const pdfUrl = `http://localhost:8081${pdfRelative}`;
             let jsonUrl = `http://localhost:8081${jsonRelative}`;
-            
+
             // Check for preferred marked-boxes format
             jsonUrl = await findPreferredJSONPath(jsonUrl);
-            
+
             console.log('📂 Loading generated files:');
             console.log('  PDF:', pdfUrl);
             console.log('  JSON:', jsonUrl);
-            
+
             // Load PDF
             setProgress(prev => ({ ...prev, status: 'Loading PDF...' }));
             const pdf = await loadPDF(pdfUrl);
             contextLoadPDF(pdf);
-            
+
             // Load JSON overlays
             setProgress(prev => ({ ...prev, status: 'Loading overlays...' }));
             const overlays = await loadOverlayJSON(jsonUrl);
             setOverlayData(overlays);
-            
+
             toast.showSuccess(`PDF and ${overlays.length} overlays loaded!`);
-            
+
             // Close progress modal after brief delay
             setTimeout(() => {
               setProgress(prev => ({ ...prev, isOpen: false }));
@@ -313,13 +313,13 @@ function AppContent() {
           try {
             const pdfRelative = convertToRelativeUrl(data.pdfPath);
             const pdfUrl = `http://localhost:8081${pdfRelative}`;
-            
+
             console.log('📂 Loading generated PDF from:', pdfUrl);
             const pdf = await loadPDF(pdfUrl);
             contextLoadPDF(pdf);
-            
+
             toast.showSuccess('PDF loaded successfully!');
-            
+
             setTimeout(() => {
               setProgress(prev => ({ ...prev, isOpen: false }));
             }, 1000);
@@ -334,79 +334,79 @@ function AppContent() {
         }, 500);
       }
     },
-    
+
     onError: (data) => {
       console.error('❌ Generation error:', data);
       toast.showError(data.message || 'Document generation failed');
       setProgress(prev => ({
         ...prev,
         status: `Error: ${data.message || 'Unknown error'}`,
-        stages: prev.stages.map((s, i) => 
+        stages: prev.stages.map((s, i) =>
           i === prev.stages.length - 1 ? { ...s, status: 'error' } : s
         )
       }));
     },
-    
+
     onConnect: () => {
       console.log('🔗 Connected to server');
       setIsConnected(true);
       toast.showSuccess('Connected to server');
     },
-    
+
     onDisconnect: () => {
       console.log('🔌 Disconnected from server');
       setIsConnected(false);
       toast.showWarning('Disconnected from server');
     },
-    
+
     // Version control handlers
     onVersionHistory: (data) => {
       console.log('📜 Version history received in App.jsx:', data);
       console.log('📜 Data type:', data.type);
       console.log('📜 History array:', data.history);
       console.log('📜 History length:', data.history?.length);
-      
+
       // Dispatch custom event for VersionHistory component
       const event = new CustomEvent('versionHistory', { detail: data });
       console.log('📜 Dispatching custom event:', event);
       window.dispatchEvent(event);
       console.log('✅ Custom event dispatched');
     },
-    
+
     onVersionStats: (data) => {
       console.log('📊 Version stats received in App.jsx:', data);
       // Dispatch custom event for VersionHistory component
       window.dispatchEvent(new CustomEvent('versionStats', { detail: data }));
     },
-    
+
     onVersionRestored: (data) => {
       console.log('✅ Version restored:', data);
       toast.showSuccess(`Version ${data.versionNumber || data.version} restored successfully!`);
       // Dispatch custom event for VersionHistory component
       window.dispatchEvent(new CustomEvent('versionRestored', { detail: data }));
-      
+
       // Reload the PDF and JSON from the restored version
       if (data.files && data.files.pdf && data.files.json) {
         setTimeout(async () => {
           try {
             const pdfRelative = convertToRelativeUrl(data.files.pdf);
             let jsonRelative = convertToRelativeUrl(data.files.json);
-            
+
             const pdfUrl = `http://localhost:8081${pdfRelative}`;
             let jsonUrl = `http://localhost:8081${jsonRelative}`;
-            
+
             jsonUrl = await findPreferredJSONPath(jsonUrl);
-            
+
             console.log('📂 Loading restored version files:');
             console.log('  PDF:', pdfUrl);
             console.log('  JSON:', jsonUrl);
-            
+
             const pdf = await loadPDF(pdfUrl);
             contextLoadPDF(pdf);
-            
+
             const overlays = await loadOverlayJSON(jsonUrl);
             setOverlayData(overlays);
-            
+
             toast.showSuccess('Restored version loaded!');
           } catch (err) {
             console.error('❌ Error loading restored files:', err);
@@ -415,7 +415,7 @@ function AppContent() {
         }, 500);
       }
     },
-    
+
     onVersionError: (data) => {
       console.error('❌ Version error:', data);
       toast.showError('Version error: ' + (data.error || 'Unknown error'));
@@ -423,14 +423,14 @@ function AppContent() {
       window.dispatchEvent(new CustomEvent('versionError', { detail: data }));
     }
   };
-  
-  const { isConnected, generateDocument, send } = useWebSocket('ws://localhost:8081', wsHandlers);
-  
+
+  const { isConnected, generateDocument, send } = useWebSocket('ws://localhost:8081/ws', wsHandlers);
+
   // Update send function in context
   React.useEffect(() => {
     setSend(() => send);
   }, [send, setSend]);
-  
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     onToggleSearch: () => {
@@ -463,12 +463,12 @@ function AppContent() {
     onToggleSidebar: toggleSidebar,
     onToggleOverlays: toggleOverlays,
   });
-  
+
   const handleGenerateDocument = useCallback((documentName) => {
     console.log(`🚀 Generating ${documentName}...`);
-    
+
     toast.showInfo(`Generating ${documentName}...`);
-    
+
     // Show progress modal
     setProgress({
       isOpen: true,
@@ -481,24 +481,45 @@ function AppContent() {
         { label: 'Generating PDF', status: 'pending' }
       ]
     });
-    
+
     // Send generation request
     generateDocument(documentName);
   }, [generateDocument, toast]);
-  
+
   const handleCancelProgress = () => {
     setProgress(prev => ({ ...prev, isOpen: false }));
   };
-  
+
+  // Handler for when article is fetched from S3
+  const handleArticleFetched = useCallback(async (data) => {
+    console.log('📦 Article fetched from S3:', data);
+    toast.showInfo(`Loading article ${data.journalId}/${data.articleId}...`);
+
+    try {
+      // Load PDF from URL
+      const pdf = await loadPDF(data.pdfUrl);
+      contextLoadPDF(pdf);
+
+      // Load JSON overlays
+      const overlays = await loadOverlayJSON(data.jsonUrl);
+      setOverlayData(overlays);
+
+      toast.showSuccess(`Article loaded: ${overlays.length} overlays`);
+    } catch (err) {
+      console.error('❌ Error loading fetched article:', err);
+      toast.showError('Failed to load article: ' + err.message);
+    }
+  }, [loadPDF, contextLoadPDF, setOverlayData, toast]);
+
   // Track if modal was manually closed to prevent auto-reopening
   const modalClosedManuallyRef = React.useRef(false);
-  
+
   // Show action modal when overlay is selected
   React.useEffect(() => {
     if (selectedOverlayId && overlayData) {
       // Reset the manually closed flag when a new overlay is selected
       modalClosedManuallyRef.current = false;
-      
+
       const selectedOverlay = overlayData.find(o => o.id === selectedOverlayId);
       if (selectedOverlay) {
         setActionModal({
@@ -508,7 +529,7 @@ function AppContent() {
       }
     }
   }, [selectedOverlayId, overlayData]);
-  
+
   // Scroll to selected overlay on PDF
   React.useEffect(() => {
     if (selectedOverlayId) {
@@ -521,34 +542,34 @@ function AppContent() {
       }, 100);
     }
   }, [selectedOverlayId]);
-  
+
   // Handle action submission
   const handleActionSubmit = useCallback((instructionData) => {
     console.log('📤 Sending instruction:', instructionData);
-    
+
     // Check WebSocket connection
     if (!isConnected) {
       toast.showError('Not connected to server. Please check connection.');
       return;
     }
-    
+
     // Send instruction via WebSocket
     const message = {
       type: 'instruction',
       ...instructionData
     };
-    
+
     try {
       const sent = send(message);
       if (sent) {
         console.log(`✅ Instruction sent for element: ${instructionData.elementId}`);
-        
+
         // Mark modal as manually closed
         modalClosedManuallyRef.current = true;
-        
+
         // Close action modal
         setActionModal({ isOpen: false, overlay: null });
-        
+
         // Server will send processing_started message which shows progress modal
       } else {
         toast.showError('Failed to send instruction. WebSocket not ready.');
@@ -558,24 +579,24 @@ function AppContent() {
       toast.showError('Failed to send instruction: ' + error.message);
     }
   }, [isConnected, send, toast]);
-  
+
   return (
     <div className="pdf-overlay-app">
       <Toolbar />
-      
+
       <div className="app-container">
-        <Sidebar onGenerateDocument={isConnected ? handleGenerateDocument : null} />
-        
+        <Sidebar onGenerateDocument={isConnected ? handleGenerateDocument : null} onArticleFetched={handleArticleFetched} />
+
         <main className="viewer-container">
           <ErrorBoundary>
             <PDFViewer />
           </ErrorBoundary>
         </main>
       </div>
-      
+
       {/* Floating Overlay Selector Panel */}
       <OverlaySelector />
-      
+
       {/* Progress Modal */}
       <ProgressModal
         isOpen={progress.isOpen}
@@ -585,7 +606,7 @@ function AppContent() {
         stages={progress.stages}
         onCancel={handleCancelProgress}
       />
-      
+
       {/* Action Modal */}
       <ActionModal
         isOpen={actionModal.isOpen}

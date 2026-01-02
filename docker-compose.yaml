@@ -1,0 +1,13 @@
+services:
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9003:9000"
+      - "9002:9001"
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minio1234
+    volumes:
+      - ./persistence/minio/data:/data
+      - ./persistence/minio/config:/root/.minio
+    command: server /data --console-address ":9001"
