@@ -75,3 +75,11 @@ archive/
 test-output/
 
 ui-react/node_modules/
+ui-react/dist/
+persistence/minio/data/*
+persistence/minio/config/*
+persistence/db/*
+cache/*
+server-go/pdf-overlay-server
+data
+containers
