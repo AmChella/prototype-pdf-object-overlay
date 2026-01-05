@@ -424,3 +424,28 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* Show Files Button */
+.show-files-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+  color: #a5b4fc;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.show-files-btn:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #c7d2fe;
+}

@@ -62,6 +62,7 @@ const ArticleFetcher = ({ onArticleFetched }) => {
                     jsonUrl: `http://localhost:8081${data.jsonUrl}`,
                     pdfBase64: data.pdfBase64,
                     jsonData: data.jsonData,
+                    fileTree: data.fileTree,
                 });
             }
 

@@ -1,6 +1,7 @@
 package s3client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -65,49 +67,97 @@ func NewWithConfig(config *Config) (*Client, error) {
 	}, nil
 }
 
-// ArticleFiles represents the PDF and JSON files for an article
-type ArticleFiles struct {
-	JournalID string `json:"journalId"`
-	ArticleID string `json:"articleId"`
-	PDFData   []byte `json:"pdfData,omitempty"`
-	JSONData  []byte `json:"jsonData,omitempty"`
-	PDFPath   string `json:"pdfPath,omitempty"`
-	JSONPath  string `json:"jsonPath,omitempty"`
+// FileData represents a single downloaded file
+type FileData struct {
+	Filename     string `json:"filename"`
+	RelativePath string `json:"relativePath"` // Path relative to article base (preserves subdirectory structure)
+	Data         []byte `json:"data,omitempty"`
+	S3Path       string `json:"s3Path"`
 }
 
-// FetchArticle downloads PDF and JSON files for a given journal and article ID
+// ArticleFiles represents all files for an article
+type ArticleFiles struct {
+	JournalID string               `json:"journalId"`
+	ArticleID string               `json:"articleId"`
+	Files     map[string]*FileData `json:"files"` // Map of filename to file data
+	PDFData   []byte               `json:"pdfData,omitempty"`
+	JSONData  []byte               `json:"jsonData,omitempty"`
+	PDFPath   string               `json:"pdfPath,omitempty"`
+	JSONPath  string               `json:"jsonPath,omitempty"`
+}
+
+// FetchArticle downloads ALL files for a given journal and article ID
 func (c *Client) FetchArticle(ctx context.Context, journalID, articleID string) (*ArticleFiles, error) {
-	// Construct S3 paths
-	basePath := fmt.Sprintf("%s/%s", journalID, articleID)
-	pdfPath := fmt.Sprintf("%s/%s_%s.pdf", basePath, journalID, articleID)
-	jsonPath := fmt.Sprintf("%s/%s_%s-marked-boxes.json", basePath, journalID, articleID)
+	// Construct S3 base path for the article
+	basePath := fmt.Sprintf("%s/%s/", journalID, articleID)
 
 	log.Printf("📥 Fetching article: %s/%s", journalID, articleID)
-	log.Printf("   PDF path: %s", pdfPath)
-	log.Printf("   JSON path: %s", jsonPath)
+	log.Printf("   Listing all files in: %s", basePath)
 
 	result := &ArticleFiles{
 		JournalID: journalID,
 		ArticleID: articleID,
-		PDFPath:   pdfPath,
-		JSONPath:  jsonPath,
+		Files:     make(map[string]*FileData),
 	}
 
-	// Download PDF
-	pdfData, err := c.downloadFile(ctx, pdfPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download PDF: %w", err)
-	}
-	result.PDFData = pdfData
-	log.Printf("   ✅ PDF downloaded: %d bytes", len(pdfData))
+	// List all files in the article directory
+	objectCh := c.minioClient.ListObjects(ctx, c.bucket, minio.ListObjectsOptions{
+		Prefix:    basePath,
+		Recursive: true,
+	})
 
-	// Download JSON
-	jsonData, err := c.downloadFile(ctx, jsonPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download JSON: %w", err)
+	var filesToDownload []string
+	for obj := range objectCh {
+		if obj.Err != nil {
+			return nil, fmt.Errorf("failed to list objects: %w", obj.Err)
+		}
+		// Skip if it's a directory marker (ends with /)
+		if obj.Key != "" && obj.Key[len(obj.Key)-1] != '/' {
+			filesToDownload = append(filesToDownload, obj.Key)
+		}
 	}
-	result.JSONData = jsonData
-	log.Printf("   ✅ JSON downloaded: %d bytes", len(jsonData))
+
+	if len(filesToDownload) == 0 {
+		return nil, fmt.Errorf("no files found for article %s/%s", journalID, articleID)
+	}
+
+	log.Printf("   Found %d files to download", len(filesToDownload))
+
+	// Download all files
+	for _, s3Path := range filesToDownload {
+		filename := filepath.Base(s3Path)
+		// Calculate relative path from article base (e.g., "subdir/file.txt" or just "file.txt")
+		relativePath := strings.TrimPrefix(s3Path, basePath)
+		log.Printf("   📥 Downloading: %s", relativePath)
+
+		data, err := c.downloadFile(ctx, s3Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download %s: %w", relativePath, err)
+		}
+
+		result.Files[relativePath] = &FileData{
+			Filename:     filename,
+			RelativePath: relativePath,
+			Data:         data,
+			S3Path:       s3Path,
+		}
+
+		log.Printf("   ✅ %s downloaded: %d bytes", relativePath, len(data))
+
+		// For backwards compatibility, also set PDFData and JSONData
+		pdfFilename := fmt.Sprintf("%s_%s.pdf", journalID, articleID)
+		jsonFilename := fmt.Sprintf("%s_%s-marked-boxes.json", journalID, articleID)
+
+		if filename == pdfFilename {
+			result.PDFData = data
+			result.PDFPath = s3Path
+		} else if filename == jsonFilename {
+			result.JSONData = data
+			result.JSONPath = s3Path
+		}
+	}
+
+	log.Printf("✅ All %d files downloaded for article: %s/%s", len(result.Files), journalID, articleID)
 
 	return result, nil
 }
@@ -128,34 +178,59 @@ func (c *Client) downloadFile(ctx context.Context, objectPath string) ([]byte, e
 	return data, nil
 }
 
-// SaveToLocal saves article files to local directory with original S3 filenames
+// SaveToLocal saves ALL article files to local directory preserving S3 directory structure
 func (c *Client) SaveToLocal(files *ArticleFiles, outputDir string) (pdfPath, jsonPath string, err error) {
-	// Create output directory matching S3 path structure
+	// Create base output directory matching S3 path structure
 	articleDir := filepath.Join(outputDir, files.JournalID, files.ArticleID)
 	if err := os.MkdirAll(articleDir, 0755); err != nil {
 		return "", "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Use original filenames: JID_AID.pdf and JID_AID-marked-boxes.json
+	// Expected PDF and JSON filenames for return values
 	pdfFilename := fmt.Sprintf("%s_%s.pdf", files.JournalID, files.ArticleID)
 	jsonFilename := fmt.Sprintf("%s_%s-marked-boxes.json", files.JournalID, files.ArticleID)
 
-	// Write PDF
-	pdfPath = filepath.Join(articleDir, pdfFilename)
-	if err := os.WriteFile(pdfPath, files.PDFData, 0644); err != nil {
-		return "", "", fmt.Errorf("failed to write PDF: %w", err)
+	// Write ALL files to local directory, preserving subdirectory structure
+	savedCount := 0
+	for _, fileData := range files.Files {
+		// Use RelativePath to preserve directory structure (e.g., "images/fig1.png")
+		localPath := filepath.Join(articleDir, fileData.RelativePath)
+
+		// Create subdirectories if needed
+		localDir := filepath.Dir(localPath)
+		if err := os.MkdirAll(localDir, 0755); err != nil {
+			return "", "", fmt.Errorf("failed to create subdirectory for %s: %w", fileData.RelativePath, err)
+		}
+
+		if err := os.WriteFile(localPath, fileData.Data, 0644); err != nil {
+			return "", "", fmt.Errorf("failed to write %s: %w", fileData.RelativePath, err)
+		}
+		savedCount++
+		log.Printf("   💾 Saved: %s (%d bytes)", fileData.RelativePath, len(fileData.Data))
+
+		// Track PDF and JSON paths for backwards compatibility
+		if fileData.Filename == pdfFilename {
+			pdfPath = localPath
+		} else if fileData.Filename == jsonFilename {
+			jsonPath = localPath
+		}
 	}
 
-	// Write JSON
-	jsonPath = filepath.Join(articleDir, jsonFilename)
-	if err := os.WriteFile(jsonPath, files.JSONData, 0644); err != nil {
-		return "", "", fmt.Errorf("failed to write JSON: %w", err)
-	}
-
-	log.Printf("📁 Files saved to: %s", articleDir)
-	log.Printf("   PDF: %s", pdfFilename)
-	log.Printf("   JSON: %s", jsonFilename)
+	log.Printf("📁 %d files saved to: %s", savedCount, articleDir)
 	return pdfPath, jsonPath, nil
+}
+
+// UploadFile uploads data to S3 at the specified path
+func (c *Client) UploadFile(ctx context.Context, objectPath string, data []byte, contentType string) error {
+	reader := bytes.NewReader(data)
+	_, err := c.minioClient.PutObject(ctx, c.bucket, objectPath, reader, int64(len(data)), minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload to S3: %w", err)
+	}
+	log.Printf("✅ Uploaded to S3: %s (%d bytes)", objectPath, len(data))
+	return nil
 }
 
 // CheckConnection verifies the S3 connection and bucket access

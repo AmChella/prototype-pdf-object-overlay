@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// Load configuration
-	configPath := filepath.Join(projectRoot, "server", "config", "server-config.json")
+	configPath := filepath.Join(projectRoot, "server-go", "config", "server-config.json")
 	configManager := config.NewManager(configPath)
 
 	if err := configManager.LoadConfig(); err != nil {
