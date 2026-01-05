@@ -83,3 +83,6 @@ cache/*
 server-go/pdf-overlay-server
 data
 containers
+popeye
+scooby
+lamput

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"server-go/config"
 	"server-go/models"
+	"server-go/modules/jsonprocessor"
 )
 
 var upgrader = websocket.Upgrader{
@@ -191,20 +193,68 @@ func (h *WSHandler) handleInstruction(conn *websocket.Conn, req models.WSInstruc
 		"instruction": req.Instruction,
 	})
 
-	// TODO: Implement instruction processing
-	h.sendProgress(conn, 50, "Processing instruction...")
+	h.sendProgress(conn, 25, "Processing instruction...")
+
+	// Process JSON update if journal/article context is provided
+	var jsonUpdateError error
+	if req.JournalID != "" && req.ArticleID != "" {
+		jsonUpdateError = h.updateJSONPosition(req)
+		if jsonUpdateError != nil {
+			log.Printf("⚠️ JSON update failed: %v", jsonUpdateError)
+		} else {
+			log.Printf("✅ JSON update successful for %s", req.ElementID)
+		}
+	}
+
+	h.sendProgress(conn, 75, "Finalizing changes...")
+
+	result := map[string]interface{}{
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	if jsonUpdateError != nil {
+		result["jsonUpdateError"] = jsonUpdateError.Error()
+	} else if req.JournalID != "" && req.ArticleID != "" {
+		result["jsonUpdated"] = true
+		result["updatedFile"] = "satellite.json"
+	}
 
 	h.broadcastToAll(map[string]interface{}{
 		"type":        "processing_complete",
 		"elementId":   req.ElementID,
 		"overlayType": req.OverlayType,
 		"instruction": req.Instruction,
-		"result": map[string]interface{}{
-			"timestamp": time.Now().Format(time.RFC3339),
-		},
+		"result":      result,
 	})
 
 	log.Println("✅ Instruction processing completed successfully")
+}
+
+// updateJSONPosition updates the satellite.json with figure position
+func (h *WSHandler) updateJSONPosition(req models.WSInstructionRequest) error {
+	// Build path to satellite.json
+	articleDir := filepath.Join(h.projectRoot, "cache", "articles", req.JournalID, req.ArticleID)
+	jsonPath := filepath.Join(articleDir, "satellite.json")
+
+	// Create JSON processor
+	jp := jsonprocessor.New(h.configManager)
+
+	// Load or create document
+	if err := jp.LoadDocument(jsonPath); err != nil {
+		return fmt.Errorf("failed to load satellite.json: %w", err)
+	}
+
+	// Apply instruction
+	if err := jp.ApplyInstruction(req.ElementID, req.OverlayType, req.Instruction, req.InstructionValue); err != nil {
+		return fmt.Errorf("failed to apply instruction: %w", err)
+	}
+
+	// Save document
+	if err := jp.SaveDocument(""); err != nil {
+		return fmt.Errorf("failed to save satellite.json: %w", err)
+	}
+
+	return nil
 }
 
 func (h *WSHandler) handleBatchInstructions(conn *websocket.Conn, req models.WSBatchInstructionsRequest) {
@@ -215,18 +265,82 @@ func (h *WSHandler) handleBatchInstructions(conn *websocket.Conn, req models.WSB
 		"batchSize": len(req.Instructions),
 	})
 
-	// TODO: Implement batch instruction processing
-	h.sendProgress(conn, 50, "Processing batch instructions...")
+	var errors []string
+	var successCount int
+
+	// Process each instruction
+	for i, instruction := range req.Instructions {
+		progress := int((float64(i+1) / float64(len(req.Instructions))) * 100)
+		h.sendProgress(conn, progress, fmt.Sprintf("Processing instruction %d/%d...", i+1, len(req.Instructions)))
+
+		// Use batch-level context if instruction doesn't have its own
+		journalID := instruction.JournalID
+		articleID := instruction.ArticleID
+		if journalID == "" {
+			journalID = req.JournalID
+		}
+		if articleID == "" {
+			articleID = req.ArticleID
+		}
+
+		// Process JSON update if context is available
+		if journalID != "" && articleID != "" {
+			err := h.updateJSONPositionForInstruction(instruction.ElementID, instruction.OverlayType,
+				instruction.Instruction, instruction.InstructionValue, journalID, articleID)
+			if err != nil {
+				errMsg := fmt.Sprintf("Instruction %d failed: %v", i+1, err)
+				log.Printf("⚠️ %s", errMsg)
+				errors = append(errors, errMsg)
+			} else {
+				successCount++
+				log.Printf("✅ Instruction %d processed successfully for element %s", i+1, instruction.ElementID)
+			}
+		} else {
+			log.Printf("⚠️ Skipping instruction %d: missing article context", i+1)
+			errors = append(errors, fmt.Sprintf("Instruction %d: missing article context", i+1))
+		}
+	}
+
+	result := map[string]interface{}{
+		"timestamp": time.Now().Format(time.RFC3339),
+		"total":     len(req.Instructions),
+		"success":   successCount,
+		"failed":    len(errors),
+	}
+
+	if len(errors) > 0 {
+		result["errors"] = errors
+	}
 
 	h.broadcastToAll(map[string]interface{}{
 		"type":      "processing_complete",
 		"batchSize": len(req.Instructions),
-		"result": map[string]interface{}{
-			"timestamp": time.Now().Format(time.RFC3339),
-		},
+		"result":    result,
 	})
 
-	log.Printf("✅ Batch processing completed successfully (%d instructions)", len(req.Instructions))
+	log.Printf("✅ Batch processing completed: %d/%d successful", successCount, len(req.Instructions))
+}
+
+// updateJSONPositionForInstruction is a helper for batch processing
+func (h *WSHandler) updateJSONPositionForInstruction(elementID, overlayType, instruction, instructionValue, journalID, articleID string) error {
+	articleDir := filepath.Join(h.projectRoot, "cache", "articles", journalID, articleID)
+	jsonPath := filepath.Join(articleDir, "satellite.json")
+
+	jp := jsonprocessor.New(h.configManager)
+
+	if err := jp.LoadDocument(jsonPath); err != nil {
+		return fmt.Errorf("failed to load satellite.json: %w", err)
+	}
+
+	if err := jp.ApplyInstruction(elementID, overlayType, instruction, instructionValue); err != nil {
+		return fmt.Errorf("failed to apply instruction: %w", err)
+	}
+
+	if err := jp.SaveDocument(""); err != nil {
+		return fmt.Errorf("failed to save satellite.json: %w", err)
+	}
+
+	return nil
 }
 
 func (h *WSHandler) sendDropdownOptions(conn *websocket.Conn, overlayType string) {

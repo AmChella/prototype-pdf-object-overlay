@@ -1,6 +1,10 @@
+
+
 services:
+  # MinIO S3-compatible storage
   minio:
     image: minio/minio:latest
+    container_name: pdf-minio
     ports:
       - "9003:9000"
       - "9002:9001"
@@ -11,3 +15,44 @@ services:
       - ./persistence/minio/data:/data
       - ./persistence/minio/config:/root/.minio
     command: server /data --console-address ":9001"
+    restart: unless-stopped
+    networks:
+      - pdf-network
+
+  # Main application with lualatex, golang, nodejs
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: pdf-app
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "3000:3000"
+    volumes:
+      # Mount paths: host -> container
+      - ./scooby:/ingestion        # ingestion code
+      - ./lamput:/app              # application code
+      - ./popeye:/reingestion      # reingestion code
+      # Application directories
+      - ./server-go:/server-go     # Go server
+      - ./ui-react:/ui-react       # React UI
+      # Persistent data
+      - ./cache:/cache
+      - ./data:/data
+    environment:
+      - NODE_ENV=development
+      - GO_ENV=development
+    working_dir: /app
+    # Keep container running
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
+    depends_on:
+      - minio
+    networks:
+      - pdf-network
+
+networks:
+  pdf-network:
+    driver: bridge

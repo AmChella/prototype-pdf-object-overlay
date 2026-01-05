@@ -76,11 +76,15 @@ type WSInstructionRequest struct {
 	OverlayType      string `json:"overlayType"`
 	Instruction      string `json:"instruction"`
 	InstructionValue string `json:"instructionValue,omitempty"`
+	JournalID        string `json:"journalId,omitempty"`
+	ArticleID        string `json:"articleId,omitempty"`
 	UserID           string `json:"userId,omitempty"`
 }
 
 type WSBatchInstructionsRequest struct {
 	Type         string                 `json:"type"`
+	JournalID    string                 `json:"journalId,omitempty"`
+	ArticleID    string                 `json:"articleId,omitempty"`
 	Instructions []WSInstructionRequest `json:"instructions"`
 	UserID       string                 `json:"userId,omitempty"`
 }

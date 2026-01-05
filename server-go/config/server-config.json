@@ -5,20 +5,50 @@
   },
   "dropdownOptions": {
     "figure": [
-      {"value": "placement_t", "label": "Placement: Top"},
-      {"value": "placement_b", "label": "Placement: Bottom"},
-      {"value": "placement_h", "label": "Placement: Here"},
-      {"value": "placement_p", "label": "Placement: Float Page"}
+      {
+        "value": "placement_t",
+        "label": "Placement: Top"
+      },
+      {
+        "value": "placement_b",
+        "label": "Placement: Bottom"
+      },
+      {
+        "value": "placement_h",
+        "label": "Placement: Here"
+      },
+      {
+        "value": "placement_p",
+        "label": "Placement: Float Page"
+      }
     ],
     "paragraph": [
-      {"value": "para_tight", "label": "Para Tight"},
-      {"value": "para_loose", "label": "Para Loose"}
+      {
+        "value": "para_tight",
+        "label": "Para Tight"
+      },
+      {
+        "value": "para_loose",
+        "label": "Para Loose"
+      }
     ],
     "table": [
-      {"value": "placement_t", "label": "Placement: Top"},
-      {"value": "placement_b", "label": "Placement: Bottom"},
-      {"value": "placement_h", "label": "Placement: Here"},
-      {"value": "placement_p", "label": "Placement: Float Page"}
+      {
+        "value": "placement_t",
+        "label": "Placement: Top"
+      },
+      {
+        "value": "placement_b",
+        "label": "Placement: Bottom"
+      },
+      {
+        "value": "placement_h",
+        "label": "Placement: Here"
+      },
+      {
+        "value": "placement_p",
+        "label": "Placement: Float Page"
+      }
     ]
   },
   "xmlInstructionTemplates": {
@@ -131,5 +161,18 @@
     "pdfOutput": "TeX/document-generated.pdf",
     "jsonOutput": "TeX/document-generated-marked-boxes.json",
     "uiOutputDir": "ui/"
+  },
+  "figurePositionSettings": {
+    "storageFormat": "json",
+    "enableJsonUpdate": true,
+    "enableXmlUpdate": true,
+    "jsonSettings": {
+      "fileName": "satellite.json",
+      "targetKey": "float_positions"
+    },
+    "xmlSettings": {
+      "filePattern": "{journalId}_{articleId}.xml",
+      "elementPath": "ce:figure[@id='{elementId}']"
+    }
   }
 }

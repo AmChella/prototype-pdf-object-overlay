@@ -40,6 +40,8 @@ function AppContent() {
     selectedOverlayId,
     overlayData,
     setOverlayData,
+    articleContext,
+    setArticleContext,
     setEnableInstructionStack,
     setEnableVersioning
   } = useAppContext();
@@ -495,6 +497,9 @@ function AppContent() {
     console.log('📦 Article fetched from S3:', data);
     toast.showInfo(`Loading article ${data.journalId}/${data.articleId}...`);
 
+    // Store article context for later use in instructions
+    setArticleContext({ journalId: data.journalId, articleId: data.articleId });
+
     try {
       // Load PDF from URL
       const pdf = await loadPDF(data.pdfUrl);
@@ -509,7 +514,7 @@ function AppContent() {
       console.error('❌ Error loading fetched article:', err);
       toast.showError('Failed to load article: ' + err.message);
     }
-  }, [loadPDF, contextLoadPDF, setOverlayData, toast]);
+  }, [loadPDF, contextLoadPDF, setOverlayData, setArticleContext, toast]);
 
   // Track if modal was manually closed to prevent auto-reopening
   const modalClosedManuallyRef = React.useRef(false);
@@ -546,6 +551,7 @@ function AppContent() {
   // Handle action submission
   const handleActionSubmit = useCallback((instructionData) => {
     console.log('📤 Sending instruction:', instructionData);
+    console.log('📋 Article context:', articleContext);
 
     // Check WebSocket connection
     if (!isConnected) {
@@ -556,8 +562,13 @@ function AppContent() {
     // Send instruction via WebSocket
     const message = {
       type: 'instruction',
-      ...instructionData
+      ...instructionData,
+      // Include article context for JSON update
+      journalId: articleContext.journalId,
+      articleId: articleContext.articleId
     };
+
+    console.log('📨 Full message:', message);
 
     try {
       const sent = send(message);
@@ -578,7 +589,7 @@ function AppContent() {
       console.error('❌ Failed to send instruction:', error);
       toast.showError('Failed to send instruction: ' + error.message);
     }
-  }, [isConnected, send, toast]);
+  }, [isConnected, send, toast, articleContext]);
 
   return (
     <div className="pdf-overlay-app">
